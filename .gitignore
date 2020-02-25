@@ -127,3 +127,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# ygriku
+.vscode
+iPythonWork
+data/
+figure/
+result/
+dask-worker-space/
