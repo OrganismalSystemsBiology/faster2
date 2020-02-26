@@ -196,6 +196,34 @@ def plot_scatter2D(points_2D, classes, means, covariances, colors, xlabel, ylabe
     return fig
 
 
+def shrink_rem_cluster(means, covar):
+    """ By definition, REM epochs should not be z<0. This function focuses on the 
+    ellipsoid representing the 95% confidence area of REM cluster. If this function  
+    finds any ellipsoid axis penetrating the xy plane (i.e. the end-point is 
+    at z<0), it shrinks the length of the axis to make the end-point be at z = 0.
+    """
+    z_mean = means[2]
+
+    W, V = np.linalg.eigh(covar) # W: eigen values, V:eigen vectors (unit length)
+    
+    if np.any(z_mean - np.abs(V[2,:])*2*np.sqrt(W) <0):
+        idx_of_maxZ = np.argmax(np.abs(V[2,:]*np.sqrt(W))) # find the maxZ-axis: an axis with the maximum abs(Z)
+
+        new_w = (z_mean/(2*np.abs(V[2, idx_of_maxZ])))**2 # 2SD (95% confidnece area) of the new maxZ-axis points at z=0
+
+        delta_w = W[idx_of_maxZ] - new_w
+
+        zc = np.abs(V[2,:] / V[2, idx_of_maxZ]) # z contributions of all axes relative to the maxZ-axis
+        W_updated = W - delta_w * zc 
+
+        covar_updated = V@np.diag(W_updated)@V.T
+    else:
+        # if no axis found under z=0, return zero-size array
+        covar_updated = np.array([])
+
+    return covar_updated
+ 
+
 def main(data_dir, result_dir):
     """ main """
 
@@ -242,7 +270,7 @@ def main(data_dir, result_dir):
                                                    1,
                                                    psd_mat_emg)
 
-        # spread epochs on the 3D active x sleep x REM plane
+        # spread epochs on the 3D (active x sleep x REM) plane
         psd_mat = np.concatenate([
             psd_norm_mat_eeg.reshape(*psd_norm_mat_eeg.shape, 1),
             psd_norm_mat_emg.reshape(*psd_norm_mat_emg.shape, 1)
@@ -258,7 +286,7 @@ def main(data_dir, result_dir):
         stage_coord_valid = stage_coord[~bidx_unknown,:]
         ndata = len(stage_coord_valid)
 
-        # classify active and sleep stages by Gaussian HMM on the 2D plale of active x sleep
+        # classify active and sleep stages by Gaussian HMM on the 2D plane of (active x sleep)
         model = hmm.GaussianHMM(n_components=2, covariance_type='full', init_params='tc')
         model.startprob_ = np.array([0.5, 0.5])
         model.means_ = np.array([[-20, 20],[20, -20]])
@@ -267,11 +295,11 @@ def main(data_dir, result_dir):
         print(remodel.covars_)
         pred = remodel.predict(stage_coord_valid[:, 0:2])
 
-        # focus on the active epochs
-        stage_coord_active = np.array([[y[0], y[1], y[2] if pred[i] == 0 else 0]
+        # leave only the active epochs expanded on z-axis (compress NREM epochs on xy-plane (z=0) )
+        stage_coord_expacti = np.array([[y[0], y[1], y[2] if pred[i] == 0 else 0]
                                        for i, y in enumerate(stage_coord_valid)])
 
-        # classify REM, Wake, and NREM
+        # classify REM, Wake, and NREM (first classification)
         model = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='c', params='smtc')
         model.startprob_ = np.array([0.1, 0.45, 0.45])
         model.means_ = np.array([[-20, 10, 100], [-20, 20, -50], [20, -20, 0]])
@@ -279,13 +307,37 @@ def main(data_dir, result_dir):
                                     [7.45143157e-04, 9.68280746e-01, 3.09741107e-02],
                                     [1.00482802e-02, 2.49591897e-02, 9.64992530e-01]])
 
-        remodel_active = model.fit(stage_coord_active)
+        remodel_active = model.fit(stage_coord_expacti)
+        print(remodel_active.score(stage_coord_expacti))
         print(remodel_active.means_)
         print(remodel_active.covars_)
 
-        pred3 = remodel_active.predict(stage_coord_active)
+        pred3 = remodel_active.predict(stage_coord_expacti)
         print(f'REM:{1440*np.sum(pred3==0)/ndata} NREM:{1440*np.sum(pred3==2)/ndata} Wake:{1440*np.sum(pred3==1)/ndata}')
 
+        covar_REM_updated = shrink_rem_cluster(remodel_active.means_[0], remodel_active.covars_[0])
+        if covar_REM_updated.size > 0:
+            # second classification with the updated covariance of the REM claster
+            mm_old = np.copy(remodel_active.means_)
+            cc_old = np.copy(remodel_active.covars_)
+            cc_old[0] = covar_REM_updated
+
+            model = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='', params='st')
+            model.startprob_ = np.array([0.1, 0.45, 0.45])
+            model.transmat_ = np.array([[8.76994067e-01, 6.53922215e-02, 5.76137113e-02],
+                                        [7.45143157e-04, 9.68280746e-01, 3.09741107e-02],
+                                        [1.00482802e-02, 2.49591897e-02, 9.64992530e-01]])
+            model.means_ = mm_old
+            model.covars_ = cc_old
+
+            remodel_active = model.fit(stage_coord_expacti)
+            print(remodel_active.score(stage_coord_expacti))
+            print(remodel_active.means_)
+            print(remodel_active.covars_)
+        
+            pred3 = remodel_active.predict(stage_coord_expacti)
+            print(f'[UPDATED] REM:{1440*np.sum(pred3==0)/ndata} NREM:{1440*np.sum(pred3==2)/ndata} Wake:{1440*np.sum(pred3==1)/ndata}')
+    
         # output staging result
         stage = np.repeat('Unknown', epoch_num)
         stage[~bidx_unknown] = np.array([STAGE_LABELS[p] for p in pred3])
@@ -305,7 +357,7 @@ def main(data_dir, result_dir):
         fig = plot_scatter2D(points, pred, remodel.means_ , remodel.covars_, colors, XLABEL, YLABEL)
         fig.savefig(os.path.join(path2figures,'ScatterPlot2D_LowFreq-HighFreq_Axes.png'))
 
-        points_active = stage_coord_active[((pred3==0) | (pred3==1)), :]
+        points_active = stage_coord_expacti[((pred3==0) | (pred3==1)), :]
         pred_active = pred3[((pred3==0) | (pred3==1))]
 
         axes = [0, 2] # Low-freq axis & REM axis
@@ -338,7 +390,7 @@ def main(data_dir, result_dir):
 
 
         for c in set(pred3):
-            t_points = stage_coord_active[pred3==c]
+            t_points = stage_coord_expacti[pred3==c]
             ax.scatter3D(t_points[:,0], t_points[:,1], t_points[:,2], s=0.005, color=colors[c])
 
             ax.scatter3D(t_points[:,0], t_points[:,1], min(ax.get_zlim()), s=0.001, color='grey')
