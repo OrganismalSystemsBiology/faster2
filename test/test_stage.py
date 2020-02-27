@@ -5,6 +5,7 @@ import sys
 sys.path.append('../')
 import stage
 import datetime
+import pickle
 
 class  TestStage(unittest.TestCase):
     """Test class for stage.py
@@ -124,37 +125,21 @@ class  TestStage(unittest.TestCase):
 
     
     def test_shrink_rem_cluster_case1(self):
+
         m = np.array([[-2.75317264e+01,  7.72000698e+00,  6.10634993e+01],
                       [-2.73355234e+01,  3.70791857e+01, -3.76312561e+01],
                       [1.94492513e+01, -2.18150968e+01,  5.94370116e-16]])
         c = np.array([[ 215.50327258,   19.76270819,  170.27740157],
                       [19.76270819,  212.28787468,  149.06614634],
                       [170.27740157,  149.06614634, 1821.99592244]])
-        exp = np.array([[142.86587753, -42.10978493,  88.71408145],
-                        [-42.10978493, 129.2552841,  80.03791474],
-                        [88.71408145,  80.03791474, 933.6907858]])
+        exp = np.array([[198.90607922,   5.34295722,  78.45686422],
+                        [5.34295722, 196.56756494,  68.85410475],
+                        [78.45686422,  68.85410475, 935.79826227]])
 
         ans = stage.shrink_rem_cluster(m[0], c)
 
         np.testing.assert_array_almost_equal(exp, ans)
 
-
-    def test_shrink_rem_cluster_case2(self):
-        m = np.array([[-2.04035992e+01,  1.43512496e+01,  5.79714911e+01],
-                      [-3.59651861e+01,  3.58875806e+01, -3.28437179e+01],
-                      [2.28375864e+01, -2.20896361e+01,  1.59169525e-23]])
-        c = np.array([[203.90227019,   17.67168732,   73.17508511],
-                      [17.67168732,  202.54271871,   82.0291738],
-                      [73.17508511,   82.0291738, 1787.74074277]])
-        exp = np.array([[163.41458794, -14.25507458,  32.43918623],
-                        [-14.25507458, 166.32497199,  35.92628217],
-                        [32.43918623,  35.92628217, 840.88863634]])
-
-        ans = stage.shrink_rem_cluster(m[0], c)
-
-        np.testing.assert_array_almost_equal(exp, ans)
-
-    
     def test_shrink_rem_cluster_no_shrink(self):
 
         m = np.array([[142.86587753, -42.10978493,  88.71408145],
@@ -168,6 +153,28 @@ class  TestStage(unittest.TestCase):
         assert exp == ans
 
 
+    def test_pickle_voltage_matrices(self):
+        dummy_eeg = np.zeros((32400, 800))
+        dummy_emg  = np.ones((32400, 800))
+
+        stage.pickle_voltage_matrices(dummy_eeg, dummy_emg, '../data', 'ID-test')
+        
+        with open('../data/pkl/ID-test_EEG.pkl', 'rb') as pkl:
+            res_eeg = pickle.load(pkl)
+
+        with open('../data/pkl/ID-test_EMG.pkl', 'rb') as pkl:
+            res_emg = pickle.load(pkl)
+
+        assert (res_eeg.shape == (32400, 800)) & (res_emg.shape == (32400, 800))
+
+
+    def test_read_voltage_matrices_pickle(self):
+        exp = [[32400, 800], [32400, 800]]
+
+        (eeg_vm, emg_vm) = stage.read_voltage_matrices('../data', 'ID-test', 32400, 100, 8)
+        ans = [eeg_vm.shape, emg_vm.shape]
+        
+        np.testing.assert_array_equal(exp, ans)
 
 if __name__ == "__main__":
     unittest.main()

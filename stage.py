@@ -12,6 +12,7 @@ import matplotlib as mpl
 from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d import axes3d
 from scipy import linalg
+import pickle
 
 EPOCH_LEN_SEC = 8
 STAGE_LABELS = ['REM', 'Wake', 'NREM']
@@ -83,7 +84,7 @@ def read_voltage_matrices(data_dir, device_id, epoch_num, sample_freq, epoch_len
     in the shape of (epochs, signals).
     
     Args:
-        data_dir (str): a path to the dirctory that contains dsi.txt/ directory.
+        data_dir (str): a path to the dirctory that contains dsi.txt/ or pkl/ directory.
         device_id (str): a transmitter ID (e.g., ID47476) or channel ID (e.g., 09). 
         epoch_num (int): the number of epochs to be read.
         sample_freq (int): sampling frequency 
@@ -92,20 +93,39 @@ def read_voltage_matrices(data_dir, device_id, epoch_num, sample_freq, epoch_len
     Returns:
         [(np.array(2), np.arrray(2))]: a pair of voltage 2D matrices in a tuple
     """
-    dsi_reader_eeg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'), 
-                                       f'{device_id}', 
-                                       'EEG', 
-                                       sample_freq=sample_freq)
-    dsi_reader_emg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'), 
-                                       f'{device_id}', 
-                                       'EMG', 
-                                       sample_freq=sample_freq)
-    
-    eeg_df = dsi_reader_eeg.read_epochs(1, epoch_num)
-    emg_df = dsi_reader_emg.read_epochs(1, epoch_num)
 
-    eeg_vm = eeg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
-    emg_vm = emg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
+    try:
+        # if exist, read pickled data
+        pkl_path = os.path.join(data_dir, 'pkl', f'{device_id}_EEG.pkl')
+        with open(pkl_path, 'rb') as pkl:
+            print(f'reading {pkl_path}')
+            eeg_vm = pickle.load(pkl)
+        
+        pkl_path = os.path.join(data_dir, 'pkl', f'{device_id}_EMG.pkl')
+        with open(pkl_path, 'rb') as pkl:
+            print(f'reading {pkl_path}')
+            emg_vm = pickle.load(pkl)
+
+    except FileNotFoundError:
+        dsi_reader_eeg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'), 
+                                        f'{device_id}', 
+                                        'EEG', 
+                                        sample_freq=sample_freq)
+        dsi_reader_emg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'), 
+                                        f'{device_id}', 
+                                        'EMG', 
+                                        sample_freq=sample_freq)
+        
+        eeg_df = dsi_reader_eeg.read_epochs(1, epoch_num)
+        emg_df = dsi_reader_emg.read_epochs(1, epoch_num)
+
+        eeg_vm = eeg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
+        emg_vm = emg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
+
+    expected_shape = (epoch_num, sample_freq * epoch_len_sec)
+    if (eeg_vm.shape != expected_shape) or (emg_vm.shape != expected_shape):
+        raise ValueError(f'The obtained matrix shape EEG:{eeg_vm.shape} or EMG:{emg_vm.shape} is unexpected. '\
+                         f'Expected shape is {expected_shape}. Check the validity of the file.')
 
     return (eeg_vm, emg_vm)
 
@@ -198,9 +218,10 @@ def plot_scatter2D(points_2D, classes, means, covariances, colors, xlabel, ylabe
 
 def shrink_rem_cluster(means, covar):
     """ By definition, REM epochs should not be z<0. This function focuses on the 
-    ellipsoid representing the 95% confidence area of REM cluster. If this function  
+    ellipsoid that represents the 95% confidence area of REM cluster. If this function  
     finds any ellipsoid axis penetrating the xy plane (i.e. the end-point is 
-    at z<0), it shrinks the length of the axis to make the end-point be at z = 0.
+    at z<0), it shrinks the length of the most-negative axis to point at z = 0 and 
+    lengths of other axes according to their z-contributions.
     """
     z_mean = means[2]
 
@@ -211,20 +232,47 @@ def shrink_rem_cluster(means, covar):
 
         new_w = (z_mean/(2*np.abs(V[2, idx_of_maxZ])))**2 # 2SD (95% confidnece area) of the new maxZ-axis points at z=0
 
-        delta_w = W[idx_of_maxZ] - new_w
-
+        sr = new_w / W[idx_of_maxZ] # shrink ratio
         zc = np.abs(V[2,:] / V[2, idx_of_maxZ]) # z contributions of all axes relative to the maxZ-axis
-        W_updated = W - delta_w * zc 
+        sh_axes = 1 - (1-sr)*zc # shrink ratios of each axis
+
+        W_updated = W * sh_axes
 
         covar_updated = V@np.diag(W_updated)@V.T
     else:
-        # if no axis found under z=0, return zero-size array
+        # if no axis found under z=0, return a zero-size array
         covar_updated = np.array([])
 
     return covar_updated
  
 
-def main(data_dir, result_dir):
+def pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id):
+    """ To save time for reading CSV files, pickle the voltage matrices
+    in pickle files.
+    
+    Args:
+        eeg_vm (np.array): voltage matrix for EEG data
+        emg_vm (np.array): voltage matrix for EMG data
+        data_dir (str):  path to the directory of pickled data (pkl/)
+        device_id (str): a string to identify the recording device (e.g. ID47467)
+    """
+    pickle_dir = os.path.join(data_dir, 'pkl/')
+    os.makedirs(pickle_dir, exist_ok=True)
+
+    # save EEG
+    pkl_path = os.path.join(pickle_dir, f'{device_id}_EEG.pkl')
+    with open(pkl_path, 'wb') as pkl:
+        print(f'saving the voltage matrix into {pkl_path}')
+        pickle.dump(eeg_vm, pkl)
+    
+    # save EMG
+    pkl_path = os.path.join(pickle_dir, f'{device_id}_EMG.pkl')
+    with open(pkl_path, 'wb') as pkl:
+        print(f'saving the voltage matrix into {pkl_path}')
+        pickle.dump(emg_vm, pkl)
+
+
+def main(data_dir, result_dir, pickle_input_data):
     """ main """
 
     exp_info_df = read_exp_info(data_dir)
@@ -245,6 +293,10 @@ def main(data_dir, result_dir):
         print(f'[{i}] Reading voltages of {device_id}')
         print(f'epoch num:{epoch_num} recorded at sample frequency {sample_freq}')
         (eeg_vm, emg_vm) = read_voltage_matrices(data_dir, device_id, epoch_num, sample_freq, EPOCH_LEN_SEC)
+
+        if pickle_input_data:
+            # if the command line argument has the optinal flag for pickling, pickle the voltage matrices
+            pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id)
 
         # replace nans in the data if possible
         nan_ratio_eeg = np.apply_along_axis(et.patch_nan, 1, eeg_vm)
@@ -299,6 +351,8 @@ def main(data_dir, result_dir):
         stage_coord_expacti = np.array([[y[0], y[1], y[2] if pred[i] == 0 else 0]
                                        for i, y in enumerate(stage_coord_valid)])
 
+        
+
         # classify REM, Wake, and NREM (first classification)
         model = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='c', params='smtc')
         model.startprob_ = np.array([0.1, 0.45, 0.45])
@@ -330,13 +384,18 @@ def main(data_dir, result_dir):
             model.means_ = mm_old
             model.covars_ = cc_old
 
-            remodel_active = model.fit(stage_coord_expacti)
-            print(remodel_active.score(stage_coord_expacti))
-            print(remodel_active.means_)
-            print(remodel_active.covars_)
-        
-            pred3 = remodel_active.predict(stage_coord_expacti)
-            print(f'[UPDATED] REM:{1440*np.sum(pred3==0)/ndata} NREM:{1440*np.sum(pred3==2)/ndata} Wake:{1440*np.sum(pred3==1)/ndata}')
+            remodel_active_update = model.fit(stage_coord_expacti)
+
+            print(remodel_active_update.score(stage_coord_expacti))
+            print(remodel_active_update.means_)
+            print(remodel_active_update.covars_)
+
+            if remodel_active_update.score(stage_coord_expacti) < remodel_active.score(stage_coord_expacti):
+                # update the predictions if the update successfully improved the score
+                pred3 = remodel_active_update.predict(stage_coord_expacti)
+                print(f'[UPDATED] REM:{1440*np.sum(pred3==0)/ndata} NREM:{1440*np.sum(pred3==2)/ndata} Wake:{1440*np.sum(pred3==1)/ndata}')
+            else:
+                print(f'Tried but failed to shrink REM cluster')
     
         # output staging result
         stage = np.repeat('Unknown', epoch_num)
@@ -405,7 +464,8 @@ if __name__ == '__main__':
    parser = argparse.ArgumentParser()
    parser.add_argument("-d", "--data_dir", help="path to the directory of input data")
    parser.add_argument("-r", "--result_dir", help="path to the directory of staging result")
+   parser.add_argument("-p", "--pickle_input_data", help="flag to pickle input data", action='store_true')
 
    args = parser.parse_args()
    
-   main(args.data_dir, args.result_dir)
+   main(args.data_dir, args.result_dir, args.pickle_input_data)
