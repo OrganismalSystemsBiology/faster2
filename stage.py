@@ -8,6 +8,7 @@ import re
 from datetime import datetime, timedelta
 from scipy import signal
 from hmmlearn import hmm
+from sklearn import mixture
 import matplotlib as mpl
 from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d import axes3d
@@ -261,15 +262,21 @@ def pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id):
 
     # save EEG
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EEG.pkl')
-    with open(pkl_path, 'wb') as pkl:
-        print(f'saving the voltage matrix into {pkl_path}')
-        pickle.dump(eeg_vm, pkl)
+    if os.path.exists(pkl_path):
+        print(f'file already exists. Nothing to be done. {pkl_path}')
+    else:
+        with open(pkl_path, 'wb') as pkl:
+            print(f'saving the voltage matrix into {pkl_path}')
+            pickle.dump(eeg_vm, pkl)
     
     # save EMG
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EMG.pkl')
-    with open(pkl_path, 'wb') as pkl:
-        print(f'saving the voltage matrix into {pkl_path}')
-        pickle.dump(emg_vm, pkl)
+    if os.path.exists(pkl_path):
+        print(f'file already exists. Nothing to be done. {pkl_path} ')
+    else:
+        with open(pkl_path, 'wb') as pkl:
+            print(f'saving the voltage matrix into {pkl_path}')
+            pickle.dump(emg_vm, pkl)
 
 
 def main(data_dir, result_dir, pickle_input_data):
@@ -351,8 +358,6 @@ def main(data_dir, result_dir, pickle_input_data):
         stage_coord_expacti = np.array([[y[0], y[1], y[2] if pred[i] == 0 else 0]
                                        for i, y in enumerate(stage_coord_valid)])
 
-        
-
         # classify REM, Wake, and NREM (first classification)
         model = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='c', params='smtc')
         model.startprob_ = np.array([0.1, 0.45, 0.45])
@@ -362,18 +367,62 @@ def main(data_dir, result_dir, pickle_input_data):
                                     [1.00482802e-02, 2.49591897e-02, 9.64992530e-01]])
 
         remodel_active = model.fit(stage_coord_expacti)
-        print(remodel_active.score(stage_coord_expacti))
+        current_score = remodel_active.score(stage_coord_expacti)
+        print('HMM1')
+        print(current_score)
         print(remodel_active.means_)
         print(remodel_active.covars_)
-
         pred3 = remodel_active.predict(stage_coord_expacti)
         print(f'REM:{1440*np.sum(pred3==0)/ndata} NREM:{1440*np.sum(pred3==2)/ndata} Wake:{1440*np.sum(pred3==1)/ndata}')
 
-        covar_REM_updated = shrink_rem_cluster(remodel_active.means_[0], remodel_active.covars_[0])
+        # try to refine REM cluster by Gaussian mixture model (GMM)
+        gmm = mixture.GaussianMixture(n_components=3, covariance_type='full', 
+                              means_init=np.array([[-20, 0, 100], [-20, 20, -50], [20, 20, 0]])) #REM, apparent WAKE, WAKE      
+        points_active = stage_coord_expacti[pred==0, :]
+        gmm_model = gmm.fit(points_active)
+        gmm_pred_active = gmm_model.predict(points_active)
+        print('GMM')
+        print(gmm_model.means_)
+        print(gmm_model.covariances_)
+        rem_mean_refined = gmm_model.means_[0]
+        rem_covar_refined = gmm_model.covariances_[0]
+
+        # second classification with the refined covariance of the REM claster
+        mm_old = np.copy(remodel_active.means_)
+        cc_old = np.copy(remodel_active.covars_)
+        mm_old[0] = rem_mean_refined
+        cc_old[0] = rem_covar_refined
+
+        model = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='', params='st')
+        model.startprob_ = np.array([0.1, 0.45, 0.45])
+        model.transmat_ = np.array([[8.76994067e-01, 6.53922215e-02, 5.76137113e-02],
+                                    [7.45143157e-04, 9.68280746e-01, 3.09741107e-02],
+                                    [1.00482802e-02, 2.49591897e-02, 9.64992530e-01]])
+        model.means_ = mm_old
+        model.covars_ = cc_old
+
+        remodel_active_refined = model.fit(stage_coord_expacti)
+
+        print('HMM2')
+        print(remodel_active_refined.score(stage_coord_expacti))
+        print(remodel_active_refined.means_)
+        print(remodel_active_refined.covars_)
+
+        if remodel_active_refined.score(stage_coord_expacti) < current_score:
+            # update the predictions if the refinement successfully improved the score
+            pred3 = remodel_active_refined.predict(stage_coord_expacti)
+            current_score = remodel_active_refined.score(stage_coord_expacti)
+            current_means = remodel_active_refined.means_
+            current_covars = remodel_active_refined.covars_
+            print(f'[REFINED] REM:{1440*np.sum(pred3==0)/ndata} NREM:{1440*np.sum(pred3==2)/ndata} Wake:{1440*np.sum(pred3==1)/ndata}')
+        else:
+            print(f'Tried to refine REM cluster, no improvement was achieved.')
+
+        covar_REM_updated = shrink_rem_cluster(remodel_active_refined.means_[0], remodel_active_refined.covars_[0])
         if covar_REM_updated.size > 0:
             # second classification with the updated covariance of the REM claster
-            mm_old = np.copy(remodel_active.means_)
-            cc_old = np.copy(remodel_active.covars_)
+            mm_old = np.copy(remodel_active_refined.means_)
+            cc_old = np.copy(remodel_active_refined.covars_)
             cc_old[0] = covar_REM_updated
 
             model = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='', params='st')
@@ -384,15 +433,18 @@ def main(data_dir, result_dir, pickle_input_data):
             model.means_ = mm_old
             model.covars_ = cc_old
 
-            remodel_active_update = model.fit(stage_coord_expacti)
+            remodel_active_updated = model.fit(stage_coord_expacti)
 
-            print(remodel_active_update.score(stage_coord_expacti))
-            print(remodel_active_update.means_)
-            print(remodel_active_update.covars_)
+            print(remodel_active_updated.score(stage_coord_expacti))
+            print(remodel_active_updated.means_)
+            print(remodel_active_updated.covars_)
 
-            if remodel_active_update.score(stage_coord_expacti) < remodel_active.score(stage_coord_expacti):
+            if remodel_active_updated.score(stage_coord_expacti) < current_score:
                 # update the predictions if the update successfully improved the score
-                pred3 = remodel_active_update.predict(stage_coord_expacti)
+                pred3 = remodel_active_updated.predict(stage_coord_expacti)
+                current_score = remodel_active_updated.score(stage_coord_expacti)
+                current_means = remodel_active_updated.means_
+                current_covars = remodel_active_updated.covars_
                 print(f'[UPDATED] REM:{1440*np.sum(pred3==0)/ndata} NREM:{1440*np.sum(pred3==2)/ndata} Wake:{1440*np.sum(pred3==1)/ndata}')
             else:
                 print(f'Tried but failed to shrink REM cluster')
@@ -422,15 +474,15 @@ def main(data_dir, result_dir, pickle_input_data):
         axes = [0, 2] # Low-freq axis & REM axis
         points_prj = points_active[:, np.r_[axes]]
         colors =  ['olivedrab', '#EF5E26', ] # REM, Wake
-        mm = np.array([m[np.r_[axes]] for m in remodel_active.means_[np.r_[0,1]]])
-        cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in remodel_active.covars_[np.r_[0,1]]])
+        mm = np.array([m[np.r_[axes]] for m in current_means[np.r_[0,1]]])
+        cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in current_covars[np.r_[0,1]]])
         fig = plot_scatter2D(points_prj, pred_active, mm , cc, colors, XLABEL, ZLABEL)
         fig.savefig(os.path.join(path2figures, 'ScatterPlot2D_LowFreq-REM_axes.png'))
 
         axes = [1, 2] # High-freq axis & REM axis
         points_prj = points_active[:, np.r_[axes]]
-        mm = np.array([m[np.r_[axes]] for m in remodel_active.means_[np.r_[0,1]]])
-        cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in remodel_active.covars_[np.r_[0,1]]])
+        mm = np.array([m[np.r_[axes]] for m in current_means[np.r_[0,1]]])
+        cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in current_covars[np.r_[0,1]]])
         fig = plot_scatter2D(points_prj, pred_active, mm , cc, colors, YLABEL, ZLABEL)
         fig.savefig(os.path.join(path2figures,'ScatterPlot2D_HighFreq-REM_axes.png'))
 
