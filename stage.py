@@ -233,7 +233,12 @@ def shrink_rem_cluster(means, covar):
 
     W, V = np.linalg.eigh(covar) # W: eigen values, V:eigen vectors (unit length)
     
-    if np.any(z_mean - np.abs(V[2,:])*2*np.sqrt(W) <0):
+    if np.any(W<=0):
+        # not processable if there is zero or negative component of W
+        print(f'Negative or zero component was found in eigen values of the covariance: {W}')
+        covar_updated = np.array([]) 
+
+    elif np.any(z_mean - np.abs(V[2,:])*2*np.sqrt(W) <0):
         idx_of_maxZ = np.argmax(np.abs(V[2,:]*np.sqrt(W))) # find the maxZ-axis: an axis with the maximum abs(Z)
 
         new_w = (z_mean/(2*np.abs(V[2, idx_of_maxZ])))**2 # 2SD (95% confidnece area) of the new maxZ-axis points at z=0
@@ -284,6 +289,17 @@ def pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id):
             pickle.dump(emg_vm, pkl)
 
 
+def remove_extreme_power(y):
+    n_len = len(y)
+
+    bidx = (np.abs(y) > 3)
+    n_extr = np.sum(bidx)
+
+    y[bidx] = np.random.normal(0, 1, n_extr)
+    
+    return n_extr / n_len
+
+
 def main(data_dir, result_dir, pickle_input_data):
     """ main """
 
@@ -304,16 +320,22 @@ def main(data_dir, result_dir, pickle_input_data):
 
         print(f'[{i}] Reading voltages of {device_id}')
         print(f'epoch num:{epoch_num} recorded at sample frequency {sample_freq}')
-        (eeg_vm, emg_vm, not_yet_pickled) = read_voltage_matrices(
+        (eeg_vm_org, emg_vm_org, not_yet_pickled) = read_voltage_matrices(
             data_dir, device_id, epoch_num, sample_freq, EPOCH_LEN_SEC)
 
         if (pickle_input_data and not_yet_pickled):
             # if the command line argument has the optinal flag for pickling, pickle the voltage matrices
-            pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id)
+            pickle_voltage_matrices(eeg_vm_org, emg_vm_org, data_dir, device_id)
 
-        # replace nans in the data if possible
-        nan_ratio_eeg = np.apply_along_axis(et.patch_nan, 1, eeg_vm)
-        nan_ratio_emg = np.apply_along_axis(et.patch_nan, 1, emg_vm)     
+        # recover nans in the data if possible
+        nan_ratio_eeg = np.apply_along_axis(et.patch_nan, 1, eeg_vm_org)
+        nan_ratio_emg = np.apply_along_axis(et.patch_nan, 1, emg_vm_org)
+
+        # mark unrecoverable epochs as unknown
+        bidx_unknown = np.apply_along_axis(np.any, 1, np.isnan(
+            eeg_vm_org)) | np.apply_along_axis(np.any, 1, np.isnan(emg_vm_org))
+        eeg_vm = eeg_vm_org[~bidx_unknown,:]
+        emg_vm = emg_vm_org[~bidx_unknown,:]
 
         # power-spectrum normalization of EEG
         psd_mat_eeg = np.apply_along_axis(lambda y: psd(y, n_fft, sample_freq), 1, eeg_vm)
@@ -335,6 +357,10 @@ def main(data_dir, result_dir, pickle_input_data):
                                                    1,
                                                    psd_mat_emg)
 
+        # remove extreme powers
+        extrp_ratio_eeg = np.apply_along_axis(remove_extreme_power, 1, psd_norm_mat_eeg)
+        extrp_ratio_emg = np.apply_along_axis(remove_extreme_power, 1, psd_norm_mat_emg)
+
         # spread epochs on the 3D (active x sleep x REM) plane
         psd_mat = np.concatenate([
             psd_norm_mat_eeg.reshape(*psd_norm_mat_eeg.shape, 1),
@@ -347,22 +373,20 @@ def main(data_dir, result_dir, pickle_input_data):
             np.sum(y[bidx_theta_freq,0])-np.sum(y[bidx_delta_freq, 0])-np.sum(y[bidx_muscle_freq, 1])
         ) for y in psd_mat])
 
-        bidx_unknown = np.apply_along_axis(np.any, 1, np.isnan(stage_coord))
-        stage_coord_valid = stage_coord[~bidx_unknown,:]
-        ndata = len(stage_coord_valid)
+        ndata = len(stage_coord)
 
         # classify active and sleep stages by Gaussian HMM on the 2D plane of (active x sleep)
         model = hmm.GaussianHMM(n_components=2, covariance_type='full', init_params='tc')
         model.startprob_ = np.array([0.5, 0.5])
         model.means_ = np.array([[-20, 20],[20, -20]])
-        remodel = model.fit(stage_coord_valid[:, 0:2])
+        remodel = model.fit(stage_coord[:, 0:2])
         print(remodel.means_)
         print(remodel.covars_)
-        pred = remodel.predict(stage_coord_valid[:, 0:2])
+        pred = remodel.predict(stage_coord[:, 0:2])
 
         # leave only the active epochs expanded on z-axis (compress NREM epochs on xy-plane (z=0) )
         stage_coord_expacti = np.array([[y[0], y[1], y[2] if pred[i] == 0 else 0]
-                                       for i, y in enumerate(stage_coord_valid)])
+                                       for i, y in enumerate(stage_coord)])
 
         # classify REM, Wake, and NREM (first classification)
         model = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='c', params='smtc')
@@ -374,6 +398,8 @@ def main(data_dir, result_dir, pickle_input_data):
 
         remodel_active = model.fit(stage_coord_expacti)
         current_score = remodel_active.score(stage_coord_expacti)
+        current_means = remodel_active.means_
+        current_covars = remodel_active.covars_
         print('HMM1')
         print(current_score)
         print(remodel_active.means_)
@@ -424,7 +450,7 @@ def main(data_dir, result_dir, pickle_input_data):
         else:
             print(f'Tried to refine REM cluster, no improvement was achieved.')
 
-        covar_REM_updated = shrink_rem_cluster(remodel_active_refined.means_[0], remodel_active_refined.covars_[0])
+        covar_REM_updated = shrink_rem_cluster(current_means[0], current_covars[0])
         if covar_REM_updated.size > 0:
             # second classification with the updated covariance of the REM claster
             mm_old = np.copy(remodel_active_refined.means_)
@@ -454,7 +480,15 @@ def main(data_dir, result_dir, pickle_input_data):
                 print(f'[UPDATED] REM:{1440*np.sum(pred3==0)/ndata} NREM:{1440*np.sum(pred3==2)/ndata} Wake:{1440*np.sum(pred3==1)/ndata}')
             else:
                 print(f'Tried but failed to shrink REM cluster')
-    
+
+        # Check the z coordinate of REM cluster
+        rem_cluster_z = current_means[0,2]
+        if rem_cluster_z <= 0:
+            print('no effective REM cluster was found')
+            pred3[pred3==0] = 1
+            current_means[0] = np.zeros(3)
+            current_covars[0] = np.zeros((3,3))
+
         # output staging result
         stage = np.repeat('Unknown', epoch_num)
         stage[~bidx_unknown] = np.array([STAGE_LABELS[p] for p in pred3])
@@ -470,7 +504,7 @@ def main(data_dir, result_dir, pickle_input_data):
 
         colors =  ['#EF5E26', '#23B4EF'] # Wake, NREM
         axes = [0, 1]
-        points = stage_coord_valid[:, np.r_[axes]]
+        points = stage_coord[:, np.r_[axes]]
         fig = plot_scatter2D(points, pred, remodel.means_ , remodel.covars_, colors, XLABEL, YLABEL)
         fig.savefig(os.path.join(path2figures,'ScatterPlot2D_LowFreq-HighFreq_Axes.png'))
 
