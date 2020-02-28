@@ -130,8 +130,8 @@ def read_voltage_matrices(data_dir, device_id, epoch_num, sample_freq, epoch_len
 
     expected_shape = (epoch_num, sample_freq * epoch_len_sec)
     if (eeg_vm.shape != expected_shape) or (emg_vm.shape != expected_shape):
-        raise ValueError(f'The obtained matrix shape EEG:{eeg_vm.shape} or EMG:{emg_vm.shape} is unexpected. '\
-                         f'Expected shape is {expected_shape}. Check the validity of the file.')
+        raise ValueError(f'Unexpected shape of matrices EEG:{eeg_vm.shape} or EMG:{emg_vm.shape}. '\
+                         f'Expected shape is {expected_shape}. Check the validity of the files.')
 
     return (eeg_vm, emg_vm, not_yet_pickled)
 
@@ -290,9 +290,21 @@ def pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id):
 
 
 def remove_extreme_power(y):
+    """In FASTER2, the spectrum powers are normalized so that the mean and 
+    SD of each frequency power over all epochs become 0 and 1, respectively.  
+    This function removes extremely high or low powers in the normalized 
+    spectrum by replacing the value with a random number sampled from the 
+    noraml distribution: N(0, 1). 
+    
+    Args:
+        y (np.array(1)): a vector of normalized power spectrum
+    
+    Returns:
+        float: The ratio of the replaced exreme values in the given vector.
+    """
     n_len = len(y)
 
-    bidx = (np.abs(y) > 3)
+    bidx = (np.abs(y) > 3) # extreme means over 3SD
     n_extr = np.sum(bidx)
 
     y[bidx] = np.random.normal(0, 1, n_extr)
@@ -400,19 +412,20 @@ def main(data_dir, result_dir, pickle_input_data):
         current_score = remodel_active.score(stage_coord_expacti)
         current_means = remodel_active.means_
         current_covars = remodel_active.covars_
+        current_pred3 = remodel_active.predict(stage_coord_expacti)
+        current_pred3_proba = remodel_active.predict_proba(stage_coord_expacti)
         print('HMM1')
         print(current_score)
-        print(remodel_active.means_)
-        print(remodel_active.covars_)
-        pred3 = remodel_active.predict(stage_coord_expacti)
-        print(f'REM:{1440*np.sum(pred3==0)/ndata} NREM:{1440*np.sum(pred3==2)/ndata} Wake:{1440*np.sum(pred3==1)/ndata}')
-
+        print(current_means)
+        print(current_covars)
+        print(f'[REFINED] REM:{1440*np.sum(current_pred3==0)/ndata} '\
+              f'NREM:{1440*np.sum(current_pred3==2)/ndata} '\
+              f'Wake:{1440*np.sum(current_pred3==1)/ndata}')
         # try to refine REM cluster by Gaussian mixture model (GMM)
         gmm = mixture.GaussianMixture(n_components=3, covariance_type='full', 
                               means_init=np.array([[-20, 0, 100], [-20, 20, -50], [20, 20, 0]])) #REM, apparent WAKE, WAKE      
         points_active = stage_coord_expacti[pred==0, :]
         gmm_model = gmm.fit(points_active)
-        gmm_pred_active = gmm_model.predict(points_active)
         print('GMM')
         print(gmm_model.means_)
         print(gmm_model.covariances_)
@@ -436,17 +449,19 @@ def main(data_dir, result_dir, pickle_input_data):
         remodel_active_refined = model.fit(stage_coord_expacti)
 
         print('HMM2')
-        print(remodel_active_refined.score(stage_coord_expacti))
-        print(remodel_active_refined.means_)
-        print(remodel_active_refined.covars_)
-
         if remodel_active_refined.score(stage_coord_expacti) < current_score:
             # update the predictions if the refinement successfully improved the score
-            pred3 = remodel_active_refined.predict(stage_coord_expacti)
             current_score = remodel_active_refined.score(stage_coord_expacti)
             current_means = remodel_active_refined.means_
             current_covars = remodel_active_refined.covars_
-            print(f'[REFINED] REM:{1440*np.sum(pred3==0)/ndata} NREM:{1440*np.sum(pred3==2)/ndata} Wake:{1440*np.sum(pred3==1)/ndata}')
+            current_pred3 = remodel_active_refined.predict(stage_coord_expacti)
+            current_pred3_proba = remodel_active_refined.predict_proba(stage_coord_expacti)
+            print(current_score)
+            print(current_means)
+            print(current_covars)
+            print(f'[REFINED] REM:{1440*np.sum(current_pred3==0)/ndata} '\
+                  f'NREM:{1440*np.sum(current_pred3==2)/ndata} '\
+                  f'Wake:{1440*np.sum(current_pred3==1)/ndata}')
         else:
             print(f'Tried to refine REM cluster, no improvement was achieved.')
 
@@ -467,17 +482,20 @@ def main(data_dir, result_dir, pickle_input_data):
 
             remodel_active_updated = model.fit(stage_coord_expacti)
 
-            print(remodel_active_updated.score(stage_coord_expacti))
-            print(remodel_active_updated.means_)
-            print(remodel_active_updated.covars_)
-
             if remodel_active_updated.score(stage_coord_expacti) < current_score:
                 # update the predictions if the update successfully improved the score
-                pred3 = remodel_active_updated.predict(stage_coord_expacti)
+                current_pred3 = remodel_active_updated.predict(stage_coord_expacti)
+                current_pred3_proba = remodel_active_updated.predict_proba(stage_coord_expacti)
                 current_score = remodel_active_updated.score(stage_coord_expacti)
                 current_means = remodel_active_updated.means_
                 current_covars = remodel_active_updated.covars_
-                print(f'[UPDATED] REM:{1440*np.sum(pred3==0)/ndata} NREM:{1440*np.sum(pred3==2)/ndata} Wake:{1440*np.sum(pred3==1)/ndata}')
+                print('HMM3')
+                print(current_score)
+                print(current_means)
+                print(current_covars)
+                print(f'[REFINED] REM:{1440*np.sum(current_pred3==0)/ndata} '\
+                      f'NREM:{1440*np.sum(current_pred3==2)/ndata} '\
+                      f'Wake:{1440*np.sum(current_pred3==1)/ndata}')
             else:
                 print(f'Tried but failed to shrink REM cluster')
 
@@ -485,13 +503,14 @@ def main(data_dir, result_dir, pickle_input_data):
         rem_cluster_z = current_means[0,2]
         if rem_cluster_z <= 0:
             print('no effective REM cluster was found')
-            pred3[pred3==0] = 1
+            current_pred3[current_pred3 == 0] = 1
+            current_pred3_proba[current_pred3 == 0] = np.array([0, p[0]+p[1], p[2]] for p in current_pred3_proba[current_pred3 == 0])
             current_means[0] = np.zeros(3)
-            current_covars[0] = np.zeros((3,3))
+            current_covars[0] = np.zeros((3, 3))
 
         # output staging result
         stage = np.repeat('Unknown', epoch_num)
-        stage[~bidx_unknown] = np.array([STAGE_LABELS[p] for p in pred3])
+        stage[~bidx_unknown] = np.array([STAGE_LABELS[p] for p in current_pred3])
         stage4csv = np.concatenate([np.repeat('#',7), stage])
         os.makedirs(result_dir, exist_ok=True)
         pd.DataFrame(stage4csv).to_csv(os.path.join(result_dir, f'{device_id}.auto.stage.csv'),
@@ -508,8 +527,8 @@ def main(data_dir, result_dir, pickle_input_data):
         fig = plot_scatter2D(points, pred, remodel.means_ , remodel.covars_, colors, XLABEL, YLABEL)
         fig.savefig(os.path.join(path2figures,'ScatterPlot2D_LowFreq-HighFreq_Axes.png'))
 
-        points_active = stage_coord_expacti[((pred3==0) | (pred3==1)), :]
-        pred_active = pred3[((pred3==0) | (pred3==1))]
+        points_active = stage_coord_expacti[((current_pred3==0) | (current_pred3==1)), :]
+        pred_active = current_pred3[((current_pred3==0) | (current_pred3==1))]
 
         axes = [0, 2] # Low-freq axis & REM axis
         points_prj = points_active[:, np.r_[axes]]
@@ -540,8 +559,8 @@ def main(data_dir, result_dir, pickle_input_data):
         ax.tick_params(axis='both', which='major', labelsize=8)
 
 
-        for c in set(pred3):
-            t_points = stage_coord_expacti[pred3==c]
+        for c in set(current_pred3):
+            t_points = stage_coord_expacti[current_pred3==c]
             ax.scatter3D(t_points[:,0], t_points[:,1], t_points[:,2], s=0.005, color=colors[c])
 
             ax.scatter3D(t_points[:,0], t_points[:,1], min(ax.get_zlim()), s=0.001, color='grey')
