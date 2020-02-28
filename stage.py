@@ -92,11 +92,14 @@ def read_voltage_matrices(data_dir, device_id, epoch_num, sample_freq, epoch_len
         epoch_len_sec (int): the length of an epoch in seconds
     
     Returns:
-        [(np.array(2), np.arrray(2))]: a pair of voltage 2D matrices in a tuple
+        (np.array(2), np.arrray(2), bool): a pair of voltage 2D matrices in a tuple
+        and a switch to tell if there was pickled data.
+
     """
 
     try:
-        # if exist, read pickled data
+        not_yet_pickled = False
+        # Try to read pickled data
         pkl_path = os.path.join(data_dir, 'pkl', f'{device_id}_EEG.pkl')
         with open(pkl_path, 'rb') as pkl:
             print(f'reading {pkl_path}')
@@ -108,6 +111,8 @@ def read_voltage_matrices(data_dir, device_id, epoch_num, sample_freq, epoch_len
             emg_vm = pickle.load(pkl)
 
     except FileNotFoundError:
+        # Read DSI text data
+        not_yet_pickled = True
         dsi_reader_eeg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'), 
                                         f'{device_id}', 
                                         'EEG', 
@@ -128,7 +133,7 @@ def read_voltage_matrices(data_dir, device_id, epoch_num, sample_freq, epoch_len
         raise ValueError(f'The obtained matrix shape EEG:{eeg_vm.shape} or EMG:{emg_vm.shape} is unexpected. '\
                          f'Expected shape is {expected_shape}. Check the validity of the file.')
 
-    return (eeg_vm, emg_vm)
+    return (eeg_vm, emg_vm, not_yet_pickled)
 
 
 def interpret_datetimestr(datetime_str):
@@ -285,13 +290,13 @@ def main(data_dir, result_dir, pickle_input_data):
     exp_info_df = read_exp_info(data_dir)
     (epoch_num, sample_freq) = interpret_exp_info(exp_info_df)
  
-    n_fft = int(256 * sample_freq/100) # assures compatibe frequency bins regardless different sampleling frequencies
+    n_fft = int(256 * sample_freq/100) # assures frequency bins compatibe among different sampleling frequencies
     freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129) # same frequency bins given by signal.welch()
-    bidx_sleep_freq = (freq_bins<20)
-    bidx_active_freq = (freq_bins>30)
-    bidx_theta_freq = (freq_bins>4) & (freq_bins<10)
-    bidx_delta_freq = (freq_bins<4)
-    bidx_muscle_freq = (freq_bins>30)
+    bidx_sleep_freq = (freq_bins<20) # 52 bins
+    bidx_active_freq = (freq_bins>30) # 52 bins
+    bidx_theta_freq = (freq_bins>4) & (freq_bins<10) # 15 bins
+    bidx_delta_freq = (freq_bins<4) # 11 bins
+    bidx_muscle_freq = (freq_bins>30) # 52 bins
 
     mouse_info_df = read_mouse_info(data_dir)
     for i, r in mouse_info_df.iterrows():
@@ -299,9 +304,10 @@ def main(data_dir, result_dir, pickle_input_data):
 
         print(f'[{i}] Reading voltages of {device_id}')
         print(f'epoch num:{epoch_num} recorded at sample frequency {sample_freq}')
-        (eeg_vm, emg_vm) = read_voltage_matrices(data_dir, device_id, epoch_num, sample_freq, EPOCH_LEN_SEC)
+        (eeg_vm, emg_vm, not_yet_pickled) = read_voltage_matrices(
+            data_dir, device_id, epoch_num, sample_freq, EPOCH_LEN_SEC)
 
-        if pickle_input_data:
+        if (pickle_input_data and not_yet_pickled):
             # if the command line argument has the optinal flag for pickling, pickle the voltage matrices
             pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id)
 
