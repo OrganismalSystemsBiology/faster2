@@ -176,5 +176,14 @@ class  TestStage(unittest.TestCase):
         
         np.testing.assert_array_equal(exp, ans)
 
+
+    def test_spectrum_normalize(self):
+        exp = np.load('NormPSD_EEG_0-9thRow_ID37963_FASTER_20191101_EEG_2019-013.npy')
+        test_vm = np.load('Voltage_EEG_0-9thRow_ID37963_FASTER_20191101_EEG_2019-013.npy')
+
+        ans = stage.spectrum_normalize(test_vm, 256, 100)
+
+        np.testing.assert_array_equal(exp, ans)
+
 if __name__ == "__main__":
     unittest.main()

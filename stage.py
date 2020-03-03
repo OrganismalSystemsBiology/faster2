@@ -26,6 +26,11 @@ FIG_DPI = 100 # dot per inch
 COLOR_WAKE = '#EF5E26'
 COLOR_NREM = '#23B4EF'
 COLOR_REM  = 'olivedrab'
+DEFAULT_START_PROBA = np.array([0.1, 0.45, 0.45])
+DEFAULT_MEAN_STAGE_COORDS = np.array([[-20, 10, 100], [-20, 20, -50], [20, -20, 0]])
+DEFAULT_TRANSMAT = np.array([[8.76994067e-01, 6.53922215e-02, 5.76137113e-02],
+                             [7.45143157e-04, 9.68280746e-01, 3.09741107e-02],
+                             [1.00482802e-02, 2.49591897e-02, 9.64992530e-01]])
 
 def read_mouse_info(data_dir):
     """This function reads the mouse.info.csv file 
@@ -312,6 +317,75 @@ def remove_extreme_power(y):
     return n_extr / n_len
 
 
+def spectrum_normalize(voltage_matrix, n_fft, sample_freq):
+    # power-spectrum normalization of EEG
+    psd_mat = np.apply_along_axis(lambda y: psd(y, n_fft, sample_freq), 1, voltage_matrix)
+    psd_mat = 10*np.log10(psd_mat) # decibel-like
+    psd_mean = np.apply_along_axis(np.nanmean, 0, psd_mat)
+    psd_sd = np.apply_along_axis(np.nanstd, 0, psd_mat)
+    spec_norm_fac = 1/psd_sd
+    psd_norm_mat = np.apply_along_axis(lambda y: spec_norm_fac*(y - psd_mean),
+                                                1,
+                                                psd_mat)
+    return psd_norm_mat
+
+
+def classify_active_and_NREM(stage_coord_2D):
+    # classify active and NREM stages by Gaussian HMM on the 2D plane of (active x sleep)
+    model = hmm.GaussianHMM(n_components=2, covariance_type='full', init_params='tc')
+    model.startprob_ = np.array([0.5, 0.5])
+    model.means_ = np.array([[-20, 20],[20, -20]]) # Active, NREM
+    remodel = model.fit(stage_coord_2D)
+    print(remodel.means_)
+    print(remodel.covars_)
+    pred = remodel.predict(stage_coord_2D)    
+
+    return (pred, remodel.means_, remodel.covars_)
+
+
+def classify_three_stages_first(stage_coord_3D):
+    model = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='c', params='smtc')
+    model.startprob_ = DEFAULT_START_PROBA
+    model.means_ = DEFAULT_MEAN_STAGE_COORDS
+    model.transmat_ = DEFAULT_TRANSMAT
+
+    remodel = model.fit(stage_coord_3D)
+    score = remodel.score(stage_coord_3D)
+    means = remodel.means_
+    covars = remodel.covars_
+    pred3 = remodel.predict(stage_coord_3D)
+    pred3_proba = remodel.predict_proba(stage_coord_3D)
+
+    print('HMM1')
+    print(score)
+    print(means)
+    print(covars)
+
+    return (pred3, pred3_proba, score, means, covars)
+
+
+def classify_three_stages_update(stage_coord_3D, mm ,cc):
+    model = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='', params='st')
+    model.startprob_ = DEFAULT_START_PROBA
+    model.transmat_ = DEFAULT_TRANSMAT
+    model.means_ = mm
+    model.covars_ = cc
+
+    remodel = model.fit(stage_coord_3D)
+    score = remodel.score(stage_coord_3D)
+    means = remodel.means_
+    covars = remodel.covars_
+    pred3 = remodel.predict(stage_coord_3D)
+    pred3_proba = remodel.predict_proba(stage_coord_3D)
+
+    print('HMM update')
+    print(score)
+    print(means)
+    print(covars)
+
+    return (pred3, pred3_proba, score, means, covars)
+
+
 def main(data_dir, result_dir, pickle_input_data):
     """ main """
 
@@ -339,92 +413,67 @@ def main(data_dir, result_dir, pickle_input_data):
             # if the command line argument has the optinal flag for pickling, pickle the voltage matrices
             pickle_voltage_matrices(eeg_vm_org, emg_vm_org, data_dir, device_id)
 
+
         # recover nans in the data if possible
         nan_ratio_eeg = np.apply_along_axis(et.patch_nan, 1, eeg_vm_org)
         nan_ratio_emg = np.apply_along_axis(et.patch_nan, 1, emg_vm_org)
 
-        # mark unrecoverable epochs as unknown
+
+        # extrude unrecoverable epochs as unknown
         bidx_unknown = np.apply_along_axis(np.any, 1, np.isnan(
             eeg_vm_org)) | np.apply_along_axis(np.any, 1, np.isnan(emg_vm_org))
         eeg_vm = eeg_vm_org[~bidx_unknown,:]
         emg_vm = emg_vm_org[~bidx_unknown,:]
 
-        # power-spectrum normalization of EEG
-        psd_mat_eeg = np.apply_along_axis(lambda y: psd(y, n_fft, sample_freq), 1, eeg_vm)
-        psd_mat_eeg = 10*np.log10(psd_mat_eeg) # decibel of power-spectrum-density (v**2/Hz)
-        psd_mean_eeg  = np.apply_along_axis(np.nanmean, 0, psd_mat_eeg)
-        psd_sd_eeg  = np.apply_along_axis(np.nanstd, 0, psd_mat_eeg)
-        spec_norm_fac_eeg = 1/psd_sd_eeg
-        psd_norm_mat_eeg = np.apply_along_axis(lambda y: spec_norm_fac_eeg*(y - psd_mean_eeg),
-                                                   1,
-                                                   psd_mat_eeg)
 
-        # power-spectrum normalization of EMG
-        psd_mat_emg = np.apply_along_axis(lambda y: psd(y, n_fft, sample_freq), 1, emg_vm)
-        psd_mat_emg = 10*np.log10(psd_mat_emg) # decibel of power-spectrum-density (v**2/Hz)
-        psd_mean_emg  = np.apply_along_axis(np.nanmean, 0, psd_mat_emg)
-        psd_sd_emg  = np.apply_along_axis(np.nanstd, 0, psd_mat_emg)
-        spec_norm_fac_emg = 1/psd_sd_emg
-        psd_norm_mat_emg = np.apply_along_axis(lambda y: spec_norm_fac_emg*(y - psd_mean_emg),
-                                                   1,
-                                                   psd_mat_emg)
+        # power-spectrum normalization of EEG and EMG
+        psd_norm_mat_eeg = spectrum_normalize(eeg_vm, n_fft, sample_freq)
+        psd_norm_mat_emg = spectrum_normalize(emg_vm, n_fft, sample_freq)
+
 
         # remove extreme powers
         extrp_ratio_eeg = np.apply_along_axis(remove_extreme_power, 1, psd_norm_mat_eeg)
         extrp_ratio_emg = np.apply_along_axis(remove_extreme_power, 1, psd_norm_mat_emg)
 
-        # spread epochs on the 3D (active x sleep x REM) plane
+
+        # spread epochs on the 3D (Low freq. x High freq. x REM metric) space
         psd_mat = np.concatenate([
             psd_norm_mat_eeg.reshape(*psd_norm_mat_eeg.shape, 1),
             psd_norm_mat_emg.reshape(*psd_norm_mat_emg.shape, 1)
         ], axis=2)
-
         stage_coord = np.array([(
             np.sum(y[bidx_sleep_freq, 0]), 
             np.sum(y[bidx_active_freq,0]),
             np.sum(y[bidx_theta_freq,0])-np.sum(y[bidx_delta_freq, 0])-np.sum(y[bidx_muscle_freq, 1])
         ) for y in psd_mat])
-
         ndata = len(stage_coord)
 
-        # classify active and sleep stages by Gaussian HMM on the 2D plane of (active x sleep)
-        model = hmm.GaussianHMM(n_components=2, covariance_type='full', init_params='tc')
-        model.startprob_ = np.array([0.5, 0.5])
-        model.means_ = np.array([[-20, 20],[20, -20]])
-        remodel = model.fit(stage_coord[:, 0:2])
-        print(remodel.means_)
-        print(remodel.covars_)
-        pred = remodel.predict(stage_coord[:, 0:2])
 
-        # leave only the active epochs expanded on z-axis (compress NREM epochs on xy-plane (z=0) )
-        stage_coord_expacti = np.array([[y[0], y[1], y[2] if pred[i] == 0 else 0]
+        # 2-stage classification
+        # classify active and NREM epochs by Gaussian HMM on the 2D plane of (Low freq. x High freq.)
+        pred2, means2, covars2 = classify_active_and_NREM(stage_coord[:, 0:2])
+
+
+        # Arrange the stage_coord by compressing NREM (pred==1) epochs on xy-plane (z=0), leaving
+        # only the active epochs (pred==0) expanded along the z-axis
+        stage_coord_expacti = np.array([[y[0], y[1], y[2] if pred2[i] == 0 else 0]
                                        for i, y in enumerate(stage_coord)])
 
-        # classify REM, Wake, and NREM (first classification)
-        model = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='c', params='smtc')
-        model.startprob_ = np.array([0.1, 0.45, 0.45])
-        model.means_ = np.array([[-20, 10, 100], [-20, 20, -50], [20, -20, 0]])
-        model.transmat_ = np.array([[8.76994067e-01, 6.53922215e-02, 5.76137113e-02],
-                                    [7.45143157e-04, 9.68280746e-01, 3.09741107e-02],
-                                    [1.00482802e-02, 2.49591897e-02, 9.64992530e-01]])
 
-        remodel_active = model.fit(stage_coord_expacti)
-        current_score = remodel_active.score(stage_coord_expacti)
-        current_means = remodel_active.means_
-        current_covars = remodel_active.covars_
-        current_pred3 = remodel_active.predict(stage_coord_expacti)
-        current_pred3_proba = remodel_active.predict_proba(stage_coord_expacti)
-        print('HMM1')
-        print(current_score)
-        print(current_means)
-        print(current_covars)
-        print(f'[REFINED] REM:{1440*np.sum(current_pred3==0)/ndata} '\
-              f'NREM:{1440*np.sum(current_pred3==2)/ndata} '\
-              f'Wake:{1440*np.sum(current_pred3==1)/ndata}')
-        # try to refine REM cluster by Gaussian mixture model (GMM)
+        # first 3-stage classification
+        # classify REM, Wake, and NREM by Gaussian HMM on the 3D space
+        c_pred3, c_pred3_proba, c_score, c_means, c_covars = classify_three_stages_first(
+            stage_coord_expacti)
+        
+        print(f'[FIRST] REM:{1440*np.sum(c_pred3==0)/ndata} '
+              f'NREM:{1440*np.sum(c_pred3==2)/ndata} '
+              f'Wake:{1440*np.sum(c_pred3==1)/ndata}')
+
+
+        # try to refine REM cluster by Gaussian mixture model (GMM) on active epochs
         gmm = mixture.GaussianMixture(n_components=3, covariance_type='full', 
                               means_init=np.array([[-20, 0, 100], [-20, 20, -50], [20, 20, 0]])) #REM, apparent WAKE, WAKE      
-        points_active = stage_coord_expacti[pred==0, :]
+        points_active = stage_coord_expacti[c_pred3==0, :]
         gmm_model = gmm.fit(points_active)
         print('GMM')
         print(gmm_model.means_)
@@ -432,85 +481,68 @@ def main(data_dir, result_dir, pickle_input_data):
         rem_mean_refined = gmm_model.means_[0]
         rem_covar_refined = gmm_model.covariances_[0]
 
-        # second classification with the refined covariance of the REM claster
-        mm_old = np.copy(remodel_active.means_)
-        cc_old = np.copy(remodel_active.covars_)
-        mm_old[0] = rem_mean_refined
-        cc_old[0] = rem_covar_refined
 
-        model = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='', params='st')
-        model.startprob_ = np.array([0.1, 0.45, 0.45])
-        model.transmat_ = np.array([[8.76994067e-01, 6.53922215e-02, 5.76137113e-02],
-                                    [7.45143157e-04, 9.68280746e-01, 3.09741107e-02],
-                                    [1.00482802e-02, 2.49591897e-02, 9.64992530e-01]])
-        model.means_ = mm_old
-        model.covars_ = cc_old
+        # second 3-stage classification with the refined covariance of the REM claster
+        mm = np.copy(c_means)
+        cc = np.copy(c_covars)
+        mm[0] = rem_mean_refined
+        cc[0] = rem_covar_refined
+        pred3, pred3_proba, score, means, covars = classify_three_stages_update(
+            stage_coord_expacti, mm, cc)
 
-        remodel_active_refined = model.fit(stage_coord_expacti)
-
-        print('HMM2')
-        if remodel_active_refined.score(stage_coord_expacti) < current_score:
+        if score < c_score:
             # update the predictions if the refinement successfully improved the score
-            current_score = remodel_active_refined.score(stage_coord_expacti)
-            current_means = remodel_active_refined.means_
-            current_covars = remodel_active_refined.covars_
-            current_pred3 = remodel_active_refined.predict(stage_coord_expacti)
-            current_pred3_proba = remodel_active_refined.predict_proba(stage_coord_expacti)
-            print(current_score)
-            print(current_means)
-            print(current_covars)
-            print(f'[REFINED] REM:{1440*np.sum(current_pred3==0)/ndata} '\
-                  f'NREM:{1440*np.sum(current_pred3==2)/ndata} '\
-                  f'Wake:{1440*np.sum(current_pred3==1)/ndata}')
+            c_score = score
+            c_means = means
+            c_covars = covars
+            c_pred3 = pred3
+            c_pred3_proba = pred3_proba
+
+            print(f'[SECOND] REM:{1440*np.sum(c_pred3==0)/ndata} '\
+                  f'NREM:{1440*np.sum(c_pred3==2)/ndata} '\
+                  f'Wake:{1440*np.sum(c_pred3==1)/ndata}')
         else:
-            print(f'Tried to refine REM cluster, no improvement was achieved.')
+            print(f'Tried to refine REM cluster, but no improvement was achieved.')
 
-        covar_REM_updated = shrink_rem_cluster(current_means[0], current_covars[0])
+
+        # try to correct REM cluster by shrinking it if the ellipsoid axis crosses the xy-plane to negative
+        covar_REM_updated = shrink_rem_cluster(c_means[0], c_covars[0])
         if covar_REM_updated.size > 0:
-            # second classification with the updated covariance of the REM claster
-            mm_old = np.copy(remodel_active_refined.means_)
-            cc_old = np.copy(remodel_active_refined.covars_)
-            cc_old[0] = covar_REM_updated
+            # third classification with the shrinked covariance of the REM claster
+            mm = np.copy(c_means)
+            cc = np.copy(c_covars)
+            cc[0] = covar_REM_updated
+            
+            pred3, pred3_proba, score, means, covars = classify_three_stages_update(
+                stage_coord_expacti, mm, cc)
 
-            model = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='', params='st')
-            model.startprob_ = np.array([0.1, 0.45, 0.45])
-            model.transmat_ = np.array([[8.76994067e-01, 6.53922215e-02, 5.76137113e-02],
-                                        [7.45143157e-04, 9.68280746e-01, 3.09741107e-02],
-                                        [1.00482802e-02, 2.49591897e-02, 9.64992530e-01]])
-            model.means_ = mm_old
-            model.covars_ = cc_old
-
-            remodel_active_updated = model.fit(stage_coord_expacti)
-
-            if remodel_active_updated.score(stage_coord_expacti) < current_score:
+            if score < c_score:
                 # update the predictions if the update successfully improved the score
-                current_pred3 = remodel_active_updated.predict(stage_coord_expacti)
-                current_pred3_proba = remodel_active_updated.predict_proba(stage_coord_expacti)
-                current_score = remodel_active_updated.score(stage_coord_expacti)
-                current_means = remodel_active_updated.means_
-                current_covars = remodel_active_updated.covars_
-                print('HMM3')
-                print(current_score)
-                print(current_means)
-                print(current_covars)
-                print(f'[REFINED] REM:{1440*np.sum(current_pred3==0)/ndata} '\
-                      f'NREM:{1440*np.sum(current_pred3==2)/ndata} '\
-                      f'Wake:{1440*np.sum(current_pred3==1)/ndata}')
+                c_pred3 = pred3
+                c_pred3_proba = pred3_proba
+                c_score = score
+                c_means = means
+                c_covars = covars
             else:
                 print(f'Tried but failed to shrink REM cluster')
 
         # Check the z coordinate of REM cluster
-        rem_cluster_z = current_means[0,2]
+        rem_cluster_z = c_means[0,2]
         if rem_cluster_z <= 0:
             print('no effective REM cluster was found')
-            current_pred3[current_pred3 == 0] = 1
-            current_pred3_proba[current_pred3 == 0] = np.array([0, p[0]+p[1], p[2]] for p in current_pred3_proba[current_pred3 == 0])
-            current_means[0] = np.zeros(3)
-            current_covars[0] = np.zeros((3, 3))
+            c_pred3[c_pred3 == 0] = 1
+            c_pred3_proba[c_pred3 == 0] = np.array([0, p[0]+p[1], p[2]] for p in c_pred3_proba[c_pred3 == 0])
+            c_means[0] = np.zeros(3)
+            c_covars[0] = np.zeros((3, 3))
+
+        print(f'[FINAL] REM:{1440*np.sum(c_pred3==0)/ndata} '\
+                f'NREM:{1440*np.sum(c_pred3==2)/ndata} '\
+                f'Wake:{1440*np.sum(c_pred3==1)/ndata}')
+
 
         # output staging result
         stage = np.repeat('Unknown', epoch_num)
-        stage[~bidx_unknown] = np.array([STAGE_LABELS[p] for p in current_pred3])
+        stage[~bidx_unknown] = np.array([STAGE_LABELS[p] for p in c_pred3])
         stage4csv = np.concatenate([np.repeat('#',7), stage])
         os.makedirs(result_dir, exist_ok=True)
         pd.DataFrame(stage4csv).to_csv(os.path.join(result_dir, f'{device_id}.auto.stage.csv'),
@@ -524,24 +556,24 @@ def main(data_dir, result_dir, pickle_input_data):
         colors =  ['#EF5E26', '#23B4EF'] # Wake, NREM
         axes = [0, 1]
         points = stage_coord[:, np.r_[axes]]
-        fig = plot_scatter2D(points, pred, remodel.means_ , remodel.covars_, colors, XLABEL, YLABEL)
+        fig = plot_scatter2D(points, pred2, means2 , covars2, colors, XLABEL, YLABEL)
         fig.savefig(os.path.join(path2figures,'ScatterPlot2D_LowFreq-HighFreq_Axes.png'))
 
-        points_active = stage_coord_expacti[((current_pred3==0) | (current_pred3==1)), :]
-        pred_active = current_pred3[((current_pred3==0) | (current_pred3==1))]
+        points_active = stage_coord_expacti[((c_pred3==0) | (c_pred3==1)), :]
+        pred_active = c_pred3[((c_pred3==0) | (c_pred3==1))]
 
         axes = [0, 2] # Low-freq axis & REM axis
         points_prj = points_active[:, np.r_[axes]]
         colors =  ['olivedrab', '#EF5E26', ] # REM, Wake
-        mm = np.array([m[np.r_[axes]] for m in current_means[np.r_[0,1]]])
-        cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in current_covars[np.r_[0,1]]])
+        mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0,1]]])
+        cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in c_covars[np.r_[0,1]]])
         fig = plot_scatter2D(points_prj, pred_active, mm , cc, colors, XLABEL, ZLABEL)
         fig.savefig(os.path.join(path2figures, 'ScatterPlot2D_LowFreq-REM_axes.png'))
 
         axes = [1, 2] # High-freq axis & REM axis
         points_prj = points_active[:, np.r_[axes]]
-        mm = np.array([m[np.r_[axes]] for m in current_means[np.r_[0,1]]])
-        cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in current_covars[np.r_[0,1]]])
+        mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0,1]]])
+        cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in c_covars[np.r_[0,1]]])
         fig = plot_scatter2D(points_prj, pred_active, mm , cc, colors, YLABEL, ZLABEL)
         fig.savefig(os.path.join(path2figures,'ScatterPlot2D_HighFreq-REM_axes.png'))
 
@@ -559,8 +591,8 @@ def main(data_dir, result_dir, pickle_input_data):
         ax.tick_params(axis='both', which='major', labelsize=8)
 
 
-        for c in set(current_pred3):
-            t_points = stage_coord_expacti[current_pred3==c]
+        for c in set(c_pred3):
+            t_points = stage_coord_expacti[c_pred3==c]
             ax.scatter3D(t_points[:,0], t_points[:,1], t_points[:,2], s=0.005, color=colors[c])
 
             ax.scatter3D(t_points[:,0], t_points[:,1], min(ax.get_zlim()), s=0.001, color='grey')
