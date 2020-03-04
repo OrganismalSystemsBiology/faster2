@@ -15,6 +15,7 @@ from mpl_toolkits.mplot3d import axes3d
 from scipy import linalg
 import pickle
 
+FASTER2_NAME = 'FASTER2'
 EPOCH_LEN_SEC = 8
 STAGE_LABELS = ['REM', 'Wake', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
@@ -187,16 +188,24 @@ def interpret_datetimestr(datetime_str):
 
 
 def interpret_exp_info(exp_info_df):
-    start_datetime_str = exp_info_df['Start datetime'].values[0]
-    end_datetime_str = exp_info_df['End datetime'].values[0]
+    try:
+        start_datetime_str = exp_info_df['Start datetime'].values[0]
+        end_datetime_str = exp_info_df['End datetime'].values[0]
+        sample_freq = exp_info_df['Sampling freq'].values[0]
+        exp_label = exp_info_df['Experiment label'].values[0]
+        rack_label = exp_info_df['Rack label'].values[0]
+    except KeyError as e:
+        print(f'Failed to parse the column: {e} in exp.info.csv. Check the headers.')
+        exit(1)
+
     start_datetime = interpret_datetimestr(start_datetime_str)
     end_datetime = interpret_datetimestr(end_datetime_str)
 
     epoch_num = int((end_datetime - start_datetime).total_seconds() / EPOCH_LEN_SEC)
 
-    sample_freq = exp_info_df['Sampling freq'].values[0]
 
-    return (epoch_num, sample_freq)
+    
+    return (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime)
 
 
 def psd(y, n_fft, sample_freq):
@@ -338,9 +347,10 @@ def classify_active_and_NREM(stage_coord_2D):
     remodel = model.fit(stage_coord_2D)
     print(remodel.means_)
     print(remodel.covars_)
-    pred = remodel.predict(stage_coord_2D)    
+    pred = remodel.predict(stage_coord_2D)
+    pred_proba = remodel.predict_proba(stage_coord_2D)
 
-    return (pred, remodel.means_, remodel.covars_)
+    return (pred, pred_proba, remodel.means_, remodel.covars_)
 
 
 def classify_three_stages_first(stage_coord_3D):
@@ -386,11 +396,146 @@ def classify_three_stages_update(stage_coord_3D, mm ,cc):
     return (pred3, pred3_proba, score, means, covars)
 
 
+def classification_process(stage_coord):
+    ndata = len(stage_coord)
+
+    # 2-stage classification
+    # classify active and NREM epochs by Gaussian HMM on the 2D plane of (Low freq. x High freq.)
+    pred2, pred2_proba, means2, covars2 = classify_active_and_NREM(stage_coord[:, 0:2])
+
+
+    # Arrange the stage_coord by compressing NREM (pred==1) epochs on xy-plane (z=0), leaving
+    # only the active epochs (pred==0) expanded along the z-axis
+    stage_coord_expacti = np.array([[y[0], y[1], y[2] if pred2[i] == 0 else 0]
+                                    for i, y in enumerate(stage_coord)])
+
+
+    # first 3-stage classification
+    # classify REM, Wake, and NREM by Gaussian HMM on the 3D space
+    c_pred3, c_pred3_proba, c_score, c_means, c_covars = classify_three_stages_first(
+        stage_coord_expacti)
+    
+    print(f'[FIRST] REM:{1440*np.sum(c_pred3==0)/ndata} '
+            f'NREM:{1440*np.sum(c_pred3==2)/ndata} '
+            f'Wake:{1440*np.sum(c_pred3==1)/ndata}')
+
+
+    # try to refine REM cluster by Gaussian mixture model (GMM) on active epochs
+    gmm = mixture.GaussianMixture(n_components=3, covariance_type='full', 
+                            means_init=np.array([[-20, 0, 100], [-20, 20, -50], [20, 20, 0]])) #REM, apparent WAKE, WAKE      
+    points_active = stage_coord_expacti[c_pred3==0, :]
+    gmm_model = gmm.fit(points_active)
+    print('GMM')
+    print(gmm_model.means_)
+    print(gmm_model.covariances_)
+    rem_mean_refined = gmm_model.means_[0]
+    rem_covar_refined = gmm_model.covariances_[0]
+
+
+    # second 3-stage classification with the refined covariance of the REM claster
+    mm = np.copy(c_means)
+    cc = np.copy(c_covars)
+    mm[0] = rem_mean_refined
+    cc[0] = rem_covar_refined
+    pred3, pred3_proba, score, means, covars = classify_three_stages_update(
+        stage_coord_expacti, mm, cc)
+
+    if score < c_score:
+        # update the predictions if the refinement successfully improved the score
+        c_score = score
+        c_means = means
+        c_covars = covars
+        c_pred3 = pred3
+        c_pred3_proba = pred3_proba
+
+        print(f'[SECOND] REM:{1440*np.sum(c_pred3==0)/ndata} '\
+                f'NREM:{1440*np.sum(c_pred3==2)/ndata} '\
+                f'Wake:{1440*np.sum(c_pred3==1)/ndata}')
+    else:
+        print(f'Tried to refine REM cluster, but no improvement was achieved.')
+
+    # try to correct REM cluster by shrinking it if the ellipsoid axis crosses the xy-plane to negative
+    covar_REM_updated = shrink_rem_cluster(c_means[0], c_covars[0])
+    if covar_REM_updated.size > 0:
+        # third classification with the shrinked covariance of the REM claster
+        mm = np.copy(c_means)
+        cc = np.copy(c_covars)
+        cc[0] = covar_REM_updated
+        
+        pred3, pred3_proba, score, means, covars = classify_three_stages_update(
+            stage_coord_expacti, mm, cc)
+
+        if score < c_score:
+            # update the predictions if the update successfully improved the score
+            c_pred3 = pred3
+            c_pred3_proba = pred3_proba
+            c_score = score
+            c_means = means
+            c_covars = covars
+        else:
+            print(f'Tried but failed to shrink REM cluster')
+
+    return pred2, pred2_proba, means2, covars2, stage_coord_expacti, c_pred3, c_pred3_proba, c_means, c_covars
+
+
+def draw_scatter_plots(result_dir, device_id, stage_coord, pred2, means2, covars2, stage_coord_expacti, c_pred3, c_means, c_covars):
+    path2figures = os.path.join(result_dir, 'figure', f'{device_id}')
+    os.makedirs(path2figures, exist_ok=True)
+
+    colors =  [COLOR_WAKE, COLOR_NREM] 
+    axes = [0, 1]
+    points = stage_coord[:, np.r_[axes]]
+    fig = plot_scatter2D(points, pred2, means2, covars2, colors, XLABEL, YLABEL)
+    fig.savefig(os.path.join(path2figures,'ScatterPlot2D_LowFreq-HighFreq_Axes.png'))
+
+    points_active = stage_coord_expacti[((c_pred3==0) | (c_pred3==1)), :]
+    pred_active = c_pred3[((c_pred3==0) | (c_pred3==1))]
+
+    axes = [0, 2] # Low-freq axis & REM axis
+    points_prj = points_active[:, np.r_[axes]]
+    colors =  [COLOR_REM, COLOR_WAKE]
+    mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0,1]]])
+    cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in c_covars[np.r_[0,1]]])
+    fig = plot_scatter2D(points_prj, pred_active, mm , cc, colors, XLABEL, ZLABEL)
+    fig.savefig(os.path.join(path2figures, 'ScatterPlot2D_LowFreq-REM_axes.png'))
+
+    axes = [1, 2] # High-freq axis & REM axis
+    points_prj = points_active[:, np.r_[axes]]
+    mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0,1]]])
+    cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in c_covars[np.r_[0,1]]])
+    fig = plot_scatter2D(points_prj, pred_active, mm , cc, colors, YLABEL, ZLABEL)
+    fig.savefig(os.path.join(path2figures,'ScatterPlot2D_HighFreq-REM_axes.png'))
+
+    colors =  [COLOR_REM, COLOR_WAKE, COLOR_NREM]
+    fig = Figure(figsize=(SCATTER_PLOT_FIG_WIDTH, SCATTER_PLOT_FIG_HEIGHT), dpi=FIG_DPI, facecolor='w')
+    ax = fig.add_subplot(111, projection='3d')
+    ax.view_init(elev=10, azim=-135)
+
+    ax.set_xlim(-150, 150)
+    ax.set_ylim(-150, 150)
+    ax.set_zlim(-150, 150)
+    ax.set_xlabel(XLABEL, fontsize=10, rotation = 0)
+    ax.set_ylabel(YLABEL, fontsize=10, rotation = 0)
+    ax.set_zlabel(ZLABEL, fontsize=10, rotation = 0)
+    ax.tick_params(axis='both', which='major', labelsize=8)
+
+
+    for c in set(c_pred3):
+        t_points = stage_coord_expacti[c_pred3==c]
+        ax.scatter3D(t_points[:,0], t_points[:,1], t_points[:,2], s=0.005, color=colors[c])
+
+        ax.scatter3D(t_points[:,0], t_points[:,1], min(ax.get_zlim()), s=0.001, color='grey')
+        ax.scatter3D(t_points[:,0], max(ax.get_ylim()), t_points[:,2], s=0.001, color='grey')
+        ax.scatter3D(max(ax.get_xlim()), t_points[:,1], t_points[:,2], s=0.001, color='grey')
+
+    fig.savefig(os.path.join(path2figures,'ScatterPlot3D.png'))
+
+
 def main(data_dir, result_dir, pickle_input_data):
     """ main """
 
     exp_info_df = read_exp_info(data_dir)
-    (epoch_num, sample_freq) = interpret_exp_info(exp_info_df)
+    (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime) = interpret_exp_info(exp_info_df)
  
     n_fft = int(256 * sample_freq/100) # assures frequency bins compatibe among different sampleling frequencies
     freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129) # same frequency bins given by signal.welch()
@@ -403,6 +548,10 @@ def main(data_dir, result_dir, pickle_input_data):
     mouse_info_df = read_mouse_info(data_dir)
     for i, r in mouse_info_df.iterrows():
         device_id = r[0]
+        mouse_group = r[1]
+        mouse_id = r[2]
+        dob = r[3]
+        note = r[4]
 
         print(f'[{i}] Reading voltages of {device_id}')
         print(f'epoch num:{epoch_num} recorded at sample frequency {sample_freq}')
@@ -448,85 +597,12 @@ def main(data_dir, result_dir, pickle_input_data):
         ) for y in psd_mat])
         ndata = len(stage_coord)
 
-
-        # 2-stage classification
-        # classify active and NREM epochs by Gaussian HMM on the 2D plane of (Low freq. x High freq.)
-        pred2, means2, covars2 = classify_active_and_NREM(stage_coord[:, 0:2])
-
-
-        # Arrange the stage_coord by compressing NREM (pred==1) epochs on xy-plane (z=0), leaving
-        # only the active epochs (pred==0) expanded along the z-axis
-        stage_coord_expacti = np.array([[y[0], y[1], y[2] if pred2[i] == 0 else 0]
-                                       for i, y in enumerate(stage_coord)])
+        # run the classification process
+        pred2, pred2_proba, means2, covars2, stage_coord_expacti, c_pred3, c_pred3_proba, c_means, c_covars = classification_process(
+            stage_coord)
 
 
-        # first 3-stage classification
-        # classify REM, Wake, and NREM by Gaussian HMM on the 3D space
-        c_pred3, c_pred3_proba, c_score, c_means, c_covars = classify_three_stages_first(
-            stage_coord_expacti)
-        
-        print(f'[FIRST] REM:{1440*np.sum(c_pred3==0)/ndata} '
-              f'NREM:{1440*np.sum(c_pred3==2)/ndata} '
-              f'Wake:{1440*np.sum(c_pred3==1)/ndata}')
-
-
-        # try to refine REM cluster by Gaussian mixture model (GMM) on active epochs
-        gmm = mixture.GaussianMixture(n_components=3, covariance_type='full', 
-                              means_init=np.array([[-20, 0, 100], [-20, 20, -50], [20, 20, 0]])) #REM, apparent WAKE, WAKE      
-        points_active = stage_coord_expacti[c_pred3==0, :]
-        gmm_model = gmm.fit(points_active)
-        print('GMM')
-        print(gmm_model.means_)
-        print(gmm_model.covariances_)
-        rem_mean_refined = gmm_model.means_[0]
-        rem_covar_refined = gmm_model.covariances_[0]
-
-
-        # second 3-stage classification with the refined covariance of the REM claster
-        mm = np.copy(c_means)
-        cc = np.copy(c_covars)
-        mm[0] = rem_mean_refined
-        cc[0] = rem_covar_refined
-        pred3, pred3_proba, score, means, covars = classify_three_stages_update(
-            stage_coord_expacti, mm, cc)
-
-        if score < c_score:
-            # update the predictions if the refinement successfully improved the score
-            c_score = score
-            c_means = means
-            c_covars = covars
-            c_pred3 = pred3
-            c_pred3_proba = pred3_proba
-
-            print(f'[SECOND] REM:{1440*np.sum(c_pred3==0)/ndata} '\
-                  f'NREM:{1440*np.sum(c_pred3==2)/ndata} '\
-                  f'Wake:{1440*np.sum(c_pred3==1)/ndata}')
-        else:
-            print(f'Tried to refine REM cluster, but no improvement was achieved.')
-
-
-        # try to correct REM cluster by shrinking it if the ellipsoid axis crosses the xy-plane to negative
-        covar_REM_updated = shrink_rem_cluster(c_means[0], c_covars[0])
-        if covar_REM_updated.size > 0:
-            # third classification with the shrinked covariance of the REM claster
-            mm = np.copy(c_means)
-            cc = np.copy(c_covars)
-            cc[0] = covar_REM_updated
-            
-            pred3, pred3_proba, score, means, covars = classify_three_stages_update(
-                stage_coord_expacti, mm, cc)
-
-            if score < c_score:
-                # update the predictions if the update successfully improved the score
-                c_pred3 = pred3
-                c_pred3_proba = pred3_proba
-                c_score = score
-                c_means = means
-                c_covars = covars
-            else:
-                print(f'Tried but failed to shrink REM cluster')
-
-        # Check the z coordinate of REM cluster
+        # Check the z coordinate of the REM cluster
         rem_cluster_z = c_means[0,2]
         if rem_cluster_z <= 0:
             print('no effective REM cluster was found')
@@ -541,72 +617,54 @@ def main(data_dir, result_dir, pickle_input_data):
 
 
         # output staging result
-        stage = np.repeat('Unknown', epoch_num)
-        stage[~bidx_unknown] = np.array([STAGE_LABELS[p] for p in c_pred3])
-        stage4csv = np.concatenate([np.repeat('#',7), stage])
+        stage_proba = np.zeros(3*epoch_num).reshape(epoch_num, 3)
+        proba_REM  = pred2_proba[:, 0] * c_pred3_proba[:, 0] / (c_pred3_proba[:, 0] + c_pred3_proba[:, 1])
+        proba_WAKE = pred2_proba[:, 0] * c_pred3_proba[:, 1] / (c_pred3_proba[:, 0] + c_pred3_proba[:, 1])
+        proba_NREM = pred2_proba[:, 1]
+        stage_proba[~bidx_unknown, 0] = proba_REM
+        stage_proba[~bidx_unknown, 1] = proba_WAKE
+        stage_proba[~bidx_unknown, 2] = proba_NREM
+
+        proba_m = np.array([proba_REM, proba_WAKE, proba_NREM])
+        stage_call = np.repeat('Unknown', epoch_num)
+        stage_call[~bidx_unknown] = np.apply_along_axis(lambda y: STAGE_LABELS[np.argmax(y)], 0, proba_m)
+
+        extreme_power_ratio = np.zeros(2*epoch_num).reshape(epoch_num, 2)
+        extreme_power_ratio[~bidx_unknown, 0] = extrp_ratio_eeg
+        extreme_power_ratio[~bidx_unknown, 1] = extrp_ratio_emg
+
+        stage_table = pd.DataFrame({'Stage': stage_call, 
+                                    'REM probability': stage_proba[:, 0],
+                                    'NREM probability': stage_proba[:, 2],
+                                    'Wake probability': stage_proba[:, 1],
+                                    'NaN ratio EEG-TS': nan_ratio_eeg,
+                                    'NaN ratio EMG-TS': nan_ratio_emg,
+                                    'Outlier ratio EEG-TS': extreme_power_ratio[:, 0],
+                                    'Outlier ratio EMG-TS': extreme_power_ratio[:, 1]})
+        stage_file_path = os.path.join(result_dir, f'{device_id}.faster2.stage.csv')
         os.makedirs(result_dir, exist_ok=True)
-        pd.DataFrame(stage4csv).to_csv(os.path.join(result_dir, f'{device_id}.auto.stage.csv'),
-                                       header=False,
-                                       index=False)
+
+        with open(stage_file_path, 'w', newline='') as f:
+            f.write(f'# Exp label: {exp_label} Recorded at {rack_label}\n')
+            f.write(f'# Device ID: {device_id} Mouse group: {mouse_group} Mouse ID: {mouse_id} DOB: {dob}\n')
+            f.write(f'# Start: {start_datetime} End: {end_datetime} Note: {note}\n')
+            f.write(f'# Epoch num: {epoch_num}\n')
+            f.write(f'# Sampling frequency: {sample_freq}\n')
+            f.write(f'# Staged by {FASTER2_NAME}\n')
+        with open(stage_file_path, 'a', newline='') as f:
+            stage_table.to_csv(f, header=True, index=False)
 
         # draw scatter plots
-        path2figures = os.path.join(result_dir, 'figure', f'{device_id}')
-        os.makedirs(path2figures, exist_ok=True)
+        draw_scatter_plots(result_dir, device_id,  stage_coord, pred2,
+                           means2, covars2, stage_coord_expacti, c_pred3, c_means, c_covars)
 
-        colors =  ['#EF5E26', '#23B4EF'] # Wake, NREM
-        axes = [0, 1]
-        points = stage_coord[:, np.r_[axes]]
-        fig = plot_scatter2D(points, pred2, means2 , covars2, colors, XLABEL, YLABEL)
-        fig.savefig(os.path.join(path2figures,'ScatterPlot2D_LowFreq-HighFreq_Axes.png'))
-
-        points_active = stage_coord_expacti[((c_pred3==0) | (c_pred3==1)), :]
-        pred_active = c_pred3[((c_pred3==0) | (c_pred3==1))]
-
-        axes = [0, 2] # Low-freq axis & REM axis
-        points_prj = points_active[:, np.r_[axes]]
-        colors =  ['olivedrab', '#EF5E26', ] # REM, Wake
-        mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0,1]]])
-        cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in c_covars[np.r_[0,1]]])
-        fig = plot_scatter2D(points_prj, pred_active, mm , cc, colors, XLABEL, ZLABEL)
-        fig.savefig(os.path.join(path2figures, 'ScatterPlot2D_LowFreq-REM_axes.png'))
-
-        axes = [1, 2] # High-freq axis & REM axis
-        points_prj = points_active[:, np.r_[axes]]
-        mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0,1]]])
-        cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in c_covars[np.r_[0,1]]])
-        fig = plot_scatter2D(points_prj, pred_active, mm , cc, colors, YLABEL, ZLABEL)
-        fig.savefig(os.path.join(path2figures,'ScatterPlot2D_HighFreq-REM_axes.png'))
-
-        colors =  ['olivedrab', '#EF5E26', '#23B4EF'] # REM, Wake, NREM
-        fig = Figure(figsize=(SCATTER_PLOT_FIG_WIDTH, SCATTER_PLOT_FIG_HEIGHT), dpi=FIG_DPI, facecolor='w')
-        ax = fig.add_subplot(111, projection='3d')
-        ax.view_init(elev=10, azim=-135)
-
-        ax.set_xlim(-150, 150)
-        ax.set_ylim(-150, 150)
-        ax.set_zlim(-150, 150)
-        ax.set_xlabel(XLABEL, fontsize=10, rotation = 0)
-        ax.set_ylabel(YLABEL, fontsize=10, rotation = 0)
-        ax.set_zlabel(ZLABEL, fontsize=10, rotation = 0)
-        ax.tick_params(axis='both', which='major', labelsize=8)
-
-
-        for c in set(c_pred3):
-            t_points = stage_coord_expacti[c_pred3==c]
-            ax.scatter3D(t_points[:,0], t_points[:,1], t_points[:,2], s=0.005, color=colors[c])
-
-            ax.scatter3D(t_points[:,0], t_points[:,1], min(ax.get_zlim()), s=0.001, color='grey')
-            ax.scatter3D(t_points[:,0], max(ax.get_ylim()), t_points[:,2], s=0.001, color='grey')
-            ax.scatter3D(max(ax.get_xlim()), t_points[:,1], t_points[:,2], s=0.001, color='grey')
-
-        fig.savefig(os.path.join(path2figures,'ScatterPlot3D.png'))
 
     return 0
 
 if __name__ == '__main__':
    parser = argparse.ArgumentParser()
-   parser.add_argument("-d", "--data_dir", help="path to the directory of input data")
-   parser.add_argument("-r", "--result_dir", help="path to the directory of staging result")
+   parser.add_argument("data_dir", help="path to the directory of input data")
+   parser.add_argument("result_dir", help="path to the directory of staging result")
    parser.add_argument("-p", "--pickle_input_data", help="flag to pickle input data", action='store_true')
 
    args = parser.parse_args()
