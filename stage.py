@@ -52,6 +52,12 @@ def read_mouse_info(data_dir):
 
     filepath = os.path.join(data_dir, "mouse.info.csv")
 
+    try:
+        codename = encodeLookup(filepath)
+    except LookupError as e:
+        print(e)
+        exit(1)
+
     csv_df = pd.read_csv(filepath,
                          engine="python",
                          dtype={'Device label': str, 'Mouse Group': str,
@@ -59,7 +65,8 @@ def read_mouse_info(data_dir):
                          names=["Device label", "Mouse Group",
                                 "Mouse ID", "DOB", "Note"],
                          skiprows=1,
-                         header=None)
+                         header=None,
+                         encoding=codename)
 
     return csv_df
 
@@ -84,6 +91,32 @@ def read_exp_info(data_dir):
                          header=None)
 
     return csv_df
+
+def encodeLookup(target_path):
+    """
+    Tries to find what encoding the target file uses.
+
+    input
+        target_path
+
+    output
+        encoding string
+    """
+    lookup = ['cp932', 'utf-8']
+    readinSize = 1024*2000 # readin 2MB for checking the encoding
+    data = None
+    for codeMap in lookup:
+        try:
+            with open(target_path, 'r', encoding = codeMap) as fh:
+                data = fh.read(readinSize)
+            break
+        except UnicodeDecodeError:
+            pass
+
+    if isinstance(data, str):
+        return codeMap
+    else:
+        raise LookupError(f"The target file's encoding is unknown {target_path}. Use utf-8 or cp932.")
 
 
 def read_voltage_matrices(data_dir, device_id, epoch_num, sample_freq, epoch_len_sec):
@@ -554,7 +587,7 @@ def main(data_dir, result_dir, pickle_input_data):
         note = r[4]
 
         print(f'[{i}] Reading voltages of {device_id}')
-        print(f'epoch num:{epoch_num} recorded at sample frequency {sample_freq}')
+        print(f'epoch num:{epoch_num} recorded at sampling frequency {sample_freq}')
         (eeg_vm_org, emg_vm_org, not_yet_pickled) = read_voltage_matrices(
             data_dir, device_id, epoch_num, sample_freq, EPOCH_LEN_SEC)
 
@@ -611,11 +644,6 @@ def main(data_dir, result_dir, pickle_input_data):
             c_means[0] = np.zeros(3)
             c_covars[0] = np.zeros((3, 3))
 
-        print(f'[FINAL] REM:{1440*np.sum(c_pred3==0)/ndata} '\
-                f'NREM:{1440*np.sum(c_pred3==2)/ndata} '\
-                f'Wake:{1440*np.sum(c_pred3==1)/ndata}')
-
-
         # output staging result
         stage_proba = np.zeros(3*epoch_num).reshape(epoch_num, 3)
         proba_REM  = pred2_proba[:, 0] * c_pred3_proba[:, 0] / (c_pred3_proba[:, 0] + c_pred3_proba[:, 1])
@@ -628,6 +656,10 @@ def main(data_dir, result_dir, pickle_input_data):
         proba_m = np.array([proba_REM, proba_WAKE, proba_NREM])
         stage_call = np.repeat('Unknown', epoch_num)
         stage_call[~bidx_unknown] = np.apply_along_axis(lambda y: STAGE_LABELS[np.argmax(y)], 0, proba_m)
+
+        print(f'[FINAL] REM:{1440*np.sum(stage_call=="REM")/ndata} '\
+                f'NREM:{1440*np.sum(stage_call=="NREM")/ndata} '\
+                f'Wake:{1440*np.sum(stage_call=="Wake")/ndata}')
 
         extreme_power_ratio = np.zeros(2*epoch_num).reshape(epoch_num, 2)
         extreme_power_ratio[~bidx_unknown, 0] = extrp_ratio_eeg
@@ -644,7 +676,7 @@ def main(data_dir, result_dir, pickle_input_data):
         stage_file_path = os.path.join(result_dir, f'{device_id}.faster2.stage.csv')
         os.makedirs(result_dir, exist_ok=True)
 
-        with open(stage_file_path, 'w', newline='') as f:
+        with open(stage_file_path, 'w', newline='', encoding='UTF-8') as f:
             f.write(f'# Exp label: {exp_label} Recorded at {rack_label}\n')
             f.write(f'# Device ID: {device_id} Mouse group: {mouse_group} Mouse ID: {mouse_id} DOB: {dob}\n')
             f.write(f'# Start: {start_datetime} End: {end_datetime} Note: {note}\n')
