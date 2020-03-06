@@ -652,7 +652,7 @@ def main(data_dir, result_dir, pickle_input_data):
 
         proba_m = np.array([proba_REM, proba_WAKE, proba_NREM])
         stage_call = np.repeat('Unknown', epoch_num)
-        stage_call[~bidx_unknown] = np.apply_along_axis(lambda y: STAGE_LABELS[np.argmax(y)], 0, proba_m)
+        stage_call[~bidx_unknown] =  np.array([STAGE_LABELS[np.argmax(y)] for y in proba_m.T])
 
         print(f'[FINAL] REM:{1440*np.sum(stage_call=="REM")/ndata} '\
                 f'NREM:{1440*np.sum(stage_call=="NREM")/ndata} '\

@@ -15,8 +15,8 @@ REM set RESULT_DIR=G:\EEG\experiment-data\FASTER2_20191217_EEG_2019-018\result\
 REM set DATA_DIR=G:\EEG\experiment-data\FASTER_20191227_EEG_2019-019\data
 REM set RESULT_DIR=G:\EEG\experiment-data\FASTER2_20191227_EEG_2019-019\result\
 
-REM set DATA_DIR=G:\EEG\experiment-data\FASTER2_20200206_EEG_2019-023\data\
-REM set RESULT_DIR=G:\EEG\experiment-data\FASTER2_20200206_EEG_2019-023\result\
+set DATA_DIR=G:\EEG\experiment-data\FASTER2_20200206_EEG_2019-023\data\
+set RESULT_DIR=G:\EEG\experiment-data\FASTER2_20200206_EEG_2019-023\result\
 
 REM set DATA_DIR=\\Sss-analysis\faster_20181023\FASTER_20200213_EEG_2019-024\data
 REM set RESULT_DIR=G:\EEG\experiment-data\FASTER2_20200213_EEG_2019-024\result\
@@ -36,8 +36,8 @@ REM set RESULT_DIR=G:\EEG\experiment-data\FASTER2_20200128_EEG_2019-022\results\
 REM set DATA_DIR=G:\EEG\experiment-data\FASTER_170331_Wake36A\data\
 REM set RESULT_DIR=G:\EEG\experiment-data\FASTER_170331_Wake36A\result\
 
-set DATA_DIR=G:\EEG\experiment-data\FASTER_170406_Wake37A\data\
-set RESULT_DIR=G:\EEG\experiment-data\FASTER_170406_Wake37A\result\
+REM set DATA_DIR=G:\EEG\experiment-data\FASTER_170406_Wake37A\data\
+REM set RESULT_DIR=G:\EEG\experiment-data\FASTER_170406_Wake37A\result\
 
 
 %PYTHON% stage.py -d %DATA_DIR% -r %RESULT_DIR% -p

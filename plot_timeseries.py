@@ -18,7 +18,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--data_dir", required=True, help="path to the directory of input voltage data")
     parser.add_argument("-r", "--result_dir", required=True, help="path to the directory of the input stage data and plots to be produced")
-    parser.add_argument("-w", "--workers", type=int, help="number of worker processes to draw plots in parallel")
+    parser.add_argument("-w", "--workers", type=int, help="number of worker processes to draw in parallel")
 
     args = parser.parse_args()
 
