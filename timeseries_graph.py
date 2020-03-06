@@ -11,6 +11,16 @@ import os
 
 class Timeseries_plot:
     def __init__(self, eeg_vm, emg_vm, stage_df, device_id, start_datetime, sample_freq):
+        """This class handles drawing a set of timeseries plots of a mouse.
+        
+        Args:
+            eeg_vm (np.array(2)): 2D array of EEG data
+            emg_vm (np.array(2)): 2D array of EMG data
+            stage_df (pd.DataFrame): a dataframe given by pd.read_csv(stage file)
+            device_id (str): a string of device ID
+            start_datetime (datetime): datetime of the first epoch
+            sample_freq (int): sampling frequency
+        """
         self.eeg_vm = eeg_vm
         self.emg_vm = emg_vm
         self.stage_df = stage_df
@@ -19,7 +29,36 @@ class Timeseries_plot:
         self.sample_freq = sample_freq
         self.epoch_num = self.eeg_vm.shape[0]
         self.page_num = int(np.ceil(self.epoch_num/45)+1)
+        self.lines_eeg = []
+        self.lines_emg = []
+        self.lines_score = []
+        self.texts_datetime = []
+        self.texts_stage = []
+        
+        # initialize Figure
+        self.fig=Figure(facecolor="w")
+        self.axes = self._prepare_axes(self.fig)
 
+        # set features for all axes
+        for ax in self.axes.flatten():
+            self._set_common_features(ax)
+
+        # set features for the EEG/EMG axes
+        for ax in self.axes[:, np.r_[0,1]].flatten():
+            ax.set_ylim(-5, 5),
+            ax.set_yticks([-3, 0, 3])
+
+        for ax in self.axes[:, 0].flatten():
+            ax.spines['top'].set_visible(True)
+
+        # set features for the probability axes
+        for ax in self.axes[:,2].flatten():
+            ax.set_ylim(0, 1.1)
+            ax.set_yticks([0, 0.5, 1])
+
+        self.fig.set_size_inches(20.64516129032258, 15.58687563423159) # 1600 x 1200 px
+       
+        # pad extra data to fill a page
         if self.epoch_num % 45 > 0:
             r = self.epoch_num % 45
             r_vm = np.zeros((r, 8*self.sample_freq))
@@ -39,6 +78,11 @@ class Timeseries_plot:
 
 
     def _set_common_features(self, ax):
+        """ sets common features to axes.
+        
+        Args:
+            ax (matplotlib.axes.Axes): axes given by add_subplot()
+        """
         ax.set_xlim(0, 72)
         ax.grid(dashes=(2,2))
         ax.set_xticks(np.arange(0, 72, 8))
@@ -52,6 +96,16 @@ class Timeseries_plot:
 
 
     def _prepare_axes(self, fig):
+        """ prepares axes for plots
+        
+        Args:
+            fig (matplotlib.figure.Figure): Figure object to contain axes
+        
+        Returns:
+            [np.array(2)]: 2D (5x3) matrix of axes. 5 correspons to 5 rows in a page. 3 corresponds
+            to EEG, EMG, and score plots, respectively. 
+        """
+
         fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0, hspace=0)
         gs = fig.add_gridspec(nrows = 7*5, ncols=1)
         ax1_1 = fig.add_subplot(gs[0:3, :], xmargin=0, ymargin=0)
@@ -79,34 +133,78 @@ class Timeseries_plot:
                 [ax3_1, ax3_2, ax3_3],
                 [ax4_1, ax4_2, ax4_3],
                 [ax5_1, ax5_2, ax5_3]])
-        
+    
         return axes
-
-
-    def _plot_a_row(self, axes_for_a_row, x_eegemg, timestr, y_eeg, y_emg, p_rem, p_nrem, p_wake, epoch_nums, sleep_stages):
         
-        axes = axes_for_a_row
+
+    def _plot_a_row(self, row_index, x_eegemg, timestr, y_eeg, y_emg, p_rem, p_nrem, p_wake, epoch_nums, sleep_stages):
+        """ draws a row of timeseries plots. 
         
-        score_x = np.linspace(0, 72, 450)
+        Args:
+            row_index (int): index of the row to be drawn (from 0 to 4)
+            x_eegemg (np.array(1)): x coordinates for EEG/EMG plots
+            timestr (str): a string of datetime
+            y_eeg (np.array(1)): y values of EEG plot
+            y_emg (np.array(1)): y values of EMG plot
+            p_rem (np.array(1)): epoch's probabilities of REM
+            p_nrem (np.array(1)): epoch's probabilities of NREM
+            p_wake (np.array(1)): epoch's probabilities of Wake
+            epoch_nums (int): epoch's numbers of the row
+            sleep_stages (np.array(1):str): a str array of sleep stages of the row
+        """
+        axes = self.axes[row_index,:]
+        
+        score_x = np.linspace(0, 72, 450) # 72 = 8 sec * 9 epochs. 50 points per epoch.
         base_curve = base_curve = np.ones(len(score_x))
         score_rem = base_curve*np.repeat(p_rem, 50)
         score_nrem = base_curve*np.repeat(p_nrem, 50)
         score_wake = base_curve*np.repeat(p_wake, 50)
         
-        # plot
-        axes[0].plot(x_eegemg, y_eeg, color='C0', linewidth=0.3)
-        axes[1].plot(x_eegemg, y_emg, color='C3', linewidth=0.3)
-        axes[2].plot(score_x, score_rem, color=stage.COLOR_REM, linewidth=1)
-        axes[2].plot(score_x, score_nrem, color=stage.COLOR_NREM, linewidth=1)
-        axes[2].plot(score_x, score_wake, color=stage.COLOR_WAKE, linewidth=1)
+        if len(self.lines_eeg)<=row_index:
+            # initialize artists
 
-        # plot stage
-        axes[0].text(0, 4.8, timestr, fontname='Arial', fontsize=11, ha='left', va='top')
-        for i,s in enumerate(sleep_stages):
-            axes[0].text(i*8, 3.2, f'{epoch_nums[i]}: {s}', fontname='Arial', fontsize=11, ha='left', va='top')
+            # plot graphs
+            line_eeg, = axes[0].plot(x_eegemg, y_eeg, color='C0', linewidth=0.3)
+            line_emg, = axes[1].plot(x_eegemg, y_emg, color='C3', linewidth=0.3)
+            axes[2].plot(score_x, score_rem, color=stage.COLOR_REM, linewidth=1)
+            axes[2].plot(score_x, score_nrem, color=stage.COLOR_NREM, linewidth=1)
+            axes[2].plot(score_x, score_wake, color=stage.COLOR_WAKE, linewidth=1)
+            line_scores = axes[2].get_lines()
+
+            # plot texts
+            txt_datetime = axes[0].text(0, 4.8, timestr, fontname='Arial', fontsize=11, ha='left', va='top')
+            txt_stages = []
+            for i,s in enumerate(sleep_stages):
+                txt_stage = axes[0].text(i*8, 3.2, f'{epoch_nums[i]}: {s}', fontname='Arial', fontsize=11, ha='left', va='top')
+                txt_stages.append(txt_stage)
+
+            # store artists for reuse
+            self.lines_eeg.append(line_eeg)
+            self.lines_emg.append(line_emg)
+            self.lines_score.append(line_scores)
+            self.texts_datetime.append(txt_datetime)
+            self.texts_stage.append(txt_stages)
+        else:
+            # update artists
+            self.lines_eeg[row_index].set_ydata(y_eeg)
+            self.lines_emg[row_index].set_ydata(y_emg)
+            self.lines_score[row_index][0].set_ydata(score_rem)
+            self.lines_score[row_index][1].set_ydata(score_nrem)
+            self.lines_score[row_index][2].set_ydata(score_wake)
+            self.texts_datetime[row_index].set_text(timestr)
+            for i, s in enumerate(sleep_stages):
+                self.texts_stage[row_index][i].set_text(f'{epoch_nums[i]}: {s}')
+                
+        return
 
 
     def plot_timeseries_a_page(self, page):
+        """ draws a page of timeseries plots and save a file. A page contains 5 rows.
+
+        
+        Args:
+            page (int): A page number to be drawn
+        """
         y_eeg = self.eeg_vm[(page-1)*45:(page)*45,:].flatten()
         y_emg = self.emg_vm[(page-1)*45:(page)*45,:].flatten()
         p_rem  = self.stage_df.iloc[:,1].values[(page-1)*45:(page)*45]
@@ -116,28 +214,7 @@ class Timeseries_plot:
         epoch_nums = range((page-1)*45+1, (page)*45+1)
         timestamps = [self.start_datetime + timedelta(seconds=(page-1)*45*8 + i*9*8) for i in range(5)]
         
-        fig=Figure(facecolor="w")
-        axes = self._prepare_axes(fig)
-
-        # set features for all axes
-        for ax in axes.flatten():
-            self._set_common_features(ax)
-
-        # set features for the EEG/EMG axes
-        for ax in axes[:, np.r_[0,1]].flatten():
-            ax.set_ylim(-5, 5),
-            ax.set_yticks([-3, 0, 3])
-
-        for ax in axes[:, 0].flatten():
-            ax.spines['top'].set_visible(True)
-
-        # set features for the probability axes
-        for ax in axes[:,2].flatten():
-            ax.set_ylim(0, 1.1)
-            ax.set_yticks([0,0.5,1])
-        
         x = np.linspace(0, 72, 72*self.sample_freq)
-        
         for i in range(5):
             ts = timestamps[i].strftime("%Y/%m/%d %H:%M:%S")
             y_ee = y_eeg[i*72*self.sample_freq:((i+1)*72)*self.sample_freq] 
@@ -148,17 +225,17 @@ class Timeseries_plot:
             en = epoch_nums[i*9:(i+1)*9]
             ss = stages[i*9:(i+1)*9]
 
-            self._plot_a_row(axes[i,:], x, ts, y_ee, y_em, p_r, p_n, p_w, en, ss)
-
-        fig.set_size_inches(20.64516129032258, 15.58687563423159) # 1600 x 1200 px
+            self._plot_a_row(i, x, ts, y_ee, y_em, p_r, p_n, p_w, en, ss)
+        
+        self.fig.canvas.draw()
         filename = f'{self.device_id}.{epoch_nums[0]:06}.jpg'
 
-        fig.savefig(filename, pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
-        print(filename)
- 
+        self.fig.savefig(filename, pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+
 
 def plot_timeseries_a_mouse(voltage_data_dir, stage_dir, result_dir, device_id, sample_freq, epoch_num, start_datetime):
     """ wraps the process to draw a set of plots of a mouse over epochs. 
+    This function is convenient to run a drawing process in multiprocessing.
     
     Args:
         voltage_data_dir (str): full path to the directory of voltage data
