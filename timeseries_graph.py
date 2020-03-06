@@ -7,7 +7,7 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
-
+import os
 
 class Timeseries_plot:
     def __init__(self, eeg_vm, emg_vm, stage_df, device_id, start_datetime, sample_freq):
@@ -18,6 +18,7 @@ class Timeseries_plot:
         self.start_datetime = start_datetime
         self.sample_freq = sample_freq
         self.epoch_num = self.eeg_vm.shape[0]
+        self.page_num = int(np.ceil(self.epoch_num/45)+1)
 
         if self.epoch_num % 45 > 0:
             r = self.epoch_num % 45
@@ -155,3 +156,34 @@ class Timeseries_plot:
         fig.savefig(filename, pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
         print(filename)
  
+
+def plot_timeseries_a_mouse(voltage_data_dir, stage_dir, result_dir, device_id, sample_freq, epoch_num, start_datetime):
+    """ wraps the process to draw a set of plots of a mouse over epochs. 
+    
+    Args:
+        voltage_data_dir (str): full path to the directory of voltage data
+        stage_dir (str): full path to the directory of stage data
+        result_dir (str): full path to the directory of resulting plots
+        device_id (str): device id to be plotted
+        sample_freq (str): sampling frequency
+        epoch_num (int): number of epochs to be plotted
+        start_datetime (datetime): datetime of the first epoch 
+    """
+    
+    stage_filepath = os.path.join(stage_dir, f'{device_id}.faster2.stage.csv')
+    stage_df = pd.read_csv(stage_filepath, skiprows=7,
+                           header=None, engine='python')
+
+    (eeg_vm_org, emg_vm_org, _) = stage.read_voltage_matrices(voltage_data_dir, device_id, epoch_num, sample_freq, stage.EPOCH_LEN_SEC)
+    eeg_vm_norm = (eeg_vm_org - np.nanmean(eeg_vm_org))/np.nanstd(eeg_vm_org)
+    emg_vm_norm = (emg_vm_org - np.nanmean(emg_vm_org))/np.nanstd(emg_vm_org)
+
+    tp = Timeseries_plot(eeg_vm_norm, emg_vm_norm, stage_df,
+                         device_id, start_datetime, sample_freq)
+
+
+    plot_dir = os.path.join(result_dir, 'figure', 'voltage', device_id)
+    os.makedirs(plot_dir, exist_ok=True)
+    os.chdir(plot_dir)
+    for i in range(1, tp.page_num):
+        tp.plot_timeseries_a_page(i)

@@ -447,7 +447,7 @@ def classification_process(stage_coord):
     # classify REM, Wake, and NREM by Gaussian HMM on the 3D space
     c_pred3, c_pred3_proba, c_score, c_means, c_covars = classify_three_stages_first(
         stage_coord_expacti)
-    
+
     print(f'[FIRST] REM:{1440*np.sum(c_pred3==0)/ndata} '
             f'NREM:{1440*np.sum(c_pred3==2)/ndata} '
             f'Wake:{1440*np.sum(c_pred3==1)/ndata}')
@@ -456,7 +456,7 @@ def classification_process(stage_coord):
     # try to refine REM cluster by Gaussian mixture model (GMM) on active epochs
     gmm = mixture.GaussianMixture(n_components=3, covariance_type='full', 
                             means_init=np.array([[-20, 0, 100], [-20, 20, -50], [20, 20, 0]])) #REM, apparent WAKE, WAKE      
-    points_active = stage_coord_expacti[c_pred3==0, :]
+    points_active = stage_coord_expacti[(c_pred3==0) | (c_pred3==1), :]
     gmm_model = gmm.fit(points_active)
     print('GMM')
     print(gmm_model.means_)
@@ -586,7 +586,7 @@ def main(data_dir, result_dir, pickle_input_data):
         dob = r[3]
         note = r[4]
 
-        print(f'[{i}] Reading voltages of {device_id}')
+        print(f'[{i+1}] Reading voltages of {device_id}')
         print(f'epoch num:{epoch_num} recorded at sampling frequency {sample_freq}')
         (eeg_vm_org, emg_vm_org, not_yet_pickled) = read_voltage_matrices(
             data_dir, device_id, epoch_num, sample_freq, EPOCH_LEN_SEC)
@@ -631,8 +631,14 @@ def main(data_dir, result_dir, pickle_input_data):
         ndata = len(stage_coord)
 
         # run the classification process
-        pred2, pred2_proba, means2, covars2, stage_coord_expacti, c_pred3, c_pred3_proba, c_means, c_covars = classification_process(
-            stage_coord)
+        try:
+            pred2, pred2_proba, means2, covars2, stage_coord_expacti, c_pred3, c_pred3_proba, c_means, c_covars = classification_process(
+                stage_coord)
+        except ValueError:
+            print('Encountered an unhandlable analytical error during the staging. Check the ' 
+                'date validity of the mouse.')
+            
+            continue
 
 
         # Check the z coordinate of the REM cluster
