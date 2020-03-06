@@ -171,7 +171,7 @@ class  TestStage(unittest.TestCase):
     def test_read_voltage_matrices_pickle(self):
         exp = [[32400, 800], [32400, 800]]
 
-        (eeg_vm, emg_vm, flag) = stage.read_voltage_matrices('../data', 'ID-test', 32400, 100, 8)
+        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../data', 'ID-test', 32400, 100, 8)
         ans = [eeg_vm.shape, emg_vm.shape]
         
         np.testing.assert_array_equal(exp, ans)

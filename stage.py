@@ -14,6 +14,7 @@ from matplotlib.figure import Figure
 from mpl_toolkits.mplot3d import axes3d
 from scipy import linalg
 import pickle
+import chardet
 
 FASTER2_NAME = 'FASTER2'
 EPOCH_LEN_SEC = 8
@@ -53,7 +54,7 @@ def read_mouse_info(data_dir):
     filepath = os.path.join(data_dir, "mouse.info.csv")
 
     try:
-        codename = encodeLookup(filepath)
+        codename = encode_lookup(filepath)
     except LookupError as e:
         print(e)
         exit(1)
@@ -92,7 +93,7 @@ def read_exp_info(data_dir):
 
     return csv_df
 
-def encodeLookup(target_path):
+def encode_lookup(target_path):
     """
     Tries to find what encoding the target file uses.
 
@@ -102,22 +103,12 @@ def encodeLookup(target_path):
     output
         encoding string
     """
-    lookup = ['cp932', 'utf-8']
     readinSize = 1024*2000 # readin 2MB for checking the encoding
-    data = None
-    for codeMap in lookup:
-        try:
-            with open(target_path, 'r', encoding = codeMap) as fh:
-                data = fh.read(readinSize)
-            break
-        except UnicodeDecodeError:
-            pass
+    with open(target_path, 'rb') as fh:
+        data = fh.read(readinSize)
 
-    if isinstance(data, str):
-        return codeMap
-    else:
-        raise LookupError(f"The target file's encoding is unknown {target_path}. Use utf-8 or cp932.")
-
+    enc = chardet.detect(data)['encoding']
+    return enc
 
 def read_voltage_matrices(data_dir, device_id, epoch_num, sample_freq, epoch_len_sec):
     """ This function reads dsi.txt files of EEG and EMG data, then returns matrices
@@ -696,13 +687,12 @@ def main(data_dir, result_dir, pickle_input_data):
         draw_scatter_plots(result_dir, device_id,  stage_coord, pred2,
                            means2, covars2, stage_coord_expacti, c_pred3, c_means, c_covars)
 
-
     return 0
 
 if __name__ == '__main__':
    parser = argparse.ArgumentParser()
-   parser.add_argument("data_dir", help="path to the directory of input data")
-   parser.add_argument("result_dir", help="path to the directory of staging result")
+   parser.add_argument("-d", "--data_dir", required=True, help="path to the directory of input data")
+   parser.add_argument("-r", "--result_dir", required=True, help="path to the directory of staging result")
    parser.add_argument("-p", "--pickle_input_data", help="flag to pickle input data", action='store_true')
 
    args = parser.parse_args()

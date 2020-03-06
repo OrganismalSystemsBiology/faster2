@@ -36,9 +36,9 @@ REM set RESULT_DIR=G:\EEG\experiment-data\FASTER2_20200128_EEG_2019-022\results\
 REM set DATA_DIR=G:\EEG\experiment-data\FASTER_170331_Wake36A\data\
 REM set RESULT_DIR=G:\EEG\experiment-data\FASTER_170331_Wake36A\result\
 
-REM set DATA_DIR=G:\EEG\experiment-data\FASTER_170406_Wake37A\data\
-REM set RESULT_DIR=G:\EEG\experiment-data\FASTER_170406_Wake37A\result\
+set DATA_DIR=G:\EEG\experiment-data\FASTER_170406_Wake37A\data\
+set RESULT_DIR=G:\EEG\experiment-data\FASTER_170406_Wake37A\result\
 
 
-REM %PYTHON% stage.py %DATA_DIR% %RESULT_DIR% -p
-%PYTHON% plot_timeseries.py %DATA_DIR% %RESULT_DIR%
+%PYTHON% stage.py -d %DATA_DIR% -r %RESULT_DIR% -p
+%PYTHON% plot_timeseries.py -d %DATA_DIR% -r %RESULT_DIR% -w 4
