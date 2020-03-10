@@ -30,9 +30,9 @@ COLOR_NREM = '#23B4EF'
 COLOR_REM  = 'olivedrab'
 DEFAULT_START_PROBA = np.array([0.1, 0.45, 0.45])
 DEFAULT_MEAN_STAGE_COORDS = np.array([[-20, 10, 100], [-20, 20, -50], [20, -20, 0]])
-DEFAULT_TRANSMAT = np.array([[8.76994067e-01, 6.53922215e-02, 5.76137113e-02],
-                             [7.45143157e-04, 9.68280746e-01, 3.09741107e-02],
-                             [1.00482802e-02, 2.49591897e-02, 9.64992530e-01]])
+DEFAULT_TRANSMAT = np.array([[8.73223739e-01, 6.53422888e-02, 6.14339721e-02],
+                             [7.40251368e-04, 9.68070346e-01, 3.11894024e-02],
+                             [1.00730294e-02, 2.49010231e-02, 9.65025948e-01]])
 
 def read_mouse_info(data_dir):
     """This function reads the mouse.info.csv file 
@@ -61,10 +61,10 @@ def read_mouse_info(data_dir):
 
     csv_df = pd.read_csv(filepath,
                          engine="python",
-                         dtype={'Device label': str, 'Mouse Group': str,
-                                'Mouse ID': str, 'DOB': str, 'Note': str},
-                         names=["Device label", "Mouse Group",
-                                "Mouse ID", "DOB", "Note"],
+                         dtype={'Device label': str, 'Mouse group': str,
+                                'Mouse ID': str, 'DOB': str, 'Stats report':str, 'Note': str},
+                         names=["Device label", "Mouse group",
+                                "Mouse ID", "DOB", "Stats report", "Note"],
                          skiprows=1,
                          header=None,
                          encoding=codename)
@@ -365,9 +365,10 @@ def spectrum_normalize(voltage_matrix, n_fft, sample_freq):
 
 def classify_active_and_NREM(stage_coord_2D):
     # classify active and NREM stages by Gaussian HMM on the 2D plane of (active x sleep)
-    model = hmm.GaussianHMM(n_components=2, covariance_type='full', init_params='tc')
+    model = hmm.GaussianHMM(n_components=2, covariance_type='full', init_params='c', params='stmc')
     model.startprob_ = np.array([0.5, 0.5])
-    model.means_ = np.array([[-20, 20],[20, -20]]) # Active, NREM
+    model.transmat_ = np.array([[0.96666511, 0.03333489], [0.03497405, 0.96502595]])
+    model.means_ = np.array([[-20, 20], [20, -20]])
     remodel = model.fit(stage_coord_2D)
     print(remodel.means_)
     print(remodel.covars_)
@@ -652,6 +653,7 @@ def main(data_dir, result_dir, pickle_input_data):
 
         proba_m = np.array([proba_REM, proba_WAKE, proba_NREM])
         stage_call = np.repeat('Unknown', epoch_num)
+        # pylint: disable=not-an-iterable
         stage_call[~bidx_unknown] =  np.array([STAGE_LABELS[np.argmax(y)] for y in proba_m.T])
 
         print(f'[FINAL] REM:{1440*np.sum(stage_call=="REM")/ndata} '\

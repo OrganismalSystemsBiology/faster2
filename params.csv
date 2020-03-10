@@ -10,4 +10,4 @@ transition probability from Wake to REM,0
 transition probability from REM to NREM,0.2
 transition probability from REM to Wake,0.2
 transition probability from REM to REM,0.6
-report uncertainty,0.95
+report uncertainty,0.5
