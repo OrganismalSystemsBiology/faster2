@@ -3,8 +3,8 @@ chcp 65001
 
 set PYTHON=D:\Study\codeWork\python\faster2\.venv\Scripts\python.exe
 
-set DATA_DIR=G:\EEG\experiment-data\FASTER_20191101_EEG_2019-013\data\
-set RESULT_DIR=G:\EEG\experiment-data\FASTER2_20191101_EEG_2019-013\result\
+REM set DATA_DIR=G:\EEG\experiment-data\FASTER_20191101_EEG_2019-013\data\
+REM set RESULT_DIR=G:\EEG\experiment-data\FASTER2_20191101_EEG_2019-013\result\
 
 REM set DATA_DIR=G:\EEG\experiment-data\FASTER_20191108_EEG_2019-014\data
 REM set RESULT_DIR=G:\EEG\experiment-data\FASTER2_20191108_EEG_2019-014\result\

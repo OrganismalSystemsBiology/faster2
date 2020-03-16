@@ -15,6 +15,8 @@ from mpl_toolkits.mplot3d import axes3d
 from scipy import linalg
 import pickle
 import chardet
+from glob import glob
+import mne
 
 FASTER2_NAME = 'FASTER2'
 EPOCH_LEN_SEC = 8
@@ -28,6 +30,9 @@ FIG_DPI = 100 # dot per inch
 COLOR_WAKE = '#EF5E26'
 COLOR_NREM = '#23B4EF'
 COLOR_REM  = 'olivedrab'
+COLOR_LIGHT = 'gold'
+COLOR_DARK = 'dimgray'
+COLOR_DARKLIGHT = 'lightgray' # light hours in DD condition
 DEFAULT_START_PROBA = np.array([0.1, 0.45, 0.45])
 DEFAULT_MEAN_STAGE_COORDS = np.array([[-20, 10, 100], [-20, 20, -50], [20, -20, 0]])
 DEFAULT_TRANSMAT = np.array([[8.73223739e-01, 6.53422888e-02, 6.14339721e-02],
@@ -93,6 +98,7 @@ def read_exp_info(data_dir):
 
     return csv_df
 
+
 def encode_lookup(target_path):
     """
     Tries to find what encoding the target file uses.
@@ -110,22 +116,28 @@ def encode_lookup(target_path):
     enc = chardet.detect(data)['encoding']
     return enc
 
-def read_voltage_matrices(data_dir, device_id, epoch_num, sample_freq, epoch_len_sec):
+
+def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch_num=None, start_datetime=None, end_datetime=None):
     """ This function reads dsi.txt files of EEG and EMG data, then returns matrices
     in the shape of (epochs, signals).
     
     Args:
         data_dir (str): a path to the dirctory that contains dsi.txt/ or pkl/ directory.
         device_id (str): a transmitter ID (e.g., ID47476) or channel ID (e.g., 09). 
-        epoch_num (int): the number of epochs to be read.
         sample_freq (int): sampling frequency 
         epoch_len_sec (int): the length of an epoch in seconds
+        epoch_num (int): the number of epochs to be read. Either epoch_num or start/end_datetime should be given.
+        start_datetime: start datetime of analysis.
+        end_datetime: end datetteim of analysis.
+
     
     Returns:
         (np.array(2), np.arrray(2), bool): a pair of voltage 2D matrices in a tuple
         and a switch to tell if there was pickled data.
 
     """
+    if(isinstance(start_datetime, datetime) and isinstance(end_datetime, datetime)):
+        epoch_num = int((end_datetime - start_datetime).total_seconds()/epoch_len_sec)
 
     try:
         not_yet_pickled = False
@@ -143,20 +155,47 @@ def read_voltage_matrices(data_dir, device_id, epoch_num, sample_freq, epoch_len
     except FileNotFoundError:
         # Read DSI text data
         not_yet_pickled = True
-        dsi_reader_eeg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'), 
-                                        f'{device_id}', 
-                                        'EEG', 
-                                        sample_freq=sample_freq)
-        dsi_reader_emg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'), 
-                                        f'{device_id}', 
-                                        'EMG', 
-                                        sample_freq=sample_freq)
-        
-        eeg_df = dsi_reader_eeg.read_epochs(1, epoch_num)
-        emg_df = dsi_reader_emg.read_epochs(1, epoch_num)
+        try:
+            dsi_reader_eeg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'), 
+                                            f'{device_id}', 
+                                            'EEG', 
+                                            sample_freq=sample_freq)
+            dsi_reader_emg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'), 
+                                            f'{device_id}', 
+                                            'EMG', 
+                                            sample_freq=sample_freq)
+            
+            eeg_df = dsi_reader_eeg.read_epochs(1, epoch_num)
+            emg_df = dsi_reader_emg.read_epochs(1, epoch_num)
 
-        eeg_vm = eeg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
-        emg_vm = emg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
+            eeg_vm = eeg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
+            emg_vm = emg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
+        except FileNotFoundError:
+            try:
+                # read EDF file
+                edf_file = glob(data_dir)
+                if len(edf_file) != 1:
+                    if len(edf_file) == 0: 
+                        raise LookupError(f'no EDF file found in :{data_dir}')
+                    elif len(edf_file)>1:
+                        raise LookupError(f'too many EDF files found:{edf_file}')
+
+                edf_file = edf_file[0]
+                raw = mne.io.read_raw_edf(edf_file)
+                measurement_start_datetime = datetime.utcfromtimestamp(raw.info['meas_date'][0]) + timedelta(microseconds=raw.info['meas_date'][1])
+                start_offset_sec = (start_datetime - measurement_start_datetime).total_seconds()
+                end_offset_sec = (end_datetime - measurement_start_datetime).total_seconds()
+                bidx = (raw.times >= start_offset_sec) & (raw.times < end_offset_sec)
+                start_slice = np.where(bidx)[0][0]
+                end_slice = np.where(bidx)[0][-1]+1
+                eeg = raw.get_data(f'EEG{device_id}', start_slice, end_slice)[0]
+                emg = raw.get_data(f'EMG{device_id}', start_slice, end_slice)[0]
+
+                eeg_vm = eeg.reshape(-1, epoch_len_sec * sample_freq)
+                emg_vm = emg.reshape(-1, epoch_len_sec * sample_freq)
+            except FileNotFoundError:
+                print('Failed to read EEG/EMG data. Check if the intended data exists.')
+                exit(1)
 
     expected_shape = (epoch_num, sample_freq * epoch_len_sec)
     if (eeg_vm.shape != expected_shape) or (emg_vm.shape != expected_shape):
