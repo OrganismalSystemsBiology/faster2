@@ -248,8 +248,20 @@ def plot_timeseries_a_mouse(voltage_data_dir, stage_dir, result_dir, device_id, 
     """
     
     stage_filepath = os.path.join(stage_dir, f'{device_id}.faster2.stage.csv')
-    stage_df = pd.read_csv(stage_filepath, skiprows=7,
-                           header=None, engine='python')
+    try:
+        stage_df = pd.read_csv(stage_filepath, skiprows=7,
+                            header=None, engine='python')
+    except FileNotFoundError:
+        print(f'Plotting without stage info. FileNotFound: {stage_filepath}.')
+        # serve a dummy stage information
+        stage_df = pd.DataFrame({'Stage': np.repeat('', epoch_num),
+                                 'REM probability': np.zeros(epoch_num),
+                                 'NREM probability': np.zeros(epoch_num),
+                                 'Wake probability': np.zeros(epoch_num),
+                                 'NaN ratio EEG-TS': np.zeros(epoch_num),
+                                 'NaN ratio EMG-TS': np.zeros(epoch_num),
+                                 'Outlier ratio EEG-TS': np.zeros(epoch_num),
+                                 'Outlier ratio EMG-TS': np.zeros(epoch_num)})
 
     (eeg_vm_org, emg_vm_org, _) = stage.read_voltage_matrices(voltage_data_dir, device_id, sample_freq, stage.EPOCH_LEN_SEC, epoch_num, start_datetime)
     eeg_vm_norm = (eeg_vm_org - np.nanmean(eeg_vm_org))/np.nanstd(eeg_vm_org)
