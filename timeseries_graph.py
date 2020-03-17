@@ -251,7 +251,7 @@ def plot_timeseries_a_mouse(voltage_data_dir, stage_dir, result_dir, device_id, 
     stage_df = pd.read_csv(stage_filepath, skiprows=7,
                            header=None, engine='python')
 
-    (eeg_vm_org, emg_vm_org, _) = stage.read_voltage_matrices(voltage_data_dir, device_id, epoch_num, sample_freq, stage.EPOCH_LEN_SEC)
+    (eeg_vm_org, emg_vm_org, _) = stage.read_voltage_matrices(voltage_data_dir, device_id, sample_freq, stage.EPOCH_LEN_SEC, epoch_num, start_datetime)
     eeg_vm_norm = (eeg_vm_org - np.nanmean(eeg_vm_org))/np.nanstd(eeg_vm_org)
     emg_vm_norm = (emg_vm_org - np.nanmean(emg_vm_org))/np.nanstd(emg_vm_org)
 

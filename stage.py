@@ -117,29 +117,41 @@ def encode_lookup(target_path):
     return enc
 
 
-def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch_num=None, start_datetime=None, end_datetime=None):
-    """ This function reads dsi.txt files of EEG and EMG data, then returns matrices
+def find_edf_files(data_dir):
+    """returns list of edf files in the directory
+    
+    Args:
+        data_dir (str): A path to the data directory
+    
+    Returns:
+        [list]: A list returned by glob()
+    """
+    return glob(os.path.join(data_dir, '*.edf'))
+
+
+def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch_num, start_datetime=None):
+    """ This function reads data files of EEG and EMG, then returns matrices
     in the shape of (epochs, signals).
     
     Args:
-        data_dir (str): a path to the dirctory that contains dsi.txt/ or pkl/ directory.
+        data_dir (str): a path to the dirctory that contains either dsi.txt/, pkl/ directory, or an EDF file.
         device_id (str): a transmitter ID (e.g., ID47476) or channel ID (e.g., 09). 
         sample_freq (int): sampling frequency 
         epoch_len_sec (int): the length of an epoch in seconds
-        epoch_num (int): the number of epochs to be read. Either epoch_num or start/end_datetime should be given.
-        start_datetime: start datetime of analysis.
-        end_datetime: end datetteim of analysis.
-
+        epoch_num (int): the number of epochs to be read.
+        start_datetime (datetime): start datetime of the analysis (used only for EDF file).
     
     Returns:
         (np.array(2), np.arrray(2), bool): a pair of voltage 2D matrices in a tuple
         and a switch to tell if there was pickled data.
 
+    Note:
+        This function looks into the data_dir/ and first try to read pkl files. If pkl files are not found,
+        it tries to read an EDF file. If the EDF file is also not found, it tries to read dsi.txt files.
     """
-    if(isinstance(start_datetime, datetime) and isinstance(end_datetime, datetime)):
-        epoch_num = int((end_datetime - start_datetime).total_seconds()/epoch_len_sec)
 
-    try:
+    if os.path.exists(os.path.join(data_dir, 'pkl', f'{device_id}_EEG.pkl')):
+        # if it exists, read the pkl file
         not_yet_pickled = False
         # Try to read pickled data
         pkl_path = os.path.join(data_dir, 'pkl', f'{device_id}_EEG.pkl')
@@ -152,8 +164,43 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
             print(f'reading {pkl_path}')
             emg_vm = pickle.load(pkl)
 
-    except FileNotFoundError:
-        # Read DSI text data
+    elif len(find_edf_files(data_dir))>0:
+        # try to read EDF file
+        not_yet_pickled = True
+        # read EDF file
+        edf_file = find_edf_files(data_dir)
+        if len(edf_file) != 1:
+            raise FileNotFoundError(f'Too many EDF files were found:{edf_file}. FASTER2 assumes there is only one file.')
+        edf_file = edf_file[0]
+
+        raw = mne.io.read_raw_edf(edf_file)
+        measurement_start_datetime = datetime.utcfromtimestamp(raw.info['meas_date'][0]) + timedelta(microseconds=raw.info['meas_date'][1])
+        try:
+            if isinstance(start_datetime, datetime) and (measurement_start_datetime < start_datetime):
+                start_offset_sec = (start_datetime - measurement_start_datetime).total_seconds()
+                end_offset_sec = start_offset_sec + epoch_num * epoch_len_sec
+                bidx = (raw.times >= start_offset_sec) & (raw.times < end_offset_sec)
+                start_slice = np.where(bidx)[0][0]
+                end_slice = np.where(bidx)[0][-1]+1
+                eeg = raw.get_data(f'EEG{device_id}', start_slice, end_slice)[0]
+                emg = raw.get_data(f'EMG{device_id}', start_slice, end_slice)[0]
+            else:
+                eeg = raw.get_data(f'EEG{device_id}')[0]
+                emg = raw.get_data(f'EMG{device_id}')[0]
+        except ValueError:
+            print(f'Failed to extract the data of "{device_id}" from {edf_file}. '\
+                  f'Check the channel name: "EEG/EMG{device_id}" is in the EDF file.')
+            raise
+        raw.close()
+        try:
+            eeg_vm = eeg.reshape(-1, epoch_len_sec * sample_freq)
+            emg_vm = emg.reshape(-1, epoch_len_sec * sample_freq)
+        except ValueError:
+            print(f'Failed to extract {epoch_num} epochs from {edf_file}. '\
+                   'Check the validity of the epoch number, start datetime, and sampling frequency.')
+            raise
+    elif os.path.exists(os.path.join(data_dir, 'dsi.txt')):
+        # try to read dsi.txt
         not_yet_pickled = True
         try:
             dsi_reader_eeg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'), 
@@ -167,40 +214,20 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
             
             eeg_df = dsi_reader_eeg.read_epochs(1, epoch_num)
             emg_df = dsi_reader_emg.read_epochs(1, epoch_num)
-
             eeg_vm = eeg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
             emg_vm = emg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
         except FileNotFoundError:
-            try:
-                # read EDF file
-                edf_file = glob(data_dir)
-                if len(edf_file) != 1:
-                    if len(edf_file) == 0: 
-                        raise LookupError(f'no EDF file found in :{data_dir}')
-                    elif len(edf_file)>1:
-                        raise LookupError(f'too many EDF files found:{edf_file}')
-
-                edf_file = edf_file[0]
-                raw = mne.io.read_raw_edf(edf_file)
-                measurement_start_datetime = datetime.utcfromtimestamp(raw.info['meas_date'][0]) + timedelta(microseconds=raw.info['meas_date'][1])
-                start_offset_sec = (start_datetime - measurement_start_datetime).total_seconds()
-                end_offset_sec = (end_datetime - measurement_start_datetime).total_seconds()
-                bidx = (raw.times >= start_offset_sec) & (raw.times < end_offset_sec)
-                start_slice = np.where(bidx)[0][0]
-                end_slice = np.where(bidx)[0][-1]+1
-                eeg = raw.get_data(f'EEG{device_id}', start_slice, end_slice)[0]
-                emg = raw.get_data(f'EMG{device_id}', start_slice, end_slice)[0]
-
-                eeg_vm = eeg.reshape(-1, epoch_len_sec * sample_freq)
-                emg_vm = emg.reshape(-1, epoch_len_sec * sample_freq)
-            except FileNotFoundError:
-                print('Failed to read EEG/EMG data. Check if the intended data exists.')
-                exit(1)
+            print(f'The dsi.txt file for {device_id} was not found in {data_dir}.')        
+            raise
+    else:
+        raise FileNotFoundError(f'Data file was not found for device {device_id} in {data_dir}.')
+        
 
     expected_shape = (epoch_num, sample_freq * epoch_len_sec)
     if (eeg_vm.shape != expected_shape) or (emg_vm.shape != expected_shape):
         raise ValueError(f'Unexpected shape of matrices EEG:{eeg_vm.shape} or EMG:{emg_vm.shape}. '\
-                         f'Expected shape is {expected_shape}. Check the validity of the files.')
+                         f'Expected shape is {expected_shape}. Check the validity of the data files or configurations '\
+                          'such as the epoch number and the sampling frequency.')
 
     return (eeg_vm, emg_vm, not_yet_pickled)
 
@@ -620,7 +647,7 @@ def main(data_dir, result_dir, pickle_input_data):
         print(f'[{i+1}] Reading voltages of {device_id}')
         print(f'epoch num:{epoch_num} recorded at sampling frequency {sample_freq}')
         (eeg_vm_org, emg_vm_org, not_yet_pickled) = read_voltage_matrices(
-            data_dir, device_id, epoch_num, sample_freq, EPOCH_LEN_SEC)
+            data_dir, device_id, sample_freq, EPOCH_LEN_SEC, epoch_num, start_datetime)
 
         if (pickle_input_data and not_yet_pickled):
             # if the command line argument has the optinal flag for pickling, pickle the voltage matrices

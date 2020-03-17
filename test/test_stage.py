@@ -73,10 +73,10 @@ class  TestStage(unittest.TestCase):
         assert exp == ans
 
 
-    def test_read_voltage_matrices(self):
+    def test_read_voltage_matrices_dsi(self):
         exp = [[450, 800], [450, 800]]
 
-        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../data', 'ID33572', 450, 100, 8)
+        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../data/dsi_test', 'ID33572', 100, 8, 450)
         ans = [eeg_vm.shape, emg_vm.shape]
         
         np.testing.assert_array_equal(exp, ans)
@@ -171,7 +171,28 @@ class  TestStage(unittest.TestCase):
     def test_read_voltage_matrices_pickle(self):
         exp = [[32400, 800], [32400, 800]]
 
-        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../data', 'ID-test', 32400, 100, 8)
+        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../data', 'ID-test', 100, 8, 32400)
+        ans = [eeg_vm.shape, emg_vm.shape]
+        
+        np.testing.assert_array_equal(exp, ans)
+
+
+    def test_read_voltage_matrices_edf(self):
+        exp = [[31, 1024], [31, 1024]]
+
+        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../data/edf_test', '09', 128, 8, 31)
+        ans = [eeg_vm.shape, emg_vm.shape]
+        
+        np.testing.assert_array_equal(exp, ans)
+
+
+    def test_read_voltage_matrices_edf_with_startdatetime(self):
+        exp = [[28, 1024], [28, 1024]]
+
+        # 2020/3/12/ 14:31:00 (20 sec offset from the meas_date) 
+        # This start datetime allows extract up to 28 epochs from the test EDF file
+        start_datetime = datetime.datetime(2020, 3, 12, 14, 31, 00) 
+        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../data/edf_test', '09', 128, 8, 28, start_datetime)
         ans = [eeg_vm.shape, emg_vm.shape]
         
         np.testing.assert_array_equal(exp, ans)
