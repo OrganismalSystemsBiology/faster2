@@ -393,6 +393,37 @@ def pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id):
             pickle.dump(emg_vm, pkl)
 
 
+def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, result_dir, device_id):
+    """ pickles the power spectrum density matrices for subsequent analyses
+    
+    Args:
+        spec_norm_eeg (dict): a dict returned by spectrum_normalize() for EEG data
+        spec_norm_emg (dict): a dict returned by spectrum_normalize() for EMG data
+        result_dir (str):  path to the directory of the pickled data (PSD/)
+        device_id (str): a string to identify the recording device (e.g. ID47467)
+    """
+    pickle_dir = os.path.join(result_dir, 'PSD/')
+    os.makedirs(pickle_dir, exist_ok=True)
+
+    # save EEG PSD
+    pkl_path = os.path.join(pickle_dir, f'{device_id}_EEG_PSD.pkl')
+    if os.path.exists(pkl_path):
+        print(f'file already exists. Nothing to be done. {pkl_path}')
+    else:
+        with open(pkl_path, 'wb') as pkl:
+            print(f'saving the EEG PSD matrix into {pkl_path}')
+            pickle.dump(spec_norm_eeg, pkl)
+    
+    # save EMG PSD
+    pkl_path = os.path.join(pickle_dir, f'{device_id}_EMG_PSD.pkl')
+    if os.path.exists(pkl_path):
+        print(f'file already exists. Nothing to be done. {pkl_path} ')
+    else:
+        with open(pkl_path, 'wb') as pkl:
+            print(f'saving the EMG PSD matrix into {pkl_path}')
+            pickle.dump(spec_norm_emg, pkl)
+
+
 def remove_extreme_power(y):
     """In FASTER2, the spectrum powers are normalized so that the mean and 
     SD of each frequency power over all epochs become 0 and 1, respectively.  
@@ -426,7 +457,7 @@ def spectrum_normalize(voltage_matrix, n_fft, sample_freq):
     psd_norm_mat = np.apply_along_axis(lambda y: spec_norm_fac*(y - psd_mean),
                                                 1,
                                                 psd_mat)
-    return psd_norm_mat
+    return {'psd':psd_norm_mat, 'mean':psd_mean, 'norm_fac':spec_norm_fac}
 
 
 def classify_active_and_NREM(stage_coord_2D):
@@ -659,22 +690,29 @@ def main(data_dir, result_dir, pickle_input_data):
         nan_ratio_emg = np.apply_along_axis(et.patch_nan, 1, emg_vm_org)
 
 
-        # extrude unrecoverable epochs as unknown
+        # exclude unrecoverable epochs as unknown
         bidx_unknown = np.apply_along_axis(np.any, 1, np.isnan(
             eeg_vm_org)) | np.apply_along_axis(np.any, 1, np.isnan(emg_vm_org))
         eeg_vm = eeg_vm_org[~bidx_unknown,:]
         emg_vm = emg_vm_org[~bidx_unknown,:]
 
+        # make data comparable among different mice. Not necessary for staging,
+        # but convenient for subsequnet analyses.
+        eeg_vm_norm = (eeg_vm - np.mean(eeg_vm))/np.std(eeg_vm)
+        emg_vm_norm = (emg_vm - np.mean(emg_vm))/np.std(emg_vm)
 
         # power-spectrum normalization of EEG and EMG
-        psd_norm_mat_eeg = spectrum_normalize(eeg_vm, n_fft, sample_freq)
-        psd_norm_mat_emg = spectrum_normalize(emg_vm, n_fft, sample_freq)
-
+        spec_norm_eeg = spectrum_normalize(eeg_vm_norm, n_fft, sample_freq)
+        spec_norm_emg = spectrum_normalize(emg_vm_norm, n_fft, sample_freq)
+        psd_norm_mat_eeg = spec_norm_eeg['psd']
+        psd_norm_mat_emg = spec_norm_emg['psd']
 
         # remove extreme powers
         extrp_ratio_eeg = np.apply_along_axis(remove_extreme_power, 1, psd_norm_mat_eeg)
         extrp_ratio_emg = np.apply_along_axis(remove_extreme_power, 1, psd_norm_mat_emg)
 
+        # save the PSD matrices and associated factors for subsequent analyses
+        pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, result_dir, device_id)
 
         # spread epochs on the 3D (Low freq. x High freq. x REM metric) space
         psd_mat = np.concatenate([
