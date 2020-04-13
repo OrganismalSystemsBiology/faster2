@@ -13,7 +13,7 @@ class  TestStage(unittest.TestCase):
     """
 
     def test_read_mouse_info(self):
-        mouse_info = stage.read_mouse_info("../test/data")
+        mouse_info = stage.read_mouse_info("../test/data/FASTER2_20200206_EEG_2019-023/data")
 
         exp = np.array(["ID46770",
                         "ID45764",
@@ -31,7 +31,7 @@ class  TestStage(unittest.TestCase):
 
     
     def test_read_exp_info(self):
-        exp_info = stage.read_exp_info("../test/data")
+        exp_info = stage.read_exp_info("../test/data/FASTER2_20200206_EEG_2019-023/data")
 
         exp = np.array(['EEG_2019-023', 'SSS_A-E', '2020/2/7 08:00:00', '2020/2/10 08:00:00', '100'])
         res = np.array([
@@ -77,7 +77,8 @@ class  TestStage(unittest.TestCase):
     def test_read_voltage_matrices_dsi(self):
         exp = [[450, 800], [450, 800]]
 
-        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../test/data/dsi_test', 'ID33572', 100, 8, 450)
+        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices(
+            '../test/data/FASTER2_20200206_EEG_2019-023/data', 'ID33572', 100, 8, 450)
         ans = [eeg_vm.shape, emg_vm.shape]
         
         np.testing.assert_array_equal(exp, ans)
