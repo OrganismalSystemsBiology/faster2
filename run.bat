@@ -51,14 +51,14 @@ REM set RESULT_DIR=G:\EEG\experiment-data\FASTER2_170728_Wake44\result\
 REM set DATA_DIR=G:\EEG\experiment-data\FASTER_170908_Wake46\data\
 REM set RESULT_DIR=G:\EEG\experiment-data\FASTER2_170908_Wake46\result\
 
-REM set DATA_DIR=\\Sss-analysis\FASTER_20161019\FASTER_180618_Wake72\data
-REM set RESULT_DIR=G:\EEG\experiment-data\FASTER2_180618_Wake72\result\
+set DATA_DIR=\\Sss-analysis\FASTER_20161019\FASTER_180618_Wake72\data
+set RESULT_DIR=G:\EEG\experiment-data\FASTER2_180618_Wake72\result\
 
 REM set DATA_DIR=G:\EEG\experiment-data\FASTER2_20200306_EEG_2019-025\data\
 REM set RESULT_DIR=G:\EEG\experiment-data\FASTER2_20200306_EEG_2019-025\result\
 
-set DATA_DIR=G:\EEG\experiment-data\FASTER2_20200313_EEG_2019-026\data\
-set RESULT_DIR=G:\EEG\experiment-data\FASTER2_20200313_EEG_2019-026\result\
+REM set DATA_DIR=G:\EEG\experiment-data\FASTER2_20200313_EEG_2019-026\data\
+REM set RESULT_DIR=G:\EEG\experiment-data\FASTER2_20200313_EEG_2019-026\result\
 
-REM %PYTHON% stage.py -d %DATA_DIR% -r %RESULT_DIR% -p
-%PYTHON% plot_timeseries.py -d %DATA_DIR% -r %RESULT_DIR% -w 4
+%PYTHON% stage.py -d %DATA_DIR% -r %RESULT_DIR% -p
+REM %PYTHON% plot_timeseries.py -d %DATA_DIR% -r %RESULT_DIR% -w 4

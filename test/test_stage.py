@@ -2,17 +2,18 @@
 import unittest
 import numpy as np
 import sys
-sys.path.append('../')
-import stage
 import datetime
 import pickle
+sys.path.append('../')
+import stage
+
 
 class  TestStage(unittest.TestCase):
     """Test class for stage.py
     """
 
     def test_read_mouse_info(self):
-        mouse_info = stage.read_mouse_info("../data")
+        mouse_info = stage.read_mouse_info("../test/data")
 
         exp = np.array(["ID46770",
                         "ID45764",
@@ -30,7 +31,7 @@ class  TestStage(unittest.TestCase):
 
     
     def test_read_exp_info(self):
-        exp_info = stage.read_exp_info("../data")
+        exp_info = stage.read_exp_info("../test/data")
 
         exp = np.array(['EEG_2019-023', 'SSS_A-E', '2020/2/7 08:00:00', '2020/2/10 08:00:00', '100'])
         res = np.array([
@@ -76,7 +77,7 @@ class  TestStage(unittest.TestCase):
     def test_read_voltage_matrices_dsi(self):
         exp = [[450, 800], [450, 800]]
 
-        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../data/dsi_test', 'ID33572', 100, 8, 450)
+        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../test/data/dsi_test', 'ID33572', 100, 8, 450)
         ans = [eeg_vm.shape, emg_vm.shape]
         
         np.testing.assert_array_equal(exp, ans)
@@ -157,12 +158,12 @@ class  TestStage(unittest.TestCase):
         dummy_eeg = np.zeros((32400, 800))
         dummy_emg  = np.ones((32400, 800))
 
-        stage.pickle_voltage_matrices(dummy_eeg, dummy_emg, '../data', 'ID-test')
+        stage.pickle_voltage_matrices(dummy_eeg, dummy_emg, '../test/data', 'ID-test')
         
-        with open('../data/pkl/ID-test_EEG.pkl', 'rb') as pkl:
+        with open('../test/data/pkl/ID-test_EEG.pkl', 'rb') as pkl:
             res_eeg = pickle.load(pkl)
 
-        with open('../data/pkl/ID-test_EMG.pkl', 'rb') as pkl:
+        with open('../test/data/pkl/ID-test_EMG.pkl', 'rb') as pkl:
             res_emg = pickle.load(pkl)
 
         assert (res_eeg.shape == (32400, 800)) & (res_emg.shape == (32400, 800))
@@ -171,7 +172,7 @@ class  TestStage(unittest.TestCase):
     def test_read_voltage_matrices_pickle(self):
         exp = [[32400, 800], [32400, 800]]
 
-        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../data', 'ID-test', 100, 8, 32400)
+        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../test/data', 'ID-test', 100, 8, 32400)
         ans = [eeg_vm.shape, emg_vm.shape]
         
         np.testing.assert_array_equal(exp, ans)
@@ -180,7 +181,7 @@ class  TestStage(unittest.TestCase):
     def test_read_voltage_matrices_edf(self):
         exp = [[31, 1024], [31, 1024]]
 
-        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../data/edf_test', '09', 128, 8, 31)
+        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../test/data/edf_test', '09', 128, 8, 31)
         ans = [eeg_vm.shape, emg_vm.shape]
         
         np.testing.assert_array_equal(exp, ans)
@@ -192,7 +193,7 @@ class  TestStage(unittest.TestCase):
         # 2020/3/12/ 14:31:00 (20 sec offset from the meas_date) 
         # This start datetime allows extract up to 28 epochs from the test EDF file
         start_datetime = datetime.datetime(2020, 3, 12, 14, 31, 00) 
-        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../data/edf_test', '09', 128, 8, 28, start_datetime)
+        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices('../test/data/edf_test', '09', 128, 8, 28, start_datetime)
         ans = [eeg_vm.shape, emg_vm.shape]
         
         np.testing.assert_array_equal(exp, ans)
@@ -204,7 +205,7 @@ class  TestStage(unittest.TestCase):
 
         ans = stage.spectrum_normalize(test_vm, 256, 100)
 
-        np.testing.assert_array_equal(exp, ans)
+        np.testing.assert_array_equal(exp, ans['psd'])
 
 if __name__ == "__main__":
     unittest.main()
