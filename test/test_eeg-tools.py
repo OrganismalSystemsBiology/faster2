@@ -6,10 +6,10 @@ sys.path.append('../')
 import eeg_tools as et
 import numpy as np
 
-DATA_ROOT = 'G:/EEG/experiment-data'
-FASTER_FOLDER = 'FASTER_20191101_EEG_2019-015'
+DATA_ROOT = 'data/'
+FASTER_FOLDER = 'FASTER2_20200206_EEG_2019-023'
 STAGE_FOLDER = 'data/auto.stage'
-TRANSMITTER_ID = '13'
+TRANSMITTER_ID = 'ID33572'
 
 class TestDSI_TEXT_Reader(unittest.TestCase):
     def setUp(self):
@@ -33,8 +33,8 @@ class TestFunctions(unittest.TestCase):
                 'data/auto.stage'), 
                 f'{TRANSMITTER_ID}')
         
-        exp = np.array(['WAKE', 'NREM', 'REM', 'WAKE'])
-        res = res[np.r_[0,400,498,32399]]
+        exp = np.array(['NREM', 'WAKE', 'REM', 'UNKNOWN'])
+        res = res[np.r_[0,30,8470,4190]]
         np.testing.assert_array_equal(res, exp)
 
     def test_patch_nan(self):
