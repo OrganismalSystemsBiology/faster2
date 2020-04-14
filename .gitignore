@@ -132,6 +132,7 @@ dmypy.json
 .vscode
 iPythonWork
 /data
+/graph
 figure/
 result/
 dask-worker-space/

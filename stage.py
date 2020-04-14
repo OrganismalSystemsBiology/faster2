@@ -72,6 +72,7 @@ def read_mouse_info(data_dir):
                                 "Mouse ID", "DOB", "Stats report", "Note"],
                          skiprows=1,
                          header=None,
+                         skipinitialspace=True,
                          encoding=codename)
 
     return csv_df
@@ -370,7 +371,7 @@ def pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id):
         emg_vm (np.array): voltage matrix for EMG data
         data_dir (str):  path to the directory of pickled data (pkl/)
         device_id (str): a string to identify the recording device (e.g. ID47467)
-    """
+"""
     pickle_dir = os.path.join(data_dir, 'pkl/')
     os.makedirs(pickle_dir, exist_ok=True)
 
