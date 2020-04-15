@@ -134,7 +134,6 @@ iPythonWork
 /data
 /graph
 figure/
-result/
 dask-worker-space/
 ID-test_EEG.pkl
 ID-test_EMG.pkl

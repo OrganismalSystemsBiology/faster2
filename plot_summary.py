@@ -411,6 +411,100 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
             fig.suptitle(f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
             filename = f'stage-time_profile_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}.jpg'
             fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+    else:
+        # single group
+        g_idx = 0
+
+        num = np.sum(bidx_group_list[g_idx])
+        x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
+        x = np.arange(x_max)
+        fig = Figure(figsize=(13,6))
+        ax1 = fig.add_subplot(311, xmargin=0, ymargin=0)
+        ax2 = fig.add_subplot(312, xmargin=0, ymargin=0)
+        ax3 = fig.add_subplot(313, xmargin=0, ymargin=0)
+
+        _set_common_features_stagetime_profile_rem(ax1, epoch_num)
+        _set_common_features_stagetime_profile(ax2, epoch_num)
+        _set_common_features_stagetime_profile(ax3, epoch_num)
+
+        # REM
+        y     = stagetime_profile_stats_list[g_idx][0, 0, :]
+        y_sem = stagetime_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
+        ax1.plot(x, y, color=stage.COLOR_REM)
+        ax1.fill_between(x, y - y_sem,
+                            y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+        ax1.set_ylabel('Hourly REM\n duration (min)')
+
+        # NREM
+        y     = stagetime_profile_stats_list[g_idx][0, 1, :]
+        y_sem = stagetime_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
+        ax2.plot(x, y, color=stage.COLOR_NREM)
+        ax2.fill_between(x, y - y_sem,
+                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+        ax2.set_ylabel('Hourly NREM\n duration (min)')
+
+        # Wake
+        y     = stagetime_profile_stats_list[g_idx][0, 2, :]
+        y_sem = stagetime_profile_stats_list[g_idx][1, 2, :]/np.sqrt(num)
+        ax3.plot(x, y, color=stage.COLOR_WAKE)
+        ax3.fill_between(x, y - y_sem/np.sqrt(num),
+                            y + y_sem/np.sqrt(num), color=stage.COLOR_WAKE, alpha=0.3)
+        ax3.set_ylabel('Hourly wake\n duration (min)')
+        ax3.set_xlabel('Time (hours)')
+
+        fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
+        filename = f'stage-time_profile_{mouse_groups_set[g_idx]}.jpg'
+        fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+
+
+def draw_stagetime_circadian_profile(stagetime_stats, output_dir):
+    stagetime_df = stagetime_stats['stagetime']
+    stagetime_circadian_list = stagetime_stats['stagetime_circadian']
+    for i, circadian in enumerate(stagetime_circadian_list):
+        x_max = 24
+        x = np.arange(x_max)
+        fig = Figure(figsize=(13,4))
+        fig.subplots_adjust(wspace=0.3)
+        ax1 = fig.add_subplot(131, xmargin=0, ymargin=0)
+        ax2 = fig.add_subplot(132, xmargin=0, ymargin=0)
+        ax3 = fig.add_subplot(133, xmargin=0, ymargin=0)
+
+        _set_common_features_stagetime_profile_rem(ax1, epoch_num)
+        _set_common_features_stagetime_profile(ax2, epoch_num)
+        _set_common_features_stagetime_profile(ax3, epoch_num)
+        ax1.set_xlabel('Time (hours)')
+        ax2.set_xlabel('Time (hours)')
+        ax3.set_xlabel('Time (hours)')
+        ax1.set_ylabel('Hourly REM\n duration (min)')
+        ax2.set_ylabel('Hourly NREM\n duration (min)')
+        ax3.set_ylabel('Hourly wake\n duration (min)')
+
+        num = epoch_num*stage.EPOCH_LEN_SEC/3600/24
+
+        # REM
+        y    = circadian[0, 0, :]
+        y_sem = circadian[1, 0, :]/np.sqrt(num)
+        ax1.plot(x, y, color=stage.COLOR_REM)
+        ax1.fill_between(x, y - y_sem,
+                        y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+
+        # NREM
+        y    = circadian[0, 1, :]
+        y_sem = circadian[1, 1, :]/np.sqrt(num)
+        ax2.plot(x, y, color=stage.COLOR_NREM)
+        ax2.fill_between(x, y - y_sem,
+                        y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+
+        # Wake
+        y    = circadian[0, 2, :]
+        y_sem = circadian[1, 2, :]/np.sqrt(num)
+        ax3.plot(x, y, color=stage.COLOR_WAKE)
+        ax3.fill_between(x, y - y_sem,
+                        y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+
+        fig.suptitle(f'Circadian stage-time profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
+        filename = f'stage-time_circadian_profile_{"_".join(stagetime_df.iloc[i,0:4].values)}.jpg'
+        fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
 if __name__ == '__main__':
@@ -447,3 +541,7 @@ if __name__ == '__main__':
     #
     draw_stagetime_profile_grouped(stagetime_stats, output_dir)
     
+    #
+    # draw stagetime circadian profile of individual mice
+    #
+    draw_stagetime_circadian_profile(stagetime_stats, output_dir)
