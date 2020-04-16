@@ -423,9 +423,9 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
         ax2 = fig.add_subplot(312, xmargin=0, ymargin=0)
         ax3 = fig.add_subplot(313, xmargin=0, ymargin=0)
 
-        _set_common_features_stagetime_profile_rem(ax1, epoch_num)
-        _set_common_features_stagetime_profile(ax2, epoch_num)
-        _set_common_features_stagetime_profile(ax3, epoch_num)
+        _set_common_features_stagetime_profile_rem(ax1, x_max)
+        _set_common_features_stagetime_profile(ax2, x_max)
+        _set_common_features_stagetime_profile(ax3, x_max)
 
         # REM
         y     = stagetime_profile_stats_list[g_idx][0, 0, :]
@@ -457,7 +457,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
         fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
-def draw_stagetime_circadian_profile(stagetime_stats, output_dir):
+def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     stagetime_circadian_list = stagetime_stats['stagetime_circadian']
     for i, circadian in enumerate(stagetime_circadian_list):
@@ -469,9 +469,9 @@ def draw_stagetime_circadian_profile(stagetime_stats, output_dir):
         ax2 = fig.add_subplot(132, xmargin=0, ymargin=0)
         ax3 = fig.add_subplot(133, xmargin=0, ymargin=0)
 
-        _set_common_features_stagetime_profile_rem(ax1, epoch_num)
-        _set_common_features_stagetime_profile(ax2, epoch_num)
-        _set_common_features_stagetime_profile(ax3, epoch_num)
+        _set_common_features_stagetime_profile_rem(ax1, x_max)
+        _set_common_features_stagetime_profile(ax2, x_max)
+        _set_common_features_stagetime_profile(ax3, x_max)
         ax1.set_xlabel('Time (hours)')
         ax2.set_xlabel('Time (hours)')
         ax3.set_xlabel('Time (hours)')
@@ -507,6 +507,102 @@ def draw_stagetime_circadian_profile(stagetime_stats, output_dir):
         fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
+def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
+    stagetime_df = stagetime_stats['stagetime']
+    stagetime_circadian_profile_list = stagetime_stats['stagetime_circadian']
+
+    mouse_groups = stagetime_df['Mouse group'].values
+    mouse_groups_set = sorted(set(mouse_groups), key=list(
+        mouse_groups).index)  # unique elements with preseved order
+
+    bidx_group_list = [mouse_groups==g for g in mouse_groups_set]
+
+    # make stats of stagetime circadian profile: mean and sd over each group
+    # mouse x [mean of REM, NREM, Wake] x 24 hours
+    stagetime_circadian_profile_mat = np.array(
+        [ms[0] for ms in stagetime_circadian_profile_list])
+    stagetime_circadian_profile_stats_list = []
+    for bidx in bidx_group_list:
+        stagetime_circadian_profile_mean = np.apply_along_axis(
+            np.mean, 0, stagetime_circadian_profile_mat[bidx])
+        stagetime_circadian_profile_sd = np.apply_along_axis(
+            np.std, 0, stagetime_circadian_profile_mat[bidx])
+        stagetime_circadian_profile_stats_list.append(
+            np.array([stagetime_circadian_profile_mean, stagetime_circadian_profile_sd]))
+
+    x_max = 24
+    x = np.arange(x_max)
+    if len(mouse_groups_set)>1:
+        for g_idx in range(1, len(mouse_groups_set)):        
+            fig = Figure(figsize=(13,4))
+            fig.subplots_adjust(wspace=0.3)
+            ax1 = fig.add_subplot(131, xmargin=0, ymargin=0)
+            ax2 = fig.add_subplot(132, xmargin=0, ymargin=0)
+            ax3 = fig.add_subplot(133, xmargin=0, ymargin=0)
+
+            _set_common_features_stagetime_profile_rem(ax1, x_max)
+            _set_common_features_stagetime_profile(ax2, x_max)
+            _set_common_features_stagetime_profile(ax3, x_max)
+            ax1.set_xlabel('Time (hours)')
+            ax2.set_xlabel('Time (hours)')
+            ax3.set_xlabel('Time (hours)')
+            ax1.set_ylabel('Hourly REM\n duration (min)')
+            ax2.set_ylabel('Hourly NREM\n duration (min)')
+            ax3.set_ylabel('Hourly wake\n duration (min)')
+
+
+            ## Control (always the first group)
+            num_c = np.sum(bidx_group_list[0])
+            # REM
+            y     = stagetime_circadian_profile_stats_list[0][0, 0, :]
+            y_sem = stagetime_circadian_profile_stats_list[0][1, 0, :]/np.sqrt(num_c)
+            ax1.plot(x, y, color='grey')
+            ax1.fill_between(x, y - y_sem,
+                                y + y_sem, color='grey', alpha=0.3)
+
+            # NREM
+            y    = stagetime_circadian_profile_stats_list[0][0, 1, :]
+            y_sem = stagetime_circadian_profile_stats_list[0][1, 1, :]/np.sqrt(num_c)
+            ax2.plot(x, y, color='grey')
+            ax2.fill_between(x, y - y_sem,
+                                y + y_sem, color='grey', alpha=0.3)
+
+            # Wake
+            y     = stagetime_circadian_profile_stats_list[0][0, 2, :]
+            y_sem = stagetime_circadian_profile_stats_list[0][1, 2, :]/np.sqrt(num_c)
+            ax3.plot(x, y, color='grey')
+            ax3.fill_between(x, y - y_sem,
+                                y + y_sem, color='grey', alpha=0.3)
+
+            ## Treatment
+            num = np.sum(bidx_group_list[g_idx])
+            # REM
+            y    = stagetime_circadian_profile_stats_list[g_idx][0, 0, :]
+            y_sem= stagetime_circadian_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
+            ax1.plot(x, y, color=stage.COLOR_REM)
+            ax1.fill_between(x, y - y_sem,
+                                y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+
+            # NREM
+            y    = stagetime_circadian_profile_stats_list[g_idx][0, 1, :]
+            y_sem= stagetime_circadian_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
+            ax2.plot(x, y, color=stage.COLOR_NREM)
+            ax2.fill_between(x, y - y_sem,
+                                y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+
+            # Wake
+            y    = stagetime_circadian_profile_stats_list[g_idx][0, 2, :]
+            y_sem = stagetime_circadian_profile_stats_list[g_idx][1, 2, :]/np.sqrt(num)
+            ax3.plot(x, y, color=stage.COLOR_WAKE)
+            ax3.fill_between(x, y - y_sem,
+                                y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+
+            fig.suptitle(f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
+            filename = f'stage-time_circadian_profile_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}.jpg'
+            fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+            
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--faster2_dirs", required=True, nargs="*",
@@ -531,17 +627,14 @@ if __name__ == '__main__':
     # prepare stagetime statistics
     stagetime_stats = make_summary_stats(mouse_info_df, epoch_num)
 
-    #
     # draw stagetime profile of individual mice
-    #
     draw_stagetime_profile_individual(stagetime_stats, output_dir)
  
-    #
     # draw stagetime profile of grouped mice
-    #
     draw_stagetime_profile_grouped(stagetime_stats, output_dir)
     
-    #
     # draw stagetime circadian profile of individual mice
-    #
-    draw_stagetime_circadian_profile(stagetime_stats, output_dir)
+    draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir)
+
+    # draw stagetime circadian profile of groups
+    draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir)
