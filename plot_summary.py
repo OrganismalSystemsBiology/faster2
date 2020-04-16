@@ -600,7 +600,132 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
             fig.suptitle(f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
             filename = f'stage-time_circadian_profile_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}.jpg'
             fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
-            
+
+
+def x_shifts(values, y_min, y_max, width):
+#    print(y_min, y_max)
+    counts, _ = np.histogram(values,range=(np.min([y_min, np.min(values)]), np.max([y_max, np.max(values)])), bins=30)
+    sorted_values = sorted(values)
+    shifts = []
+#    print(counts)
+    non_zero_counts = counts[counts>0]
+    for c in non_zero_counts:
+        if c==1:
+            shifts.append(0)
+        else:
+            p = np.arange(1,c+1) # point counts
+            s = np.repeat(p, 2)[:p.size] * (-1)**p * width/10 # [-1, 1, -2, 2, ...] * width/10
+            shifts.extend(s)
+    
+#     print(shifts)
+#     print(sorted_values)
+    return [np.array(shifts), sorted_values]
+
+
+def scatter_datapoints(ax, w, x_pos, values):
+    s, v =  x_shifts(values, *ax.get_ylim(), w)
+    ax.scatter(x_pos + s, v , color='darkgrey')
+
+
+def draw_stagetime_barchart(stagetime_stats, output_dir):
+    stagetime_df = stagetime_stats['stagetime']
+
+    mouse_groups = stagetime_df['Mouse group'].values
+    mouse_groups_set = sorted(set(mouse_groups), key=list(
+        mouse_groups).index)  # unique elements with preseved order
+
+    bidx_group_list = [mouse_groups==g for g in mouse_groups_set]
+
+    # contrast to group index = 0
+    num_groups = len(mouse_groups_set)
+
+    fig = Figure(figsize=(10,4))
+    fig.subplots_adjust(wspace=0.5)
+    ax1 = fig.add_subplot(131)
+    ax2 = fig.add_subplot(132)
+    ax3 = fig.add_subplot(133)
+
+    w = 0.8 # bar width
+    x_pos = range(num_groups)
+    xtick_str_list = ['\n'.join(textwrap.wrap(mouse_groups_set[0], 8))
+                      for g_idx in range(num_groups)]
+    ax1.set_xticks(x_pos)
+    ax2.set_xticks(x_pos)
+    ax3.set_xticks(x_pos)
+    ax1.set_xticklabels(xtick_str_list)
+    ax2.set_xticklabels(xtick_str_list)
+    ax3.set_xticklabels(xtick_str_list)
+    ax1.set_ylabel('REM duration (min)')
+    ax2.set_ylabel('NREM duration (min)')
+    ax3.set_ylabel('Wake duration (min)')
+
+    if num_groups>1:
+        # REM
+        values_c = stagetime_df['REM'].values[bidx_group_list[0]]
+        mean_c = np.mean(values_c)
+        sem_c  = np.std(values_c)/np.sqrt(len(values_c))
+        ax1.bar(x_pos[0], mean_c, yerr=sem_c, align='center', width=w, capsize=6, color='grey', alpha=0.3)
+        scatter_datapoints(ax1, w, x_pos[0], values_c)
+        for g_idx in range(1, num_groups):
+            values_t = stagetime_df['REM'].values[bidx_group_list[g_idx]]
+            mean_t = np.mean(values_t)
+            sem_t  = np.std(values_t)/np.sqrt(len(values_t))
+            ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.3)
+            scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
+
+        #NREM
+        values_c = stagetime_df['NREM'].values[bidx_group_list[0]]
+        mean_c = np.mean(values_c)
+        sem_c  = np.std(values_c)/np.sqrt(len(values_c))
+        ax2.bar(x_pos[0], mean_c, yerr=sem_c, align='center', width=w, capsize=6, color='grey', alpha=0.3)
+        scatter_datapoints(ax2, w, x_pos[0], values_c)
+
+        for g_idx in range(1, num_groups):
+            values_t = stagetime_df['NREM'].values[bidx_group_list[g_idx]]
+            mean_t = np.mean(values_t)
+            sem_t  = np.std(values_t)/np.sqrt(len(values_t))
+            ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.3)
+            scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
+
+        #Wake
+        values_c = stagetime_df['Wake'].values[bidx_group_list[0]]
+        mean_c = np.mean(values_c)
+        sem_c  = np.std(values_c)/np.sqrt(len(values_c))
+        ax3.bar(x_pos[0], mean_c, yerr=sem_c, align='center', width=w, capsize=6, color='grey', alpha=0.3)
+        scatter_datapoints(ax3, w, x_pos[0], values_c)
+
+        for g_idx in range(1, num_groups):
+            values_t = stagetime_df['Wake'].values[bidx_group_list[g_idx]]
+            mean_t = np.mean(values_t)
+            sem_t  = np.std(values_t)/np.sqrt(len(values_t))
+            ax3.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.3)
+            scatter_datapoints(ax3, w, x_pos[g_idx], values_t)
+    else:
+        # REM
+        values_t = stagetime_df['REM'].values[bidx_group_list[0]]
+        mean_t = np.mean(values_t)
+        sem_t  = np.std(values_t)/np.sqrt(len(values_t))
+        ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.3)
+        scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
+
+        #NREM
+        values_t = stagetime_df['NREM'].values[bidx_group_list[0]]
+        mean_t = np.mean(values_t)
+        sem_t  = np.std(values_t)/np.sqrt(len(values_t))
+        ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.3)
+        scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
+
+        #Wake
+        values_t = stagetime_df['Wake'].values[bidx_group_list[0]]
+        mean_t = np.mean(values_t)
+        sem_t  = np.std(values_t)/np.sqrt(len(values_t))
+        ax3.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.3)
+        scatter_datapoints(ax3, w, x_pos[g_idx], values_t)
+
+    fig.suptitle('Stage-times')
+    filename = 'stage-time_barchart.jpg'
+    fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+
 
 
 if __name__ == '__main__':
@@ -638,3 +763,6 @@ if __name__ == '__main__':
 
     # draw stagetime circadian profile of groups
     draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir)
+
+    # draw stagetime barchart
+    draw_stagetime_barchart(stagetime_stats, output_dir)
