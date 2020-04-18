@@ -137,3 +137,5 @@ figure/
 dask-worker-space/
 ID-test_EEG.pkl
 ID-test_EMG.pkl
+*.bat
+!sample*.bat

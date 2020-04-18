@@ -1,0 +1,10 @@
+Device label,Mouse group,Mouse ID,DOB,Stats report, Note
+09,WT, Kcnq1-1-1_ctrl_5, 2019/07/03, Yes, 上段1 OK 
+10,WT, Kcnq1-1-1_ctrl_6, 2019/07/03, Yes, 上段2 OK 終了時：ねじりっこ外れ 
+11,KO, Kcnq1-1-1_8,      2020/07/02, No,  上段3 NG 終了時：アンプ側ケーブル外れ
+12,KO, Kcnq1-1-1_10,     2020/07/02, Yes, 上段4 OK 終了時：ねじりっこ外れ
+13,WT, Kcnq1-1-1_ctrl_7, 2020/07/03, Yes, 下段1 OK
+14,WT, Kcnq1-1-1_ctrl_8, 2020/07/03, No,  下段2 NG EEG signal異常 
+15,KO, Kcnq1-1-1_11,     2020/07/02, No,  下段3 NG 終了時：アンプ側ケーブル外れ
+16,KO, Kcnq1-1-1_13,     2020/07/02, Yes, 下段4 OK
+

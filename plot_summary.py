@@ -119,7 +119,8 @@ def make_summary_stats(mouse_info_df, epoch_num):
             'stagetime_profile': stagetime_profile_list,
             'stagetime_circadian': stagetime_circadian_profile_list,
             'transmat': transmat_list,
-            'swtrans': swtrans_list})
+            'swtrans': swtrans_list,
+            'epoch_num': epoch_num})
 
 
 def stagetime_in_a_day(stage_call):
@@ -633,10 +634,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
     mouse_groups = stagetime_df['Mouse group'].values
     mouse_groups_set = sorted(set(mouse_groups), key=list(
         mouse_groups).index)  # unique elements with preseved order
-
     bidx_group_list = [mouse_groups==g for g in mouse_groups_set]
-
-    # contrast to group index = 0
     num_groups = len(mouse_groups_set)
 
     fig = Figure(figsize=(10,4))
@@ -647,7 +645,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
 
     w = 0.8 # bar width
     x_pos = range(num_groups)
-    xtick_str_list = ['\n'.join(textwrap.wrap(mouse_groups_set[0], 8))
+    xtick_str_list = ['\n'.join(textwrap.wrap(mouse_groups_set[g_idx], 8))
                       for g_idx in range(num_groups)]
     ax1.set_xticks(x_pos)
     ax2.set_xticks(x_pos)
@@ -664,68 +662,444 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
         values_c = stagetime_df['REM'].values[bidx_group_list[0]]
         mean_c = np.mean(values_c)
         sem_c  = np.std(values_c)/np.sqrt(len(values_c))
-        ax1.bar(x_pos[0], mean_c, yerr=sem_c, align='center', width=w, capsize=6, color='grey', alpha=0.3)
+        ax1.bar(x_pos[0], mean_c, yerr=sem_c, align='center', width=w, capsize=6, color='grey', alpha=0.6)
         scatter_datapoints(ax1, w, x_pos[0], values_c)
         for g_idx in range(1, num_groups):
             values_t = stagetime_df['REM'].values[bidx_group_list[g_idx]]
             mean_t = np.mean(values_t)
             sem_t  = np.std(values_t)/np.sqrt(len(values_t))
-            ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.3)
+            ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
             scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
 
         #NREM
         values_c = stagetime_df['NREM'].values[bidx_group_list[0]]
         mean_c = np.mean(values_c)
         sem_c  = np.std(values_c)/np.sqrt(len(values_c))
-        ax2.bar(x_pos[0], mean_c, yerr=sem_c, align='center', width=w, capsize=6, color='grey', alpha=0.3)
+        ax2.bar(x_pos[0], mean_c, yerr=sem_c, align='center', width=w, capsize=6, color='grey', alpha=0.6)
         scatter_datapoints(ax2, w, x_pos[0], values_c)
 
         for g_idx in range(1, num_groups):
             values_t = stagetime_df['NREM'].values[bidx_group_list[g_idx]]
             mean_t = np.mean(values_t)
             sem_t  = np.std(values_t)/np.sqrt(len(values_t))
-            ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.3)
+            ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
             scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
 
         #Wake
         values_c = stagetime_df['Wake'].values[bidx_group_list[0]]
         mean_c = np.mean(values_c)
         sem_c  = np.std(values_c)/np.sqrt(len(values_c))
-        ax3.bar(x_pos[0], mean_c, yerr=sem_c, align='center', width=w, capsize=6, color='grey', alpha=0.3)
+        ax3.bar(x_pos[0], mean_c, yerr=sem_c, align='center', width=w, capsize=6, color='grey', alpha=0.6)
         scatter_datapoints(ax3, w, x_pos[0], values_c)
 
         for g_idx in range(1, num_groups):
             values_t = stagetime_df['Wake'].values[bidx_group_list[g_idx]]
             mean_t = np.mean(values_t)
             sem_t  = np.std(values_t)/np.sqrt(len(values_t))
-            ax3.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.3)
+            ax3.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
             scatter_datapoints(ax3, w, x_pos[g_idx], values_t)
     else:
         # REM
         values_t = stagetime_df['REM'].values[bidx_group_list[0]]
         mean_t = np.mean(values_t)
         sem_t  = np.std(values_t)/np.sqrt(len(values_t))
-        ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.3)
+        ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
         scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
 
         #NREM
         values_t = stagetime_df['NREM'].values[bidx_group_list[0]]
         mean_t = np.mean(values_t)
         sem_t  = np.std(values_t)/np.sqrt(len(values_t))
-        ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.3)
+        ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
         scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
 
         #Wake
         values_t = stagetime_df['Wake'].values[bidx_group_list[0]]
         mean_t = np.mean(values_t)
         sem_t  = np.std(values_t)/np.sqrt(len(values_t))
-        ax3.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.3)
+        ax3.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
         scatter_datapoints(ax3, w, x_pos[g_idx], values_t)
 
     fig.suptitle('Stage-times')
     filename = 'stage-time_barchart.jpg'
     fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
+
+def _draw_transition_barchart(mouse_groups, transmat_mat):
+    mouse_groups_set = sorted(set(mouse_groups), key=list(
+        mouse_groups).index)  # unique elements with preseved order
+    bidx_group_list = [mouse_groups==g for g in mouse_groups_set]
+    num_groups = len(mouse_groups_set)
+
+    fig = Figure(figsize=(12,8))
+    fig.subplots_adjust(wspace=0.2)
+    ax1 = fig.add_subplot(221)
+    ax2 = fig.add_subplot(222)
+    ax3 = fig.add_subplot(223)
+    ax4 = fig.add_subplot(224)
+
+    w = 0.8 # bar width
+    ax1.set_xticks([0, 2, 4])
+    ax2.set_xticks([0, 2])
+    ax3.set_xticks([0, 2])
+    ax4.set_xticks([0, 2])
+    ax1.set_xticklabels(['RR', 'NN', 'WW'])
+    ax2.set_xticklabels(['RN', 'RW'])
+    ax3.set_xticklabels(['NR', 'NW'])
+    ax4.set_xticklabels(['WR', 'WN'])
+ 
+    # control group (always index: 0)
+    num_c = np.sum(bidx_group_list[0])
+    rr_vals_c = transmat_mat[bidx_group_list[0]][:,0,0]
+    nn_vals_c = transmat_mat[bidx_group_list[0]][:,1,1]
+    ww_vals_c = transmat_mat[bidx_group_list[0]][:,2,2]
+    rw_vals_c = transmat_mat[bidx_group_list[0]][:,0,1]
+    rn_vals_c = transmat_mat[bidx_group_list[0]][:,0,2]
+    wr_vals_c = transmat_mat[bidx_group_list[0]][:,1,0]
+    wn_vals_c = transmat_mat[bidx_group_list[0]][:,1,2]
+    nr_vals_c = transmat_mat[bidx_group_list[0]][:,2,0]
+    nw_vals_c = transmat_mat[bidx_group_list[0]][:,2,1]
+
+    if num_groups > 1:
+        # staying
+        ## control
+        x_pos = 0 - w/2
+        ax1.bar(x_pos,
+                height=np.mean(rr_vals_c),
+                yerr=np.std(rr_vals_c)/num_c,
+                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+        scatter_datapoints(ax1, w, x_pos, rr_vals_c)
+        x_pos = 2 - w/2
+        ax1.bar(x_pos,
+                height=np.mean(nn_vals_c),
+                yerr=np.std(nn_vals_c)/num_c,
+                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+        scatter_datapoints(ax1, w, x_pos, nn_vals_c)
+        x_pos = 4 - w/2
+        ax1.bar(x_pos,
+                height=np.mean(ww_vals_c),
+                yerr=np.std(ww_vals_c)/num_c,
+                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+        scatter_datapoints(ax1, w, x_pos, ww_vals_c)
+
+        # tests.
+        for g_idx in range(1, num_groups):
+            num_t = np.sum(bidx_group_list[g_idx])
+            rr_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 0, 0]
+            nn_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 1, 1]
+            ww_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 2, 2]
+            x_pos = 0 + g_idx*w/2
+            ax1.bar(x_pos,
+                    height=np.mean(rr_vals_t),
+                    yerr=np.std(rr_vals_t)/num_t,
+                    align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
+            scatter_datapoints(ax1, w, x_pos, rr_vals_t)
+            x_pos = 2 + g_idx*w/2
+            ax1.bar(x_pos,
+                    height=np.mean(nn_vals_t),
+                    yerr=np.std(nn_vals_t)/num_t,
+                    align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
+            scatter_datapoints(ax1, w, x_pos, nn_vals_t)
+            x_pos = 4 + g_idx*w/2
+            ax1.bar(x_pos,
+                    height=np.mean(ww_vals_t),
+                    yerr=np.std(ww_vals_t)/num_t,
+                    align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
+            scatter_datapoints(ax1, w, x_pos, ww_vals_t)
+
+        # Trnsitions from REM
+        ## control
+        x_pos = 0 - w/2
+        ax2.bar(x_pos,
+                height=np.mean(rn_vals_c),
+                yerr=np.std(rn_vals_c)/num_c,
+                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+        scatter_datapoints(ax2, w, x_pos, rn_vals_c)
+        x_pos = 2 - w/2
+        ax2.bar(x_pos,
+                height=np.mean(rw_vals_c),
+                yerr=np.std(rw_vals_c)/num_c,
+                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+        scatter_datapoints(ax2, w, x_pos, rw_vals_c)
+
+        # tests.
+        for g_idx in range(1, num_groups):
+            num_t = np.sum(bidx_group_list[g_idx])
+            rw_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 0, 1]
+            rn_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 0, 2]
+            x_pos = 0 + g_idx*w/2
+            ax2.bar(x_pos,
+                    height=np.mean(rw_vals_t),
+                    yerr=np.std(rw_vals_t)/num_t,
+                    align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
+            scatter_datapoints(ax2, w, x_pos, rw_vals_t)
+            x_pos = 2 + g_idx*w/2
+            ax2.bar(x_pos,
+                    height=np.mean(rn_vals_t),
+                    yerr=np.std(rn_vals_t)/num_t,
+                    align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
+            scatter_datapoints(ax2, w, x_pos, rn_vals_t)
+
+        # Trnsitions from NREM
+        ## control
+        x_pos = 0 - w/2
+        ax3.bar(x_pos,
+                height=np.mean(nr_vals_c),
+                yerr=np.std(nr_vals_c)/num_c,
+                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+        scatter_datapoints(ax3, w, x_pos, nr_vals_c)
+        x_pos = 2 - w/2
+        ax3.bar(x_pos,
+                height=np.mean(nw_vals_c),
+                yerr=np.std(nw_vals_c)/num_c,
+                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+        scatter_datapoints(ax3, w, x_pos, nw_vals_c)
+
+        # tests.
+        for g_idx in range(1, num_groups):
+            num_t = np.sum(bidx_group_list[g_idx])
+            nr_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 2, 0]
+            nw_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 2, 1]
+            x_pos = 0 + g_idx*w/2
+            ax3.bar(x_pos,
+                    height=np.mean(nr_vals_t),
+                    yerr=np.std(nr_vals_t)/num_t,
+                    align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
+            scatter_datapoints(ax3, w, x_pos, nr_vals_t)
+            x_pos = 2 + g_idx*w/2
+            ax3.bar(x_pos,
+                    height=np.mean(nw_vals_t),
+                    yerr=np.std(nw_vals_t)/num_t,
+                    align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
+            scatter_datapoints(ax3, w, x_pos, nw_vals_t)
+
+        # Trnsitions from Wake
+        ## control
+        x_pos = 0 - w/2
+        ax4.bar(x_pos,
+                height=np.mean(wr_vals_c),
+                yerr=np.std(wr_vals_c)/num_c,
+                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+        scatter_datapoints(ax4, w, x_pos, wr_vals_c)
+        x_pos = 2 - w/2
+        ax4.bar(x_pos,
+                height=np.mean(wn_vals_c),
+                yerr=np.std(wn_vals_c)/num_c,
+                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+        scatter_datapoints(ax4, w, x_pos, wn_vals_c)
+
+        # tests.
+        for g_idx in range(1, num_groups):
+            num_t = np.sum(bidx_group_list[g_idx])
+            wr_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 1, 0]
+            wn_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 1, 2]
+            x_pos = 0 + g_idx*w/2
+            ax4.bar(x_pos,
+                    height=np.mean(wr_vals_t),
+                    yerr=np.std(wr_vals_t)/num_t,
+                    align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
+            scatter_datapoints(ax4, w, x_pos, wr_vals_t)
+            x_pos = 2 + g_idx*w/2
+            ax4.bar(x_pos,
+                    height=np.mean(wn_vals_t),
+                    yerr=np.std(wn_vals_t)/num_t,
+                    align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
+            scatter_datapoints(ax4, w, x_pos, wn_vals_t)
+    else:
+        # staying
+        ## single group
+        x_pos = 0 - w/2
+        ax1.bar(x_pos,
+                height=np.mean(rr_vals_c),
+                yerr=np.std(rr_vals_c)/num_c,
+                align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
+        scatter_datapoints(ax1, w, x_pos, rr_vals_c)
+        x_pos = 2 - w/2
+        ax1.bar(x_pos,
+                height=np.mean(nn_vals_c),
+                yerr=np.std(nn_vals_c)/num_c,
+                align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
+        scatter_datapoints(ax1, w, x_pos, nn_vals_c)
+        x_pos = 4 - w/2
+        ax1.bar(x_pos,
+                height=np.mean(ww_vals_c),
+                yerr=np.std(ww_vals_c)/num_c,
+                align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
+        scatter_datapoints(ax1, w, x_pos, ww_vals_c)
+        # Trnsitions from REM
+        ## single group
+        x_pos = 0 - w/2
+        ax2.bar(x_pos,
+                height=np.mean(rn_vals_c),
+                yerr=np.std(rn_vals_c)/num_c,
+                align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
+        scatter_datapoints(ax2, w, x_pos, rn_vals_c)
+        x_pos = 2 - w/2
+        ax2.bar(x_pos,
+                height=np.mean(rw_vals_c),
+                yerr=np.std(rw_vals_c)/num_c,
+                align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
+        scatter_datapoints(ax2, w, x_pos, rw_vals_c)
+        # Trnsitions from NREM
+        ## single group
+        x_pos = 0 - w/2
+        ax3.bar(x_pos,
+                height=np.mean(nr_vals_c),
+                yerr=np.std(nr_vals_c)/num_c,
+                align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
+        scatter_datapoints(ax3, w, x_pos, nr_vals_c)
+        x_pos = 2 - w/2
+        ax3.bar(x_pos,
+                height=np.mean(nw_vals_c),
+                yerr=np.std(nw_vals_c)/num_c,
+                align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
+        scatter_datapoints(ax3, w, x_pos, nw_vals_c)
+        # Trnsitions from Wake
+        ## single group
+        x_pos = 0 - w/2
+        ax4.bar(x_pos,
+                height=np.mean(wr_vals_c),
+                yerr=np.std(wr_vals_c)/num_c,
+                align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
+        scatter_datapoints(ax4, w, x_pos, wr_vals_c)
+        x_pos = 2 - w/2
+        ax4.bar(x_pos,
+                height=np.mean(wn_vals_c),
+                yerr=np.std(wn_vals_c)/num_c,
+                align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
+        scatter_datapoints(ax4, w, x_pos, wn_vals_c)
+
+
+    return(fig)
+
+def draw_transition_barchart_prob(stagetime_stats, output_dir):
+    stagetime_df = stagetime_stats['stagetime']
+    mouse_groups = stagetime_df['Mouse group'].values
+    mouse_groups_set = sorted(set(mouse_groups), key=list(
+        mouse_groups).index)  # unique elements with preseved order
+    transmat_mat = np.array(stagetime_stats['transmat'])
+
+    fig = _draw_transition_barchart(mouse_groups, transmat_mat)
+    axes = fig.axes
+    axes[0].set_ylabel('prob. to stay')
+    axes[1].set_ylabel('prob. to transit from REM')
+    axes[2].set_ylabel('prob. to transit from NREM')
+    axes[3].set_ylabel('prob. to transit from Wake')
+    fig.suptitle(f'transition probability: {mouse_groups_set[0]} v.s. {"  ".join(mouse_groups_set[1:])}')
+    filename = 'transition probability_barchart.jpg'
+    fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+
+
+def _odd(p, epoch_num):
+    min_p = 1/epoch_num # zero probability is replaced by this value
+    max_p = 1-1/epoch_num
+    pp = min(max(p, min_p), max_p)
+    return np.log10(pp/(1-pp))
+
+
+def draw_transition_barchart_logodds(stagetime_stats, output_dir):
+    stagetime_df = stagetime_stats['stagetime']
+    mouse_groups = stagetime_df['Mouse group'].values
+    mouse_groups_set = sorted(set(mouse_groups), key=list(
+        mouse_groups).index)  # unique elements with preseved order
+    epoch_num = stagetime_stats['epoch_num']
+    transmat_mat = np.array(stagetime_stats['transmat'])
+    transmat_mat = np.vectorize(_odd)(transmat_mat, epoch_num)
+
+    fig = _draw_transition_barchart(mouse_groups, transmat_mat)
+    axes = fig.axes
+    axes[0].set_ylabel('log odds to stay')
+    axes[1].set_ylabel('log odds to transit from REM')
+    axes[2].set_ylabel('log odds to transit from NREM')
+    axes[3].set_ylabel('log odds to transit from Wake')
+    fig.suptitle(f'transition probability (log odds): {mouse_groups_set[0]} v.s. {"  ".join(mouse_groups_set[1:])}')
+    filename = 'transition probability_barchart_logodds.jpg'
+    fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+
+
+def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
+    mouse_groups_set = sorted(set(mouse_groups), key=list(
+        mouse_groups).index)  # unique elements with preseved order
+    bidx_group_list = [mouse_groups==g for g in mouse_groups_set]
+    num_groups = len(mouse_groups_set)
+
+    fig = Figure(figsize=(4,4))
+    ax = fig.add_subplot(111)
+
+    w = 0.8 # bar width
+    ax.set_xticks([0, 2, 4])
+    ax.set_xticklabels(['Psw', 'Pws'])
+
+    # control group (always index: 0)
+    num_c = np.sum(bidx_group_list[0])
+    sw_vals_c = swtrans_mat[bidx_group_list[0]][:,0]
+    ws_vals_c = swtrans_mat[bidx_group_list[0]][:,1]
+
+    ## Psw and Pws
+    x_pos = 0 - w/2
+    ax.bar(x_pos, 
+            height=np.mean(sw_vals_c), 
+            yerr  =np.std(sw_vals_c)/num_c, 
+            align='center', width=w, capsize=6, color='gray', alpha=0.6)
+    scatter_datapoints(ax, w, x_pos, sw_vals_c)
+    x_pos = 2 - w/2
+    ax.bar(x_pos, 
+            height=np.mean(ws_vals_c), 
+            yerr  =np.std(ws_vals_c)/num_c, 
+            align='center', width=w, capsize=6, color='gray', alpha=0.6)
+    scatter_datapoints(ax, w, x_pos, ws_vals_c)
+
+    # test group index: g_idx.
+    for g_idx in range(1, num_groups):
+        num_t = np.sum(bidx_group_list[g_idx])
+        sw_vals_t = swtrans_mat[bidx_group_list[g_idx]][:,0]
+        x_pos = 0 + g_idx*w/2
+        ax.bar(x_pos, 
+                height=np.mean(sw_vals_t), 
+                yerr  =np.std(sw_vals_t)/num_t, 
+                align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
+        scatter_datapoints(ax, w, x_pos, sw_vals_t)
+
+        ws_vals_t = swtrans_mat[bidx_group_list[g_idx]][:,1]
+        x_pos = 2 + g_idx*w/2
+        ax.bar(x_pos, 
+                height=np.mean(ws_vals_t), 
+                yerr  =np.std(ws_vals_t)/num_t, 
+                align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
+        scatter_datapoints(ax, w, x_pos, ws_vals_t)
+
+    return(fig)
+
+
+def draw_swtransition_barchart_prob(stagetime_stats, output_dir):
+    stagetime_df = stagetime_stats['stagetime']
+    mouse_groups = stagetime_df['Mouse group'].values
+    mouse_groups_set = sorted(set(mouse_groups), key=list(
+        mouse_groups).index)  # unique elements with preseved order
+    swtrans_mat = np.array(stagetime_stats['swtrans'])
+
+    fig = _draw_swtransition_barchart(mouse_groups, swtrans_mat)
+    axes = fig.axes
+    axes[0].set_ylabel('prob. to transit\n between sleep and wake')
+    fig.suptitle(f'sleep/wake trantision probability:\n {mouse_groups_set[0]} v.s. {"  ".join(mouse_groups_set[1:])}')
+    filename = 'sleep-wake transition probability_barchart.jpg'
+    fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+
+
+def draw_swtransition_barchart_logodds(stagetime_stats, output_dir):
+    stagetime_df = stagetime_stats['stagetime']
+    mouse_groups = stagetime_df['Mouse group'].values
+    mouse_groups_set = sorted(set(mouse_groups), key=list(
+        mouse_groups).index)  # unique elements with preseved order
+    swtrans_mat = np.array(stagetime_stats['swtrans'])
+    swtrans_mat = np.vectorize(_odd)(swtrans_mat, epoch_num)
+
+    fig = _draw_swtransition_barchart(mouse_groups, swtrans_mat)
+    axes = fig.axes
+    axes[0].set_ylabel('log odds to transit\n between sleep and wake')
+    fig.suptitle(f'sleep/wake trantision probability (log odds) :\n {mouse_groups_set[0]} v.s. {"  ".join(mouse_groups_set[1:])}')
+    filename = 'sleep-wake transition probability_barchart_logodds.jpg'
+    fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
 if __name__ == '__main__':
@@ -766,3 +1140,15 @@ if __name__ == '__main__':
 
     # draw stagetime barchart
     draw_stagetime_barchart(stagetime_stats, output_dir)
+
+    # draw transition barchart (probability)
+    draw_transition_barchart_prob(stagetime_stats, output_dir)
+
+    # draw transition barchart (log odds)
+    draw_transition_barchart_logodds(stagetime_stats, output_dir)
+
+    # draw sleep/wake transition probability
+    draw_swtransition_barchart_prob(stagetime_stats, output_dir)
+
+    # draw sleep/wake transition probability (log odds)
+    draw_swtransition_barchart_logodds(stagetime_stats, output_dir)
