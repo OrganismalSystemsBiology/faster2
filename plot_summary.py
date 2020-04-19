@@ -87,6 +87,7 @@ def make_summary_stats(mouse_info_df, epoch_num):
         mouse_group = r['Mouse group']
         mouse_id = r['Mouse ID']
         stats_report = r['Stats report'].strip().upper()
+        note = r['Note']
         exp_label = r['Experiment label']
         faster_dir = r['FASTER_DIR']
         if stats_report=='NO':
@@ -99,7 +100,7 @@ def make_summary_stats(mouse_info_df, epoch_num):
         
         # stage time in a day
         rem, nrem, wake, unknown = stagetime_in_a_day(stage_call)
-        stagetime_df = stagetime_df.append([[exp_label, mouse_group, mouse_id, device_label, rem, nrem, wake, unknown, stats_report]], ignore_index=True)
+        stagetime_df = stagetime_df.append([[exp_label, mouse_group, mouse_id, device_label, rem, nrem, wake, unknown, stats_report, note]], ignore_index=True)
         
         # stage time profile
         stagetime_profile_list.append(stagetime_profile(stage_call))
@@ -113,7 +114,7 @@ def make_summary_stats(mouse_info_df, epoch_num):
         # sw transition
         swtrans_list.append(swtrans_from_stages(stage_call))
         
-    stagetime_df.columns = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label', 'REM', 'NREM', 'Wake', 'Unknown', 'Stats report']
+    stagetime_df.columns = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label', 'REM', 'NREM', 'Wake', 'Unknown', 'Stats report', 'Note']
     
     return({'stagetime': stagetime_df,
             'stagetime_profile': stagetime_profile_list,
@@ -260,6 +261,91 @@ def swtrans_from_stages(stages):
     swtrans = np.array([(rw+nw)/s_trans, (wn+wr)/w_trans]) # Psw, Pws
     
     return swtrans
+
+
+def test_two_sample(x, y):
+    ## test.two.sample: Performs two-sample statistical tests according to our labratory's standard.
+    ##                          
+    ## Arguments:
+    ##  x: first samples
+    ##  y: second samples
+    ## 
+    ## Return:
+    ##  A dict of (p.value=p.value, method=method (string))
+    ##
+    
+    # remove nan
+    xx = np.array(x)
+    yy = np.array(y)
+    xx = xx[~np.isnan(xx)]
+    yy = yy[~np.isnan(yy)]
+    
+    # If input data length < 2, any test is not applicable.
+    if (len(xx)<2) or (len(yy)<2):
+        p_value = np.nan
+        stars = ''
+        method = None
+
+    # If input data length < 3, Shapiro test is not applicable,
+    # so we assume false normality of the distribution.
+    if (len(xx) < 3) or (len(yy) < 3):
+        # Forced rejection of distribution normality
+        normality_xx_p = 0
+        normality_yy_p = 0
+    else:
+        normality_xx_p = stats.shapiro(xx)[1]
+        normality_yy_p = stats.shapiro(yy)[1]
+    
+    equal_variance_p = var_test(x,y)['p_value']
+        
+    if not ((normality_xx_p < 0.05) or (normality_yy_p < 0.05) or (equal_variance_p < 0.05)):
+        # When any null-hypotheses of the normalities of x and of y, 
+        # and the equal variance of (x,y) are NOT rejected,
+        # use Student's t-test        
+        method = "Student's t-test"
+        p_value = stats.ttest_ind(xx, yy, equal_var=True)[1]
+    elif not ((normality_xx_p < 0.05) or (normality_yy_p < 0.05)) and (equal_variance_p < 0.05):
+        # When null-hypotheses of the normality of x and of y are NOT rejected,
+        # but that of the equal variance of (x,y) is rejected,
+        # use Welch's t-tet
+        method = "Welch's t-test"
+        p_value = stats.ttest_ind(xx, yy, equal_var=False)[1]
+    else:
+        # If none of above was satisfied, use Wilcoxon's ranksum test.
+        method = "Wilcoxon test"
+        # same as stats.mannwhitneyu() with alternative='two-sided', use_continuity=False 
+        # or R's wilcox.test(x, y, exact=F, correct=F)
+        p_value = stats.ranksums(xx, yy)[1]
+
+    # stars
+    if not np.isnan(p_value) and p_value<0.001:
+        stars = '***'
+    elif p_value < 0.01:
+        stars = '**'
+    elif p_value < 0.05:
+        stars = '*'
+    else:
+        stars = ''
+    
+    res = {'p_value': p_value, 'stars':stars, 'method':method}
+    return res
+
+
+def var_test(x, y):
+    """ Performs an F test to compare the variances of two samples.
+        This function is same as R's var.test()
+    """
+    df1 = len(x) - 1
+    df2 = len(y) - 1
+    v1 = np.var(y, ddof=1)
+    v2 = np.var(x, ddof=1)
+    F = v1/v2
+    if F>1:
+        p_value = stats.f.sf(F, df2, df1)*2 # two-sided
+    else:
+        p_value = (1-stats.f.sf(F, df2, df1))*2 # two-sided
+     
+    return {'F':F, 'df1':df1, 'df2':df2, 'p_value':p_value}
 
 
 def _set_common_features_stagetime_profile(ax, x_max):
@@ -1102,6 +1188,203 @@ def draw_swtransition_barchart_logodds(stagetime_stats, output_dir):
     fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
+def log_psd_inv(y, normalizing_fac, normalizing_mean):
+    return 10**((y / normalizing_fac + normalizing_mean) / 10)
+
+
+def stagespectrum(spec_norm, stage_call):
+    bidx_unknown = (stage_call == 'UNKNOWN')
+    bidx_rem  = (stage_call[~bidx_unknown] == 'REM')
+    bidx_nrem = (stage_call[~bidx_unknown] == 'NREM')
+    bidx_wake = (stage_call[~bidx_unknown] == 'WAKE')
+    
+    psd_norm_mat = spec_norm['psd']
+    nf = spec_norm['norm_fac']
+    nm = spec_norm['mean']
+    psd_mat = np.vectorize(log_psd_inv)(psd_norm_mat, nf, nm)
+    psd_mean_rem = np.apply_along_axis(np.mean, 0, psd_mat[bidx_rem, :])
+    psd_mean_nrem  = np.apply_along_axis(np.mean, 0, psd_mat[bidx_nrem, :])
+    psd_mean_wake = np.apply_along_axis(np.mean, 0, psd_mat[bidx_wake, :])
+    
+    return [psd_mean_rem, psd_mean_nrem, psd_mean_wake]
+
+
+def draw_PSDs(mouse_info_df, sample_freq, output_dir):
+    # 個体ごとに平均spectrumを得て、最後に SEM付きでまとめる
+    psd_mean_list = []
+    mouse_group_list = []
+
+    for i, r in mouse_info_df.iterrows():
+        device_label = r['Device label']
+        stats_report = r['Stats report'].strip().upper()
+        faster_dir = r['FASTER_DIR']
+        mouse_group = r['Mouse group']
+        if stats_report == 'NO':
+            print(f'[{i}] skipping PSD: {faster_dir}, {device_label}')
+            continue
+        print(f'[{i}] reading PSD: {faster_dir}, {device_label}')
+        # read stage
+        stage_call = et.read_stages(os.path.join(
+            faster_dir, 'result'), device_label, 'faster2')
+        stage_call = stage_call[:epoch_num]
+        mouse_group_list.append(mouse_group)
+
+        # read the normalized EEG PSDs and the associated normalization factors and means
+        pkl_path_eeg = os.path.join(
+            faster_dir, 'result', 'PSD', f'{device_label}_EEG_PSD.pkl')
+        with open(pkl_path_eeg, 'rb') as pkl:
+            spec_norm_eeg = pickle.load(pkl)
+
+        if len(psd_mean_list) != 0:
+            psd_mean_list.append(stagespectrum(spec_norm_eeg, stage_call))
+        else:
+            psd_mean_list = [stagespectrum(spec_norm_eeg, stage_call)]
+
+    psd_mean_mat = np.array(psd_mean_list)
+    # assures frequency bins compatibe among different sampleling frequencies
+    n_fft = int(256 * sample_freq/100)
+    # same frequency bins given by signal.welch()
+    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+
+    mouse_group_list = np.array(mouse_group_list)
+    mouse_groups_set = sorted(set(mouse_group_list), key=list(
+        mouse_group_list).index)  # unique elements with preseved order
+    num_groups = len(mouse_groups_set)
+
+    bidx_group_c = (mouse_group_list == mouse_groups_set[0])
+    psd_mean_mat_rem_c = psd_mean_mat[bidx_group_c, 0, :]
+    psd_mean_mat_nrem_c = psd_mean_mat[bidx_group_c, 1, :]
+    psd_mean_mat_wake_c = psd_mean_mat[bidx_group_c, 2, :]
+    num_c = np.sum(bidx_group_c)
+
+    psd_mean_rem_c = np.apply_along_axis(np.mean, 0, psd_mean_mat_rem_c)
+    psd_sem_rem_c = np.apply_along_axis(
+        np.std, 0, psd_mean_mat_rem_c)/np.sqrt(num_c)
+    psd_mean_nrem_c = np.apply_along_axis(np.mean, 0, psd_mean_mat_nrem_c)
+    psd_sem_nrem_c = np.apply_along_axis(
+        np.std, 0, psd_mean_mat_nrem_c)/np.sqrt(num_c)
+    psd_mean_wake_c = np.apply_along_axis(np.mean, 0, psd_mean_mat_wake_c)
+    psd_sem_wake_c = np.apply_along_axis(
+        np.std, 0, psd_mean_mat_wake_c)/np.sqrt(num_c)
+
+    for g_idx in range(1, num_groups):
+        fig = Figure(figsize=(16, 4))
+        fig.subplots_adjust(wspace=0.25)
+        ax1 = fig.add_subplot(131)
+        ax2 = fig.add_subplot(132)
+        ax3 = fig.add_subplot(133)
+        ax1.set_xlabel('freq. [Hz]')
+        ax1.set_ylabel('REM\nnormalized PSD [AU]')
+        ax2.set_xlabel('freq. [Hz]')
+        ax2.set_ylabel('NREM\nnormalized PSD [AU]')
+        ax3.set_xlabel('freq. [Hz]')
+        ax3.set_ylabel('Wake\nnormalized PSD [AU]')
+
+        bidx_group_t = (mouse_group_list == mouse_groups_set[g_idx])
+        psd_mean_mat_rem_t = psd_mean_mat[bidx_group_t, 0, :]
+        psd_mean_mat_nrem_t = psd_mean_mat[bidx_group_t, 1, :]
+        psd_mean_mat_wake_t = psd_mean_mat[bidx_group_t, 2, :]
+        num_t = np.sum(bidx_group_t)
+
+        psd_mean_rem_t = np.apply_along_axis(np.mean, 0, psd_mean_mat_rem_t)
+        psd_sem_rem_t = np.apply_along_axis(
+            np.std, 0, psd_mean_mat_rem_t)/np.sqrt(num_t)
+        psd_mean_nrem_t = np.apply_along_axis(np.mean, 0, psd_mean_mat_nrem_t)
+        psd_sem_nrem_t = np.apply_along_axis(
+            np.std, 0, psd_mean_mat_nrem_t)/np.sqrt(num_t)
+        psd_mean_wake_t = np.apply_along_axis(np.mean, 0, psd_mean_mat_wake_t)
+        psd_sem_wake_t = np.apply_along_axis(
+            np.std, 0, psd_mean_mat_wake_t)/np.sqrt(num_t)
+
+        x = freq_bins
+        y = psd_mean_rem_c
+        y_sem = psd_sem_rem_c
+        ax1.plot(x, y, color='grey')
+        ax1.fill_between(x, y - y_sem,
+                         y + y_sem, color='grey', alpha=0.3)
+
+        y = psd_mean_rem_t
+        y_sem = psd_sem_rem_t
+        ax1.plot(x, y, color=stage.COLOR_REM)
+        ax1.fill_between(x, y - y_sem,
+                         y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+
+        y = psd_mean_nrem_c
+        y_sem = psd_sem_nrem_c
+        ax2.plot(x, y, color='grey')
+        ax2.fill_between(x, y - y_sem,
+                         y + y_sem, color='grey', alpha=0.3)
+
+        y = psd_mean_nrem_t
+        y_sem = psd_sem_nrem_t
+        ax2.plot(x, y, color=stage.COLOR_NREM)
+        ax2.fill_between(x, y - y_sem,
+                         y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+
+        y = psd_mean_wake_c
+        y_sem = psd_sem_wake_c
+        ax3.plot(x, y, color='grey')
+        ax3.fill_between(x, y - y_sem,
+                         y + y_sem, color='grey', alpha=0.3)
+
+        y = psd_mean_wake_t
+        y_sem = psd_sem_wake_t
+        ax3.plot(x, y, color=stage.COLOR_WAKE)
+        ax3.fill_between(x, y - y_sem,
+                         y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+
+        fig.suptitle(
+            f'Powerspectrum density: {mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num_t})')
+        filename = f'poserspectrum_density_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}.jpg'
+        fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                    bbox_inches='tight', dpi=100, quality=85, optimize=True)
+
+
+def write_sleep_stats(stagetime_stats, output_dir):
+    stagetime_df = stagetime_stats['stagetime']
+    mouse_groups = stagetime_df['Mouse group'].values
+    mouse_groups_set = sorted(set(mouse_groups), key=list(
+        mouse_groups).index)  # unique elements with preseved order
+
+    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]
+
+    sleep_stats_df = pd.DataFrame() # mouse_group, stage_type, num, mean, SD, pvalue, star, method
+
+    # mouse_group's index:0 is always control
+    mg = mouse_groups_set[0]
+    bidx = bidx_group_list[0]
+    num = np.sum(bidx)
+    rem_values_c  = stagetime_df['REM'].values[bidx]
+    nrem_values_c = stagetime_df['NREM'].values[bidx]
+    wake_values_c = stagetime_df['Wake'].values[bidx]
+    row1 = [mg, 'REM',  num, np.mean(rem_values_c),  np.std(rem_values_c),  np.nan, None, None]
+    row2 = [mg, 'NREM', num, np.mean(nrem_values_c), np.std(nrem_values_c), np.nan, None, None]
+    row3 = [mg, 'Wake', num, np.mean(wake_values_c), np.std(wake_values_c), np.nan, None, None]
+
+    sleep_stats_df = sleep_stats_df.append([row1, row2, row3])
+    for i, bidx in enumerate(bidx_group_list[1:]):
+        idx = i+1
+        mg = mouse_groups_set[idx]
+        num = np.sum(bidx)
+        rem_values_t  = stagetime_df['REM'].values[bidx]
+        nrem_values_t = stagetime_df['NREM'].values[bidx]
+        wake_values_t = stagetime_df['Wake'].values[bidx]
+        
+        tr = test_two_sample(rem_values_c,  rem_values_t) # test for REM
+        tn = test_two_sample(nrem_values_c, nrem_values_t) # test for NREM
+        tw = test_two_sample(wake_values_c, wake_values_t) # test for Wake
+        row1 = [mg, 'REM',  num, np.mean(rem_values_t),  np.std(rem_values_t),  tr['p_value'], tr['stars'], tr['method']]
+        row2 = [mg, 'NREM', num, np.mean(nrem_values_t), np.std(nrem_values_t), tn['p_value'], tn['stars'], tn['method']]
+        row3 = [mg, 'Wake', num, np.mean(wake_values_t), np.std(wake_values_t), tw['p_value'], tw['stars'], tw['method']]
+
+        sleep_stats_df = sleep_stats_df.append([row1, row2, row3])
+        
+    sleep_stats_df.columns = ['Mouse group', 'Stage_type', 'N', 'Mean', 'SD', 'Pvalue', 'Stars', 'Method']
+
+    sleep_stats_df.to_csv(os.path.join(output_dir, 'stage-time_stats_table.csv'), index=False)
+    stagetime_df.to_csv(os.path.join(output_dir, 'stage-time_table.csv'), index=False)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--faster2_dirs", required=True, nargs="*",
@@ -1122,6 +1405,7 @@ if __name__ == '__main__':
     mouse_info_collected = collect_mouse_info_df(faster_dir_list)
     mouse_info_df = mouse_info_collected['mouse_info']
     epoch_num = mouse_info_collected['epoch_num']
+    sample_freq = mouse_info_collected['sample_freq']
 
     # prepare stagetime statistics
     stagetime_stats = make_summary_stats(mouse_info_df, epoch_num)
@@ -1152,3 +1436,9 @@ if __name__ == '__main__':
 
     # draw sleep/wake transition probability (log odds)
     draw_swtransition_barchart_logodds(stagetime_stats, output_dir)
+
+    # draw power density plot
+    draw_PSDs(mouse_info_df, sample_freq, output_dir)
+
+    # write a table of stats
+    write_sleep_stats(stagetime_stats, output_dir)
