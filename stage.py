@@ -430,9 +430,9 @@ def pickle_cluster_params(means2, covars2, c_means, c_covars, result_dir, device
     
     Args:
         means2 (np.array(2,2)): a mean matrix of 2 stage-clusters  
-        covars2 (np.array(2,2)): a covariance matrix of 2 stage-clusters
+        covars2 (np.array(2,2,2)): a covariance matrix of 2 stage-clusters
         c_means (np.array(3,3)):  a mean matrix of 3 stage-clusters
-        c_covars (np.array(3,3)): a covariance matrix of 3 stage-clusters
+        c_covars (np.array(3,3,3)): a covariance matrix of 3 stage-clusters
     """
     pickle_dir = os.path.join(result_dir, 'cluster_params/')
     os.makedirs(pickle_dir, exist_ok=True)
