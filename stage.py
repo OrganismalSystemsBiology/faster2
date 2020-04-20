@@ -664,7 +664,7 @@ def main(data_dir, result_dir, pickle_input_data):
     freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129) # same frequency bins given by signal.welch()
     bidx_sleep_freq = (freq_bins<20) # 52 bins
     bidx_active_freq = (freq_bins>30) # 52 bins
-    bidx_theta_freq = (freq_bins>4) & (freq_bins<10) # 15 bins
+    bidx_theta_freq = (freq_bins>=4) & (freq_bins<10) # 15 bins
     bidx_delta_freq = (freq_bins<4) # 11 bins
     bidx_muscle_freq = (freq_bins>30) # 52 bins
 
@@ -794,6 +794,11 @@ def main(data_dir, result_dir, pickle_input_data):
         draw_scatter_plots(result_dir, device_id,  stage_coord, pred2,
                            means2, covars2, stage_coord_expacti, c_pred3, c_means, c_covars)
 
+        # write cluster parameters
+        np.save(os.path.join(result_dir, '2stage-clusters_means.npy'), means2)
+        np.save(os.path.join(result_dir, '2stage-clusters_covars.npy'), covars2)
+        np.save(os.path.join(result_dir, '3stage-clusters_means.npy'), c_means)
+        np.save(os.path.join(result_dir, '3stage_clusters_covars.npy'), c_covars)
     return 0
 
 if __name__ == '__main__':

@@ -1235,10 +1235,7 @@ def draw_PSDs(mouse_info_df, sample_freq, output_dir):
         with open(pkl_path_eeg, 'rb') as pkl:
             spec_norm_eeg = pickle.load(pkl)
 
-        if len(psd_mean_list) != 0:
-            psd_mean_list.append(stagespectrum(spec_norm_eeg, stage_call))
-        else:
-            psd_mean_list = [stagespectrum(spec_norm_eeg, stage_call)]
+        psd_mean_list.append(stagespectrum(spec_norm_eeg, stage_call))
 
     psd_mean_mat = np.array(psd_mean_list)
     # assures frequency bins compatibe among different sampleling frequencies

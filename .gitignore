@@ -133,7 +133,7 @@ dmypy.json
 iPythonWork
 /data
 /graph
-/summary
+/summary        
 figure/
 dask-worker-space/
 ID-test_EEG.pkl
