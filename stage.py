@@ -425,6 +425,26 @@ def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, result_dir, device_i
             pickle.dump(spec_norm_emg, pkl)
 
 
+def pickle_cluster_params(means2, covars2, c_means, c_covars, result_dir, device_id):
+    """ pickles the cluster parameters
+    
+    Args:
+        means2 (np.array(2,2)): a mean matrix of 2 stage-clusters  
+        covars2 (np.array(2,2)): a covariance matrix of 2 stage-clusters
+        c_means (np.array(3,3)):  a mean matrix of 3 stage-clusters
+        c_covars (np.array(3,3)): a covariance matrix of 3 stage-clusters
+    """
+    pickle_dir = os.path.join(result_dir, 'cluster_params/')
+    os.makedirs(pickle_dir, exist_ok=True)
+
+    # save
+    pkl_path = os.path.join(pickle_dir, f'{device_id}_cluster_params.pkl')
+    with open(pkl_path, 'wb') as pkl:
+        print(f'saving the cluster parameters into {pkl_path}')
+        pickle.dump({'2stage-means': means2, '2stage-covars': covars2,
+                     '3stage-means': c_means, '3stage-covars': c_covars}, pkl)
+
+
 def remove_extreme_power(y):
     """In FASTER2, the spectrum powers are normalized so that the mean and 
     SD of each frequency power over all epochs become 0 and 1, respectively.  
@@ -794,11 +814,9 @@ def main(data_dir, result_dir, pickle_input_data):
         draw_scatter_plots(result_dir, device_id,  stage_coord, pred2,
                            means2, covars2, stage_coord_expacti, c_pred3, c_means, c_covars)
 
-        # write cluster parameters
-        np.save(os.path.join(result_dir, '2stage-clusters_means.npy'), means2)
-        np.save(os.path.join(result_dir, '2stage-clusters_covars.npy'), covars2)
-        np.save(os.path.join(result_dir, '3stage-clusters_means.npy'), c_means)
-        np.save(os.path.join(result_dir, '3stage_clusters_covars.npy'), c_covars)
+        # pickle cluster parameters
+        pickle_cluster_params(means2, covars2, c_means, c_covars, result_dir, device_id)
+
     return 0
 
 if __name__ == '__main__':
