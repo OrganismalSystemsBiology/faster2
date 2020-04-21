@@ -84,7 +84,7 @@ def make_summary_stats(mouse_info_df, epoch_num):
 
     for i, r in mouse_info_df.iterrows():
         device_label = r['Device label']
-        mouse_group = r['Mouse group']
+        mouse_group = r['Mouse group'].strip()
         mouse_id = r['Mouse ID']
         stats_report = r['Stats report'].strip().upper()
         note = r['Note']
@@ -1218,11 +1218,11 @@ def draw_PSDs(mouse_info_df, sample_freq, output_dir):
         device_label = r['Device label']
         stats_report = r['Stats report'].strip().upper()
         faster_dir = r['FASTER_DIR']
-        mouse_group = r['Mouse group']
+        mouse_group = r['Mouse group'].strip()
         if stats_report == 'NO':
-            print(f'[{i}] skipping PSD: {faster_dir}, {device_label}')
+            print(f'[{i}] skipping PSD: {faster_dir} {device_label}')
             continue
-        print(f'[{i}] reading PSD: {faster_dir} {device_label}')
+        print(f'[{i+1}] reading PSD: {faster_dir} {device_label}')
         # read stage
         stage_call = et.read_stages(os.path.join(
             faster_dir, 'result'), device_label, 'faster2')
@@ -1332,7 +1332,7 @@ def draw_PSDs(mouse_info_df, sample_freq, output_dir):
 
         fig.suptitle(
             f'Powerspectrum density: {mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num_t})')
-        filename = f'poserspectrum_density_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}.jpg'
+        filename = f'powerspectrum_density_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}.jpg'
         fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
                     bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
