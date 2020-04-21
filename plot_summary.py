@@ -1222,7 +1222,7 @@ def draw_PSDs(mouse_info_df, sample_freq, output_dir):
         if stats_report == 'NO':
             print(f'[{i}] skipping PSD: {faster_dir}, {device_label}')
             continue
-        print(f'[{i}] reading PSD: {faster_dir}, {device_label}')
+        print(f'[{i}] reading PSD: {faster_dir} {device_label}')
         # read stage
         stage_call = et.read_stages(os.path.join(
             faster_dir, 'result'), device_label, 'faster2')
