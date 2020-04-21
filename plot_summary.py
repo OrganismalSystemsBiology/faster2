@@ -1394,8 +1394,13 @@ if __name__ == '__main__':
     faster_dir_list = args.faster2_dirs
     output_dir = args.output_dir
     if output_dir == None:
-        # output to the current directory if not specified
-        output_dir = os.getcwd()
+        # output to the first faster directory if not specified
+        if len(faster_dir_list)>1:
+            basenames = [os.path.basename(dir_path) for dir_path in faster_dir_list]
+            path_ext = '_' + '_'.join(basenames)
+        else:
+            path_ext = ''    
+        output_dir = os.path.join(faster_dir_list[0], 'summary' + path_ext)
     os.makedirs(output_dir, exist_ok=True)
 
     # collect mouse_infos of the specified (multiple) FASTER dirs
