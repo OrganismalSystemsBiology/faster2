@@ -200,8 +200,7 @@ class Timeseries_plot:
 
     def plot_timeseries_a_page(self, page):
         """ draws a page of timeseries plots and save a file. A page contains 5 rows.
-
-        
+       
         Args:
             page (int): A page number to be drawn
         """
