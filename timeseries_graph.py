@@ -155,7 +155,7 @@ class Timeseries_plot:
         axes = self.axes[row_index,:]
         
         score_x = np.linspace(0, 72, 450) # 72 = 8 sec * 9 epochs. 50 points per epoch.
-        base_curve = base_curve = np.ones(len(score_x))
+        base_curve = np.ones(len(score_x))
         score_rem = base_curve*np.repeat(p_rem, 50)
         score_nrem = base_curve*np.repeat(p_nrem, 50)
         score_wake = base_curve*np.repeat(p_wake, 50)
