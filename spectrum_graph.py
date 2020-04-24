@@ -349,7 +349,7 @@ def plot_specs_a_mouse(psd_data_dir, cluster_param_dir, result_dir, device_label
     for i in range(1, sap.epoch_num):
         # make subdirs for every 1000 epochs
         if (i-1) % 1000 == 0:
-            plot_dir = os.path.join(root_plot_dir, f'{int(i/1000):06}')
+            plot_dir = os.path.join(root_plot_dir, f'{i:06}')
             os.makedirs(plot_dir, exist_ok=True)
             os.chdir(plot_dir)
         
