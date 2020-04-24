@@ -7,7 +7,7 @@ from scipy import linalg
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
+from PIL import Image
 
 import stage
 
