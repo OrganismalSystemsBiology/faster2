@@ -7,7 +7,7 @@ from scipy import linalg
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
+from PIL import Image
 
 import stage
 
@@ -35,7 +35,8 @@ class SpectrumAnalysisPlots:
         self.eeg_norm_mat = spec_norm_eeg['psd']
         nf = spec_norm_eeg['norm_fac']
         nm = spec_norm_eeg['mean']
-        self.eeg_conv_mat = np.vectorize(log_psd_inv)(self.eeg_norm_mat, nf, nm)
+        self.eeg_conv_mat = np.vectorize(
+            log_psd_inv)(self.eeg_norm_mat, nf, nm)
         self.eeg_conv_mean = np.apply_along_axis(np.mean, 0, self.eeg_conv_mat)
         self.eeg_conv_std = np.apply_along_axis(np.std, 0, self.eeg_conv_mat)
         self.eeg_norm_mean = np.apply_along_axis(np.mean, 0, self.eeg_norm_mat)
@@ -44,7 +45,8 @@ class SpectrumAnalysisPlots:
         self.emg_norm_mat = spec_norm_emg['psd']
         nf = spec_norm_emg['norm_fac']
         nm = spec_norm_emg['mean']
-        self.emg_conv_mat = np.vectorize(log_psd_inv)(self.emg_norm_mat, nf, nm)
+        self.emg_conv_mat = np.vectorize(
+            log_psd_inv)(self.emg_norm_mat, nf, nm)
         self.emg_conv_mean = np.apply_along_axis(np.mean, 0, self.emg_conv_mat)
         self.emg_conv_std = np.apply_along_axis(np.std, 0, self.emg_conv_mat)
         self.emg_norm_mean = np.apply_along_axis(np.mean, 0, self.emg_norm_mat)
@@ -92,7 +94,8 @@ class SpectrumAnalysisPlots:
             np.sum, 1, self.eeg_conv_mat[:, bidx_delta_freq])
 
         # initialize Figure
-        self.fig = Figure(figsize=(12, 4), dpi=stage.FIG_DPI, facecolor="w")
+        self.fig = plt.figure(
+            figsize=(12, 4), dpi=stage.FIG_DPI, facecolor="w")
         self.axes = self._prepare_axes(self.fig)
 
         # set features of ax: specturms
@@ -126,8 +129,17 @@ class SpectrumAnalysisPlots:
                                                                                                                                               self.axes[0], self.axes[1], self.axes[2], self.axes[3])
         (self.point_HLplane, self.point_LRplane) = self._initialize_clustermaps(
             cluster_params, self.axes[4], self.axes[5])
+
         (self.line_delta, self.line_theta,
          self.line_tdr) = self._initialize_power_timeseries(self.axes[6])
+
+        self.fig.canvas.draw()
+
+        # capture the background of axes
+        self.fig.canvas.draw()
+        self.backgrounds = [self.fig.canvas.copy_from_bbox(
+            ax.bbox) for ax in self.axes]
+
 
     def _initialize_spectrumplots(self, freq_bins, eeg_conv_mean, eeg_conv_std, emg_conv_mean, emg_conv_std,
                                   eeg_norm_mean, eeg_norm_std, emg_norm_mean, emg_norm_std,
@@ -158,6 +170,7 @@ class SpectrumAnalysisPlots:
         line_emg_spec_norm, = ax4.plot(freq_bins, np.zeros(len(freq_bins)))
 
         return (line_eeg_spec_conv, line_emg_spec_conv, line_eeg_spec_norm, line_emg_spec_norm)
+
 
     def _initialize_clustermaps(self, cluster_params, ax1, ax2):
         # set reference ellipsoids in clustermap: High-low freq plane
@@ -201,10 +214,12 @@ class SpectrumAnalysisPlots:
         ax2.legend(bbox_to_anchor=(1, 1), loc='upper right', borderaxespad=0,
                    fontsize=8)
 
-        point_HLplane, = ax1.plot(0, 0, 'ro', color='C3')
-        point_LRplane, = ax2.plot(0, 0, 'ro', color='C3')
+        # plot the initial points outside the view
+        point_HLplane, = ax1.plot(200, 200, 'ro', color='C3')
+        point_LRplane, = ax2.plot(200, 200, 'ro', color='C3')
 
         return (point_HLplane, point_LRplane)
+
 
     def _initialize_power_timeseries(self, ax):
         #set initial values in
@@ -228,6 +243,7 @@ class SpectrumAnalysisPlots:
                   borderaxespad=0, fontsize=8)
 
         return(line_delta, line_theta, line_tdr)
+
 
     def _prepare_axes(self, fig):
         """ prepares axes for plots
@@ -254,7 +270,14 @@ class SpectrumAnalysisPlots:
 
         return([ax1, ax2, ax3, ax4, ax5, ax6, ax7])
 
+
     def plot_specs_an_epoch(self, epoch_idx):
+
+        # clear the background of each axes
+        for bg in self.backgrounds:
+            self.fig.canvas.restore_region(bg)
+
+        # update data
         e = epoch_idx - 1
         self.line_eeg_spec_conv.set_ydata(self.eeg_conv_mat[e, :])
         self.line_emg_spec_conv.set_ydata(self.emg_conv_mat[e, :])
@@ -276,9 +299,22 @@ class SpectrumAnalysisPlots:
         self.line_theta.set_ydata(np.pad(t, [pad_l, pad_r]))
         self.line_tdr.set_ydata(np.pad(t/d, [pad_l, pad_r]))
 
-        self.fig.canvas.draw()
+        # update lines and points
+        artists = [self.line_eeg_spec_conv, self.line_emg_spec_conv,
+                   self.line_eeg_spec_norm, self.line_emg_spec_norm,
+                   self.point_HLplane, self.point_LRplane,
+                   self.line_delta, self.line_theta, self.line_tdr]
+        for a in artists:
+            a.axes.draw_artist(a)
+
+        # blit
+        for ax in self.axes:
+            self.fig.canvas.blit(ax.bbox)
+
         filename = f'{self.device_id}.{epoch_idx:06}.jpg'
-        self.fig.savefig(filename, dpi=100, quality=85, optimize=True)
+        im = np.array(self.fig.canvas.renderer.buffer_rgba())
+        pilImg = Image.fromarray(im[:, :, 0:3])
+        pilImg.save(filename, quality=85)
 
 
 def plot_specs_a_mouse(psd_data_dir, cluster_param_dir, result_dir, device_label, sample_freq):
