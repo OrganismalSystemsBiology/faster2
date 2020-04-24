@@ -61,4 +61,4 @@ if __name__ == '__main__':
                 ps.join()
     
     elapsed_time = (datetime.now() - dt_now)
-    print(f'ended plotting: {elapsed_time.total_seconds()}')
+    print(f'ended plotting: {dt_now},  ellapsed {elapsed_time.total_seconds()/60} minuites')
