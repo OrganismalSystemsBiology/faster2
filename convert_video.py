@@ -123,27 +123,29 @@ if __name__ == '__main__':
     # assuming the structure of [camera_ids]/[video files]
     file_list = [f for f in glob(os.path.join(target_dir, '**/*')) if re.search(r'.*\.(avi|mp4)', f)]
 
-#    print('\n'.join(file_list))   
     os.makedirs(target_dir, exist_ok=True)
+
+    dt_now = datetime.now()
+    print(f'started converting: {dt_now}')
 
     video_count = 0
     more_video = True
     processes =[]
-    while more_video:
-        i_video_path = file_list[video_count]
-
-        # get the parent dir name as a camera id
-        camera_dir_path, video_filename = os.path.split(i_video_path)
-        camera_id = os.path.split(camera_dir_path)[1]
-
-        start_dt = get_start_dt(i_video_path)
-        if start_dt:
-            start_dt_str = start_dt.strftime("%Y-%m-%d_%H-%M-%S")
-        else:
-            # use original filename when failed to get start_dt
-            start_dt_str = os.path.splitext(video_filename)[0]
-        
+    while more_video:   
         for i in range(worker_num):
+            i_video_path = file_list[video_count]
+
+            # get the parent dir name as a camera id
+            camera_dir_path, video_filename = os.path.split(i_video_path)
+            camera_id = os.path.split(camera_dir_path)[1]
+
+            start_dt = get_start_dt(i_video_path)
+            if start_dt:
+                start_dt_str = start_dt.strftime("%Y-%m-%d_%H-%M-%S")
+            else:
+                # use original filename when failed to get start_dt
+                start_dt_str = os.path.splitext(video_filename)[0]
+
             output_subdir = os.path.join(output_dir, camera_id)
             os.makedirs(output_subdir, exist_ok=True)
             p = call_proc(i_video_path, output_subdir, camera_id, start_dt_str, encoder)
@@ -162,3 +164,6 @@ if __name__ == '__main__':
 
         # clear workers
         process = []
+
+    elapsed_time = (datetime.now() - dt_now)
+    print(f'ended plotting: {dt_now},  ellapsed {elapsed_time.total_seconds()/60} minuites')
