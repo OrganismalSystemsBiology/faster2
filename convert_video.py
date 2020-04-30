@@ -64,7 +64,7 @@ def call_proc(input_filepath, output_dir, camera_id, video_start_dt_str, encoder
         output_dir {str} -- a path to the output directry
         camera_id {str} -- a label to be added in the resulting video file "[camera_id]_[video_start_dt].mp4"
         video_start_dt_str {str} -- a datetime string of the video start
-        encoder {str} -- a string to be passed to ffmpeg's -c:v option for encoder (e.g. "h264" or "h264_nvenc")
+        encoder {str} -- a string to be passed to ffmpeg's -c:v option for encoder (e.g. "h264", "libx264", or "h264_nvenc")
 
     Returns:
         dict -- "proc": subprocess object, "filestem": output filename without the extention 
@@ -110,7 +110,7 @@ if __name__ == '__main__':
     parser.add_argument("-t", "--target_dir", required=True, help="path to the target directory")
     parser.add_argument("-o", "--output_dir", required=True, help="path to the directory of the resulting video clips")
     parser.add_argument("-w", "--worker", help="the number of parallel workers", type=int, default=1)
-    parser.add_argument("-e", "--encoder", help="a string to be passed to ffmpeg -c:v option for the encoder", default="h264")
+    parser.add_argument("-e", "--encoder", help="a string to be passed to ffmpeg -c:v option for the encoder", default="libx264")
 
     args = parser.parse_args()
 
