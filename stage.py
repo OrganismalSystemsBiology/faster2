@@ -234,22 +234,26 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
 
 
 def interpret_datetimestr(datetime_str):
-    """ Convert datetime string to a datatime object allowing some variant forms
+    """ Find a datetime string and convert it to a datatime object 
+    allowing some variant forms
     
     Args:
-        datetime_str (string): a string representing datetime
+        datetime_str (string): a string containing datetime
+    
+    Returns:
+        a datetime object
     
     Raises:
         ValueError: raised when interpretation is failed
     """
 
-    datestr_patterns = [r'^(\d{4})(\d{2})(\d{2})',
-                        r'^(\d{4})/(\d{1,2})/(\d{1,2})',
-                        r'^(\d{4})-(\d{1,2})-(\d{1,2})']
+    datestr_patterns = [r'(\d{4})(\d{2})(\d{2})',
+                        r'(\d{4})/(\d{1,2})/(\d{1,2})',
+                        r'(\d{4})-(\d{1,2})-(\d{1,2})']
 
-    timestr_patterns = [r'(\d{2})(\d{2})(\d{2})$',
-                        r'(\d{1,2}):(\d{1,2}):(\d{1,2})$',
-                        r'(\d{1,2})-(\d{1,2})-(\d{1,2})$']
+    timestr_patterns = [r'(\d{2})(\d{2})(\d{2})',
+                        r'(\d{1,2}):(\d{1,2}):(\d{1,2})',
+                        r'(\d{1,2})-(\d{1,2})-(\d{1,2})']
 
     datetime_obj = None
     for pat in datestr_patterns:
@@ -276,7 +280,7 @@ def interpret_datetimestr(datetime_str):
             'failed to interpret datetime string \'{}\''.format(datetime_str))
 
     return(datetime_obj)
-
+    
 
 def interpret_exp_info(exp_info_df):
     try:

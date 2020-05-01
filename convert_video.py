@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import argparse
 import subprocess
 from datetime import datetime
@@ -5,55 +6,7 @@ import os
 from glob import glob
 import re
 import sys
-
-
-def interpret_datetimestr(datetime_str):
-    """ Find a datetime string and convert it to a datatime object 
-    allowing some variant forms
-    
-    Args:
-        datetime_str (string): a string containing datetime
-    
-    Returns:
-        a datetime object
-    
-    Raises:
-        ValueError: raised when interpretation is failed
-    """
-
-    datestr_patterns = [r'(\d{4})(\d{2})(\d{2})',
-                        r'(\d{4})/(\d{1,2})/(\d{1,2})',
-                        r'(\d{4})-(\d{1,2})-(\d{1,2})']
-
-    timestr_patterns = [r'(\d{2})(\d{2})(\d{2})',
-                        r'(\d{1,2}):(\d{1,2}):(\d{1,2})',
-                        r'(\d{1,2})-(\d{1,2})-(\d{1,2})']
-
-    datetime_obj = None
-    for pat in datestr_patterns:
-        matched = re.search(pat, datetime_str)
-        if matched:
-            year = int(matched.group(1))
-            month = int(matched.group(2))
-            day = int(matched.group(3))
-            datetime_str = re.sub(pat, '', datetime_str)
-
-            for pat_time in timestr_patterns:
-                matched_time = re.search(pat_time, datetime_str)
-                if matched_time:
-                    hour = int(matched_time.group(1))
-                    minuite = int(matched_time.group(2))
-                    second = int(matched_time.group(3))
-                    datetime_obj = datetime(year, month, day,
-                                            hour, minuite, second)
-                    break
-            if not matched_time:
-                datetime_obj = datetime(year, month, day)
-    if not datetime_obj:
-        raise ValueError(
-            'failed to interpret datetime string \'{}\''.format(datetime_str))
-
-    return(datetime_obj)
+import stage
 
 
 def call_proc(input_filepath, output_dir, camera_id, video_start_dt_str, encoder):
@@ -97,7 +50,7 @@ def get_start_dt(video_filepath):
 
     try:
         filename = os.path.basename(video_filepath)
-        start_datetime = interpret_datetimestr(filename)
+        start_datetime = stage.interpret_datetimestr(filename)
     except ValueError:
         print(f'[warning] Failed to interpret the start datetime from the filename "{filename}"')
         start_datetime = None
