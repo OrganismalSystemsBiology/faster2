@@ -119,4 +119,4 @@ if __name__ == '__main__':
         process = []
 
     elapsed_time = (datetime.now() - dt_now)
-    print(f'ended plotting: {dt_now},  ellapsed {elapsed_time.total_seconds()/60} minuites')
+    print(f'ended converting: {datetime.now()},  ellapsed {elapsed_time.total_seconds()/60} minuites')
