@@ -75,9 +75,9 @@ if __name__ == '__main__':
             duration = float(video_info['duration'])
             frame_num, per_secs = video_info['avg_frame_rate'].split('/')
             fps = float(per_secs) / float(frame_num)
-            start_str = start_datetime.strftime('%Y-%m-%d_%H-%M-%S.%f')
+            start_str = start_datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
             start_datetime += timedelta(seconds=duration)
-            end_str = start_datetime.strftime('%Y-%m-%d_%H-%M-%S.%f')
+            end_str = start_datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
             start_datetime += timedelta(seconds=fps)
             video_info_list.append({'filename': os.path.basename(video_path),
                                'start_datetime': start_str,
