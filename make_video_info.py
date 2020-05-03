@@ -81,7 +81,7 @@ if __name__ == '__main__':
                                'end_datetime': end_str,
                                'offset': 0.0})
         video_info_df = pd.DataFrame(video_info_list, columns=['filename', 'start_datetime', 'end_datetime', 'offset'])
-        video_info_df.to_csv(os.path.join(dir_path, 'video_info.csv'), index=False)
+        video_info_df.to_csv(os.path.join(dir_path, 'video.info.csv'), index=False)
     
     if processed_dir_count == 0:
         # give an advice when it finished without any process
