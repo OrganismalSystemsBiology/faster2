@@ -22,6 +22,7 @@ if __name__ == '__main__':
 
     # get directories of the target dir i.e. [camera_ids]/
     # assuming the structure of [camera_ids]/[video files]
+    processed_dir_count = 0 # count it for giving an advice
     dir_list = glob(os.path.join(target_dir, '*'))
     for dir_path in dir_list:
         if not os.path.isdir(dir_path):
@@ -58,6 +59,7 @@ if __name__ == '__main__':
             break
 
         # collect video info (start- and end-time)
+        processed_dir_count += 1
         video_info_list = []
         for video_path in file_list:
             print('probing video info: ' + video_path)
@@ -80,3 +82,7 @@ if __name__ == '__main__':
                                'offset': 0.0})
         video_info_df = pd.DataFrame(video_info_list, columns=['filename', 'start_datetime', 'end_datetime', 'offset'])
         video_info_df.to_csv(os.path.join(dir_path, 'video_info.csv'), index=False)
+    
+    if processed_dir_count == 0:
+        # give an advice when it finished without any process
+        print('No directories was processed. Chech the target directory contains (a) direcoty(ies) of videos.')
