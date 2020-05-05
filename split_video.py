@@ -78,10 +78,13 @@ if __name__ == '__main__':
 
             logfile_path = os.path.join(output_dir, 'logs', p['filestem'] + '.log')
             with open(logfile_path, 'r') as f:
-                last_line_of_log = f.readlines()[-1]
+                log_lines = f.readlines()
+                last_line_of_log = log_lines[-1]
+                # There are several patterns for an empty video depending on the encoder
                 m = re.search(r'Output file is empty', last_line_of_log)
-                if m:
-                    excess_filename = p['filestem'] + '.avi'
+                m2 = re.search(r'video:0kB', last_line_of_log)
+                if m or m2:
+                    excess_filename = p['filestem'] + '.mp4'
                     print('The end of the input video was detected. Deleting: ' + excess_filename)
                     more_clip = False
                     os.remove(os.path.join(output_dir, excess_filename))
