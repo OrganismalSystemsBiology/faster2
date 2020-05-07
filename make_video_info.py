@@ -34,6 +34,10 @@ if __name__ == '__main__':
 
         # get video files
         file_list = [f for f in glob(os.path.join(dir_path, '*')) if re.search(r'.*\.(avi|mp4)', f)]
+        if len(file_list) == 0:
+            print("[error] No video files found")
+            print("skipping the directory: " + dir_path)
+            break
 
         # Get the recording start datetime from...
         start_datetime = None
