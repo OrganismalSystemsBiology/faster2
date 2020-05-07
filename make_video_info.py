@@ -41,17 +41,30 @@ if __name__ == '__main__':
         if video_start_datetime_opt:
             try:
                 start_datetime = stage.interpret_datetimestr(video_start_datetime_opt)
+                print('start datetime given by command line: ', start_datetime)
             except ValueError:
                 print(f'[error] Failed to interpret the start datetime given by -s option "{video_start_datetime_opt}"')
                 sys.exit(1)
 
-        ## 2. the filename of the first file (overwriting the 1.)
+        ## 2. the filename of the special file "!!RecordStartedAt_YYYY-MM-DD_HH-mm-ss" (overwriting the 1.)
+        filenames = glob(os.path.join(dir_path, '!!RecordStartedAt_*'))
+        if len(filenames)>0:
+            try:
+                filename = os.path.basename(filenames[0])
+                start_datetime = stage.interpret_datetimestr(filename)
+                print(f'start datetime given by {filename}: ', start_datetime)
+            except ValueError as e:
+                pass
+                print(f'[warning] Failed to interpret the start datetime from the filename "{filename}"')
+
+        ## 3. the filename of the first video file (overwriting the 1. and 2.)
         try:
             filename = os.path.basename(file_list[0])
             start_datetime = stage.interpret_datetimestr(filename)
+            print(f'start datetime given by {filename}: ', start_datetime)
         except ValueError as e:
-            print(f'[warning] Failed to interpret the start datetime from the filename "{filename}"')
-        
+            pass
+
         ## break the scanning of the directory if it fails to get the start datetime
         if start_datetime == None:
             print("[error] Neither video filename or option didn't give any interpretable datetime")
@@ -75,17 +88,26 @@ if __name__ == '__main__':
             duration = float(video_info['duration'])
             frame_num, per_secs = video_info['avg_frame_rate'].split('/')
             fps = float(per_secs) / float(frame_num)
+            try:
+                # use the start_datetime if the video filename has it 
+                filename = os.path.basename(video_path)
+                start_datetime = stage.interpret_datetimestr(filename)
+                print(f'start datetime given by {filename}: ', start_datetime)
+            except ValueError as e:
+                # otherwise, the start datetime is the accumulation of each video's duration (+fps)
+                pass
+
             start_str = start_datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
             start_datetime += timedelta(seconds=duration)
             end_str = start_datetime.strftime('%Y-%m-%d %H:%M:%S.%f')
             start_datetime += timedelta(seconds=fps)
             video_info_list.append({'filename': os.path.basename(video_path),
-                               'start_datetime': start_str,
-                               'end_datetime': end_str,
-                               'offset': 0.0})
+                                    'start_datetime': start_str,
+                                    'end_datetime': end_str,
+                                    'offset': 0.0})
         video_info_df = pd.DataFrame(video_info_list, columns=['filename', 'start_datetime', 'end_datetime', 'offset'])
         video_info_df.to_csv(os.path.join(dir_path, 'video.info.csv'), index=False)
     
     if processed_dir_count == 0:
         # give an advice when it finished without any process
-        print('No directories was processed. Chech the target directory contains (a) direcoty(ies) of videos.')
+        print('No directories was processed. Check the target directory contains (a) direcoty(ies) of videos.')
