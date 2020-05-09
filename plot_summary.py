@@ -1189,14 +1189,44 @@ def draw_swtransition_barchart_logodds(stagetime_stats, output_dir):
 
 
 def log_psd_inv(y, normalizing_fac, normalizing_mean):
+    """ inverses the spectrum normalized PSD to get the original PSD. 
+    The spectrum normalization is defined as: snorm(log(psd)),
+    where log() here means a "decibel like" transformation of 10*np.log10(),
+    and snorm() means a standerdization (i.e. mean=0, SD=0) of each frequency
+    component of log(PSD). This function implements log^-1(snorm^-1()).
+
+    Arguments:
+        y {np.array(freq_bins)} -- spectrum normalized PSD
+        normalizing_fac {float} -- SD of each frequency component used for the normalization
+        normalizing_mean {float} -- mean of each frequency compenent used for the normalization
+
+    Returns:
+        [np_array(freq_bins)] -- original PSD
+    """
+
     return 10**((y / normalizing_fac + normalizing_mean) / 10)
 
 
-def stagespectrum(spec_norm, stage_call):
+def conv_PSD_by_stage(spec_norm, stage_call):
+    """ calculates the mean PSD of each stage from the given PSD matrix.
+    The shape of the input PSD matrix is (epoch_num, freq_bins). The input PSD 
+    matrix is assumed to be spectrum normalized, but the output PSD is conventional
+    PSD (i.e. not spectrum normalized nor decibel tranformed).
+
+    Arguments:
+        spec_norm {'psd':a matrix of spectrum normalized PSD,
+                   'norm_fac: an array of factors used to normalize the PSD
+                   'mean': an array of means used to normalize the PSD} -- a dict of 
+                   spectrum normalized PSD and the associated factors and means.
+        stage_call {np.arary(epoch_num)} -- an array of stage calls
+
+    Returns:
+        [np.array(freq_bins)] -- a list of 3 arrays: REM PSD, NREM PSD, and Wake PSD
+    """
     bidx_unknown = (stage_call == 'UNKNOWN')
-    bidx_rem  = (stage_call[~bidx_unknown] == 'REM')
-    bidx_nrem = (stage_call[~bidx_unknown] == 'NREM')
-    bidx_wake = (stage_call[~bidx_unknown] == 'WAKE')
+    bidx_rem  = (stage_call == 'REM')  & (~bidx_unknown)
+    bidx_nrem = (stage_call == 'NREM') & (~bidx_unknown)
+    bidx_wake = (stage_call == 'WAKE') & (~bidx_unknown)
     
     psd_norm_mat = spec_norm['psd']
     nf = spec_norm['norm_fac']
@@ -1237,7 +1267,7 @@ def make_psd_stats(mouse_info_df, sample_freq, epoch_num):
         'num_of_group': np.array(num_of_groups)} -- A dict of dataframe and arrays of summary PSD stats  
     """
 
-    # 個体ごとに平均spectrumを得て、最後に SEM付きでまとめる
+    # 個体ごとに平均spectrumを得て、最後にgroup毎にSEM付きでまとめる
     psd_mean_list = []
     mouse_group_list = []
 
@@ -1247,12 +1277,14 @@ def make_psd_stats(mouse_info_df, sample_freq, epoch_num):
     # same frequency bins given by signal.welch()
     freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
 
+    # frequency domains
     bidx_theta_freq = (freq_bins>=4) & (freq_bins<10) # 15 bins
     bidx_delta_freq = (freq_bins<4) # 11 bins
     bidx_delta_wo_slow_freq =  (1<=freq_bins) & (freq_bins<4) # 8 bins (delta without slow)
     bidx_slow_freq = (freq_bins<1) # 3 bins
 
-    # make a table of mean power of each freq domain (slow, delta w/o slow, delta, theta) in each stage (REM, NREM, Wake) of individual mouse
+    # make a table of mean power of each freq domain (slow, delta w/o slow, delta, 
+    # theta) in each stage (REM, NREM, Wake) of individual mouse
     psd_domain_df = pd.DataFrame()
     for i, r in mouse_info_df.iterrows():
         device_label = r['Device label'].strip()
@@ -1278,7 +1310,7 @@ def make_psd_stats(mouse_info_df, sample_freq, epoch_num):
         with open(pkl_path_eeg, 'rb') as pkl:
             spec_norm_eeg = pickle.load(pkl)
 
-        stage_spec = stagespectrum(spec_norm_eeg, stage_call) # (REM, NREM ,WAKE) x freq_bins
+        stage_spec = conv_PSD_by_stage(spec_norm_eeg, stage_call) # (REM, NREM ,WAKE) x freq_bins
         rem_slow = np.mean(stage_spec[0][bidx_slow_freq])
         rem_delta_wo_slow = np.mean(stage_spec[0][bidx_delta_wo_slow_freq])
         rem_delta = np.mean(stage_spec[0][bidx_delta_freq])

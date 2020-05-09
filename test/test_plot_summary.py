@@ -11,9 +11,10 @@ import stage
 class  TestFunctions(unittest.TestCase):
     """Test class for plot_summary.py
     """
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         # dummy stage calls of one day (24 hours)
-        self.stage_call = np.array(
+        cls.stage_call = np.array(
             ['REM']*450 + ['NREM']*0   + ['WAKE']*0   + ['UNKNOWN']*0 +  # 0
             ['REM']*0   + ['NREM']*450 + ['WAKE']*0   + ['UNKNOWN']*0 +  # 1
             ['REM']*0   + ['NREM']*0   + ['WAKE']*450 + ['UNKNOWN']*0 +  # 2
@@ -39,6 +40,18 @@ class  TestFunctions(unittest.TestCase):
             ['REM']*450 + ['NREM']*0   + ['WAKE']*0   + ['UNKNOWN']*0 +  #22
             ['REM']*450 + ['NREM']*0   + ['WAKE']*0   + ['UNKNOWN']*0    #23
         )
+
+        # Sample EEG voltage matrix
+        data_dir = '../test/data/FASTER2_20200206_EEG_2019-023/data'
+        device_id = 'ID33572'
+        EPOCH_LEN_SEC = 8
+        epoch_num = 1800
+        start_datetime = "2020/2/7 08:00:00"
+        cls.sample_freq = 100
+        cls.n_fft = int(256 * cls.sample_freq/100) # assures frequency bins compatibe among different sampleling frequencies
+
+        (cls.eeg_vm_org, _, _) = stage.read_voltage_matrices(
+            data_dir, device_id, cls.sample_freq, EPOCH_LEN_SEC, epoch_num, start_datetime)
 
 
     def test_collect_mouse_info(self):
@@ -141,6 +154,21 @@ class  TestFunctions(unittest.TestCase):
 
         np.testing.assert_array_equal(ans, exp)
 
+
+    def test_log_psd_inv(self):
+        exp_psd = stage.psd(self.eeg_vm_org[0,:], self.n_fft, self.sample_freq)
+        
+        snorm_psd_dict = stage.spectrum_normalize(self.eeg_vm_org, 256, 100)
+        snorm_psd = snorm_psd_dict['psd'][0]
+        nm = snorm_psd_dict['mean']
+        nf = snorm_psd_dict['norm_fac']
+        ans_psd = ps.log_psd_inv(snorm_psd, nf, nm)
+
+        np.testing.assert_array_almost_equal(exp_psd, ans_psd)
+
+
+    def test_conv_PSD_by_stage(self):
+        stage.psd(self.eeg_vm_org, self.n_fft, self.sample_freq)
 
 if __name__ == "__main__":
     unittest.main()
