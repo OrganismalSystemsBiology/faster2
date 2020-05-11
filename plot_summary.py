@@ -57,7 +57,7 @@ def collect_mouse_info_df(faster_dir_list):
     return ({'mouse_info':mouse_info_df, 'epoch_num':epoch_num, 'sample_freq':sample_freq})
 
 
-def make_summary_stats(mouse_info_df, epoch_num):
+def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
     """ make summary statics of each mouse:
             stagetime in a day: how many minuites of stages each mouse spent in a day
             stage time profile: hourly profiles of stages over the recording
@@ -66,8 +66,9 @@ def make_summary_stats(mouse_info_df, epoch_num):
             sw transitino: Sleep (NREM+REM) and Wake transition probability 
     
     Arguments:
-        mouse_info_df {pd.DataFram} -- [description]
-        epoch_num {int} -- [description]
+        mouse_info_df {pd.DataFram} -- a dataframe returned by collect_mouse_info_df()
+        epoch_range {slice} -- target eopchs to be summarized
+        stage_ext {str} -- the sub-extention of stage files
 
     Returns:
         {'stagetime': pd.DataFrame, 
@@ -94,11 +95,13 @@ def make_summary_stats(mouse_info_df, epoch_num):
             print(f'[{i+1}] skipping stage: {faster_dir} {device_label}')
             continue
         
+        # read a stage file
         print(f'[{i+1}] reading stage: {faster_dir} {device_label}')
-        stage_call = et.read_stages(os.path.join(faster_dir, 'result'), device_label, 'faster2')
-        stage_call = stage_call[:epoch_num]
+        stage_call = et.read_stages(os.path.join(faster_dir, 'result'), device_label, stage_ext)
+        stage_call = stage_call[epoch_range]
+        epoch_num = len(stage_call)
         
-        # stage time in a day
+        # stagetime in a day
         rem, nrem, wake, unknown = stagetime_in_a_day(stage_call)
         stagetime_df = stagetime_df.append([[exp_label, mouse_group, mouse_id, device_label, rem, nrem, wake, unknown, stats_report, note]], ignore_index=True)
         
@@ -1206,6 +1209,27 @@ def log_psd_inv(y, normalizing_fac, normalizing_mean):
 
     return 10**((y / normalizing_fac + normalizing_mean) / 10)
 
+def conv_PSD_from_snorm_PSD(spec_norm):
+    """ calculates the conventional PSD from the spectrum normalized PSD matrix.
+    The shape of the input PSD matrix is (epoch_num, freq_bins). 
+
+    Arguments:
+        spec_norm {'psd': a matrix of spectrum normalized PSD,
+                   'norm_fac: an array of factors used to normalize the PSD
+                   'mean': an array of means used to normalize the PSD} -- a dict of 
+                   spectrum normalized PSD and the associated factors and means.
+
+    Returns:
+        [np.array(epoch_num, freq_bins)] -- a conventional PSD matrix
+    """
+
+    psd_norm_mat = spec_norm['psd']
+    nf = spec_norm['norm_fac']
+    nm = spec_norm['mean']
+    psd_mat = np.vectorize(log_psd_inv)(psd_norm_mat, nf, nm)
+    
+    return psd_mat    
+
 
 def conv_PSD_by_stage(spec_norm, stage_call):
     """ calculates the mean PSD of each stage from the given PSD matrix.
@@ -1233,13 +1257,72 @@ def conv_PSD_by_stage(spec_norm, stage_call):
     nm = spec_norm['mean']
     psd_mat = np.vectorize(log_psd_inv)(psd_norm_mat, nf, nm)
     psd_mean_rem = np.apply_along_axis(np.mean, 0, psd_mat[bidx_rem, :])
-    psd_mean_nrem  = np.apply_along_axis(np.mean, 0, psd_mat[bidx_nrem, :])
+    psd_mean_nrem = np.apply_along_axis(np.mean, 0, psd_mat[bidx_nrem, :])
     psd_mean_wake = np.apply_along_axis(np.mean, 0, psd_mat[bidx_wake, :])
     
     return [psd_mean_rem, psd_mean_nrem, psd_mean_wake]
 
+def make_psd_stats(mouse_info_df, sample_freq, epoch_range, stage_ext):
+    """makes summary PSD statics of each mouse:
+            psd_mean_df: mean PSD profile of each stage for each mice
+   
+    Arguments:
+        mouse_info_df {pd.DataFram} -- an dataframe given by mouse_info_collected()
+        sample_freq {int} -- 
+        epoch_range {int} -- 
 
-def make_psd_stats(mouse_info_df, sample_freq, epoch_num):
+    Returns:
+        psd_mean_df {pd.DataFrame} --  Experiment label, Mouse group, Mouse ID, 
+            Device label, [freq_bins...]
+
+    """
+
+    psd_mean_df = pd.DataFrame()
+    for i, r in mouse_info_df.iterrows():
+        device_label = r['Device label'].strip()
+        stats_report = r['Stats report'].strip().upper()
+        mouse_group = r['Mouse group'].strip()
+        mouse_id = r['Mouse ID'].strip()
+        exp_label = r['Experiment label'].strip()
+        faster_dir = r['FASTER_DIR']
+
+        # read stage of the mouse
+        stage_call = et.read_stages(os.path.join(
+            faster_dir, 'result'), device_label, stage_ext)
+        stage_call = stage_call[epoch_range]
+
+        if stats_report == 'NO':
+            print(f'[{i+1}] skipping PSD: {faster_dir} {device_label}')
+            continue
+        print(f'[{i+1}] reading PSD: {faster_dir} {device_label}')
+        
+        # read the normalized EEG PSDs and the associated normalization factors and means
+        pkl_path_eeg = os.path.join(
+            faster_dir, 'result', 'PSD', f'{device_label}_EEG_PSD.pkl')
+        with open(pkl_path_eeg, 'rb') as pkl:
+            snorm_psd = pickle.load(pkl)
+        conv_psd = conv_PSD_from_snorm_PSD(snorm_psd)
+        conv_psd = conv_psd[epoch_range,:]
+
+        bidx_unknown = (stage_call == 'UNKNOWN')
+        bidx_rem = (stage_call == 'REM') & (~bidx_unknown)
+        bidx_nrem = (stage_call == 'NREM') & (~bidx_unknown)
+        bidx_wake = (stage_call == 'WAKE') & (~bidx_unknown)
+        psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
+        psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
+        psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
+
+        psd_mean_df = psd_mean_df.append([
+            [exp_label, mouse_group, mouse_id, device_label, 'REM'] + psd_mean_rem.tolist()], ignore_index=True)
+        psd_mean_df = psd_mean_df.append([
+            [exp_label, mouse_group, mouse_id, device_label, 'NREM'] + psd_mean_nrem.tolist()], ignore_index=True)
+        psd_mean_df = psd_mean_df.append([
+            [exp_label, mouse_group, mouse_id, device_label, 'Wake'] + psd_mean_wake.tolist()], ignore_index=True)
+
+    print(psd_mean_df)
+    return psd_mean_df
+
+def _make_psd_stats(mouse_info_df, sample_freq, epoch_num):
     """ makes summary PSD statics of each mouse:
             psd_domain_table: mean power of each freq domain (slow, delta w/o slow, delta, theta) in each stage (REM, NREM, Wake) of individual mouse 
             psd_stage_table: power of all freq bins in each stage (REM, NREM, Wake) of inidividual mouse
@@ -1565,7 +1648,24 @@ def write_sleep_stats(stagetime_stats, output_dir):
     stagetime_df.to_csv(os.path.join(output_dir, 'stage-time_table.csv'), index=False)
 
 
-def write_psd_stats(psd_stats, output_dir):
+def write_psd_stats():
+    """ writes three PSD tables:
+        1. psd_table.csv: mean PSD profile of each stage for each mice
+        2. psd_freq_domain_table.csv: PSD power averaged within frequency domains of each stage for each mice 
+        3. psd_stats_table.csv: statistical tests for each frequency domains between groups 
+
+    """
+    psd_table = []
+
+
+
+    psd_stats_df.to_csv(os.path.join(output_dir, 'psd_stats_table.csv'), index=False)
+    psd_domain_df.to_csv(os.path.join(output_dir, 'psd_freq_domain_table.csv'), index=False)
+    psd_stage_df.to_csv(os.path.join(output_dir, 'psd_stage_table.csv'), index=False)
+
+
+
+def _write_psd_stats(psd_stats, output_dir):
     psd_domain_df = psd_stats['psd_domain_table']
     mouse_groups = psd_domain_df['Mouse group'].values
     mouse_groups_set = sorted(set(mouse_groups), key=list(
@@ -1684,16 +1784,43 @@ def write_psd_stats(psd_stats, output_dir):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--faster2_dirs", required=True, nargs="*",
-                        help="paths to the FASTER2 directoryies")
+                        help="paths to the FASTER2 directories")
+    parser.add_argument("-e", "--epoch_range",
+                        help="a range of epochs to be summaried (default: '0:epoch_num'")
+    parser.add_argument("-s", "--stage_ext",
+                        help="the sub-extention of the stage file (default: faster2)")
     parser.add_argument("-o", "--output_dir",
-                        help="a path to the output files")
+                        help="a path to the output files (default: the first FASTER2 directory)")
 
     args = parser.parse_args()
 
     faster_dir_list = args.faster2_dirs
     output_dir = args.output_dir
+    stage_ext = args.stage_ext
+
+    # collect mouse_infos of the specified (multiple) FASTER dirs
+    mouse_info_collected = collect_mouse_info_df(faster_dir_list)
+    mouse_info_df = mouse_info_collected['mouse_info']
+    epoch_num = mouse_info_collected['epoch_num']
+    sample_freq = mouse_info_collected['sample_freq']
+
+    # set the epoch range to be summarized
+    if args.epoch_range:
+        # use the range given by the command line option
+        epoch_range = slice(*map(lambda x: int(x.strip())
+                                if x.strip() else None, args.epoch_range.split(':')))
+    else:
+        # default: use the all epochs
+        epoch_range = slice(0, epoch_num, None)
+
+    # set the file sub-extention of the stage files to be summarized
+    if stage_ext == None:
+        # default: *.faster2.csv
+        stage_ext = 'faster2'
+
+    # set the output directory
     if output_dir == None:
-        # output to the first faster directory if not specified
+        # default: output to the first FASTER2 directory
         if len(faster_dir_list)>1:
             basenames = [os.path.basename(dir_path) for dir_path in faster_dir_list]
             path_ext = '_' + '_'.join(basenames)
@@ -1702,52 +1829,46 @@ if __name__ == '__main__':
         output_dir = os.path.join(faster_dir_list[0], 'summary' + path_ext)
     os.makedirs(output_dir, exist_ok=True)
 
-    # collect mouse_infos of the specified (multiple) FASTER dirs
-    mouse_info_collected = collect_mouse_info_df(faster_dir_list)
-    mouse_info_df = mouse_info_collected['mouse_info']
-    epoch_num = mouse_info_collected['epoch_num']
-    sample_freq = mouse_info_collected['sample_freq']
-
     # prepare stagetime statistics
-    stagetime_stats = make_summary_stats(mouse_info_df, epoch_num)
+    stagetime_stats = make_summary_stats(mouse_info_df, epoch_range, stage_ext)
 
     # write a table of stats
     write_sleep_stats(stagetime_stats, output_dir)
 
-    # prepare Powerspectrum density (PSD) statistics
-    psd_stats = make_psd_stats(mouse_info_df, sample_freq, epoch_num)
+    # # prepare Powerspectrum density (PSD) statistics
+    psd_stats = make_psd_stats(mouse_info_df, sample_freq, epoch_range, stage_ext)
 
-    # write a table of PDS
-    write_psd_stats(psd_stats, output_dir)
+    # # write a table of PDS
+    # write_psd_stats(psd_stats, output_dir)
 
-    # draw stagetime profile of individual mice
-    draw_stagetime_profile_individual(stagetime_stats, output_dir)
+    # # draw stagetime profile of individual mice
+    # draw_stagetime_profile_individual(stagetime_stats, output_dir)
  
-    # draw stagetime profile of grouped mice
-    draw_stagetime_profile_grouped(stagetime_stats, output_dir)
+    # # draw stagetime profile of grouped mice
+    # draw_stagetime_profile_grouped(stagetime_stats, output_dir)
     
-    # draw stagetime circadian profile of individual mice
-    draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir)
+    # # draw stagetime circadian profile of individual mice
+    # draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir)
 
-    # draw stagetime circadian profile of groups
-    draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir)
+    # # draw stagetime circadian profile of groups
+    # draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir)
 
-    # draw stagetime barchart
-    draw_stagetime_barchart(stagetime_stats, output_dir)
+    # # draw stagetime barchart
+    # draw_stagetime_barchart(stagetime_stats, output_dir)
 
-    # draw transition barchart (probability)
-    draw_transition_barchart_prob(stagetime_stats, output_dir)
+    # # draw transition barchart (probability)
+    # draw_transition_barchart_prob(stagetime_stats, output_dir)
 
-    # draw transition barchart (log odds)
-    draw_transition_barchart_logodds(stagetime_stats, output_dir)
+    # # draw transition barchart (log odds)
+    # draw_transition_barchart_logodds(stagetime_stats, output_dir)
 
-    # draw sleep/wake transition probability
-    draw_swtransition_barchart_prob(stagetime_stats, output_dir)
+    # # draw sleep/wake transition probability
+    # draw_swtransition_barchart_prob(stagetime_stats, output_dir)
 
-    # draw sleep/wake transition probability (log odds)
-    draw_swtransition_barchart_logodds(stagetime_stats, output_dir)
+    # # draw sleep/wake transition probability (log odds)
+    # draw_swtransition_barchart_logodds(stagetime_stats, output_dir)
 
-    # draw power density plot
-    draw_PSDs(psd_stats, sample_freq, output_dir)
+    # # draw power density plot
+    # draw_PSDs(psd_stats, sample_freq, output_dir)
 
 

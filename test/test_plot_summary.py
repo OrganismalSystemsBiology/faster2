@@ -149,7 +149,7 @@ class  TestFunctions(unittest.TestCase):
         mouse_info_df = mouse_info_collected['mouse_info']
         epoch_num = mouse_info_collected['epoch_num']
         
-        stagetime_df = ps.make_summary_stats(mouse_info_df, epoch_num)['stagetime']
+        stagetime_df = ps.make_summary_stats(mouse_info_df, slice(0, epoch_num, None), 'faster2')['stagetime']
         ans = stagetime_df['Device label']
 
         np.testing.assert_array_equal(ans, exp)
@@ -167,8 +167,15 @@ class  TestFunctions(unittest.TestCase):
         np.testing.assert_array_almost_equal(exp_psd, ans_psd)
 
 
-    def test_conv_PSD_by_stage(self):
-        stage.psd(self.eeg_vm_org, self.n_fft, self.sample_freq)
+    def test_conv_PSD_from_snorm_PSD(self):
+        psd_mat = np.apply_along_axis(lambda y: stage.psd(y, self.n_fft, self.sample_freq), 1, self.eeg_vm_org)
+        exp = psd_mat
 
+        snorm = stage.spectrum_normalize(self.eeg_vm_org, self.n_fft, self.sample_freq)
+        ans = ps.conv_PSD_from_snorm_PSD(snorm)
+
+        np.testing.assert_array_almost_equal(exp, ans)
+       
+ 
 if __name__ == "__main__":
     unittest.main()
