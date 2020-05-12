@@ -1665,18 +1665,18 @@ def write_psd_stats(psd_profiles_df, output_dir):
         1. psd_profile.csv: mean PSD profile of each stage for each mice
         2. psd_freq_domain_table.csv: PSD power averaged within frequency domains of each stage for each mice 
         3. psd_stats_table.csv: statistical tests for each frequency domains between groups 
-
     """
+
     domain_names = ['Slow', 'Delta w/o slow', 'Delta', 'Theta']
-    def _domain_powers(group):
+    def _domain_powers(psd_domain_df, group):
         bidx_group = (psd_domain_df['Mouse group'] == group) 
         bidx_rem  =  (psd_domain_df['Stage'] == 'REM')
         bidx_nrem =  (psd_domain_df['Stage'] == 'NREM')
         bidx_wake =  (psd_domain_df['Stage'] == 'Wake')
 
-        domain_powers_rem  = psd_domain_df.iloc[bidx_group & bidx_rem ][domain_names]
-        domain_powers_nrem = psd_domain_df.iloc[bidx_group & bidx_nrem][domain_names]
-        domain_powers_wake = psd_domain_df.iloc[bidx_group & bidx_wake][domain_names]
+        domain_powers_rem  = psd_domain_df.loc[bidx_group & bidx_rem ][domain_names]
+        domain_powers_nrem = psd_domain_df.loc[bidx_group & bidx_nrem][domain_names]
+        domain_powers_wake = psd_domain_df.loc[bidx_group & bidx_wake][domain_names]
 
         return [domain_powers_rem, domain_powers_nrem, domain_powers_wake]
     
@@ -1721,103 +1721,103 @@ def write_psd_stats(psd_profiles_df, output_dir):
     ## control
     group_c = mouse_group_set[0] # index=0 should be always control group
 
-    ## domain_powers_[stage] contains 4 list of powers: 
+    ## domain_powers_[stage] contains 4 Series of powers: 
     ## [slow x mice, delta wo slow x mice, delta x mice, theta x mice]
-    [domain_powers_rem_c, domain_powers_nrem_c, domain_powers_wake_c] = _domain_powers(group_c)
+    [domain_powers_rem_c, domain_powers_nrem_c, domain_powers_wake_c] = _domain_powers(psd_domain_df, group_c)
 
     num = len(domain_powers_rem_c)
     row1  = [group_c, 'REM', 'Slow', num, 
-        np.mean(domain_powers_rem_c[0]),  np.std(domain_powers_rem_c[0]), np.nan, None, None]
+        np.mean(domain_powers_rem_c['Slow']),  np.std(domain_powers_rem_c['Slow']), np.nan, None, None]
     row2  = [group_c, 'REM', 'Delta w/o Slow', num, 
-        np.mean(domain_powers_rem_c[1]), np.std(domain_powers_rem_c[1]), np.nan, None, None]
+        np.mean(domain_powers_rem_c['Delta w/o slow']), np.std(domain_powers_rem_c['Delta w/o slow']), np.nan, None, None]
     row3  = [group_c, 'REM', 'Delta', num, 
-        np.mean(domain_powers_rem_c[2]), np.std(domain_powers_rem_c[2]), np.nan, None, None]
+        np.mean(domain_powers_rem_c['Delta']), np.std(domain_powers_rem_c['Delta']), np.nan, None, None]
     row4  = [group_c, 'REM', 'Theta', num, 
-        np.mean(domain_powers_rem_c[3]), np.std(domain_powers_rem_c[3]), np.nan, None, None]
+        np.mean(domain_powers_rem_c['Theta']), np.std(domain_powers_rem_c['Theta']), np.nan, None, None]
 
     num = len(domain_powers_nrem_c)
     row5  = [group_c, 'NREM', 'Slow', num, 
-        np.mean(domain_powers_nrem_c[0]),  np.std(domain_powers_nrem_c[0]), np.nan, None, None]
+        np.mean(domain_powers_nrem_c['Slow']),  np.std(domain_powers_nrem_c['Slow']), np.nan, None, None]
     row6  = [group_c, 'NREM', 'Delta w/o Slow', num, 
-        np.mean(domain_powers_nrem_c[1]), np.std(domain_powers_nrem_c[1]), np.nan, None, None]
+        np.mean(domain_powers_nrem_c['Delta w/o slow']), np.std(domain_powers_nrem_c['Delta w/o slow']), np.nan, None, None]
     row7  = [group_c, 'NREM', 'Delta', num, 
-        np.mean(domain_powers_nrem_c[2]), np.std(domain_powers_nrem_c[2]), np.nan, None, None]
+        np.mean(domain_powers_nrem_c['Delta']), np.std(domain_powers_nrem_c['Delta']), np.nan, None, None]
     row8  = [group_c, 'NREM', 'Theta', num, 
-        np.mean(domain_powers_nrem_c[3]), np.std(domain_powers_nrem_c[3]), np.nan, None, None]
+        np.mean(domain_powers_nrem_c['Theta']), np.std(domain_powers_nrem_c['Theta']), np.nan, None, None]
 
     num = len(domain_powers_wake_c)
     row9  = [group_c, 'Wake', 'Slow', num, 
-        np.mean(domain_powers_wake_c[0]),  np.std(domain_powers_wake_c[0]), np.nan, None, None]
+        np.mean(domain_powers_wake_c['Slow']),  np.std(domain_powers_wake_c['Slow']), np.nan, None, None]
     row10 = [group_c, 'Wake', 'Delta w/o Slow', num, 
-        np.mean(domain_powers_wake_c[1]), np.std(domain_powers_wake_c[1]), np.nan, None, None]
+        np.mean(domain_powers_wake_c['Delta w/o slow']), np.std(domain_powers_wake_c['Delta w/o slow']), np.nan, None, None]
     row11 = [group_c, 'Wake', 'Delta', num, 
-        np.mean(domain_powers_wake_c[2]), np.std(domain_powers_wake_c[2]), np.nan, None, None]
+        np.mean(domain_powers_wake_c['Delta']), np.std(domain_powers_wake_c['Delta']), np.nan, None, None]
     row12 = [group_c, 'Wake', 'Theta', num, 
-        np.mean(domain_powers_wake_c[3]), np.std(domain_powers_wake_c[3]), np.nan, None, None]
+        np.mean(domain_powers_wake_c['Theta']), np.std(domain_powers_wake_c['Theta']), np.nan, None, None]
 
     psd_stats_df = psd_stats_df.append([row1, row2, row3, row4,
                                         row5, row6, row7, row8,
                                         row9, row10,row11,row12])
 
     ## treatment
-    for group_t in mouse_group_set:
-        [domain_powers_rem_t, domain_powers_nrem_t, domain_powers_wake_t] = _domain_powers(group_t)
+    for group_t in mouse_group_set[1:]:
+        [domain_powers_rem_t, domain_powers_nrem_t, domain_powers_wake_t] = _domain_powers(psd_domain_df, group_t)
 
-        trs = test_two_sample(domain_powers_rem_c[domain_names[0]],  domain_powers_rem_t[domain_names[0]]) # test for slow REM
-        trd = test_two_sample(domain_powers_rem_c[domain_names[1]],  domain_powers_rem_t[domain_names[1]]) # test for delta w/o slow in REM
-        trD = test_two_sample(domain_powers_rem_c[domain_names[2]],  domain_powers_rem_t[domain_names[2]]) # test for delta in REM
-        trt = test_two_sample(domain_powers_rem_c[domain_names[3]],  domain_powers_rem_t[domain_names[3]]) # test for theta in REM
+        trs = test_two_sample(domain_powers_rem_c['Slow'],  domain_powers_rem_t['Slow']) # test for slow REM
+        trd = test_two_sample(domain_powers_rem_c['Delta w/o slow'],  domain_powers_rem_t['Delta w/o slow']) # test for delta w/o slow in REM
+        trD = test_two_sample(domain_powers_rem_c['Delta'],  domain_powers_rem_t['Delta']) # test for delta in REM
+        trt = test_two_sample(domain_powers_rem_c['Theta'],  domain_powers_rem_t['Theta']) # test for theta in REM
 
-        tns = test_two_sample(domain_powers_nrem_c[domain_names[0]],  domain_powers_nrem_t[domain_names[0]]) # test for slow NREM
-        tnd = test_two_sample(domain_powers_nrem_c[domain_names[1]],  domain_powers_nrem_t[domain_names[1]]) # test for delta w/o slow in NREM
-        tnD = test_two_sample(domain_powers_nrem_c[domain_names[2]],  domain_powers_nrem_t[domain_names[2]]) # test for delta in NREM
-        tnt = test_two_sample(domain_powers_nrem_c[domain_names[3]],  domain_powers_nrem_t[domain_names[3]]) # test for theta in NREM
+        tns = test_two_sample(domain_powers_nrem_c['Slow'],  domain_powers_nrem_t['Slow']) # test for slow NREM
+        tnd = test_two_sample(domain_powers_nrem_c['Delta w/o slow'],  domain_powers_nrem_t['Delta w/o slow']) # test for delta w/o slow in NREM
+        tnD = test_two_sample(domain_powers_nrem_c['Delta'],  domain_powers_nrem_t['Delta']) # test for delta in NREM
+        tnt = test_two_sample(domain_powers_nrem_c['Theta'],  domain_powers_nrem_t['Theta']) # test for theta in NREM
 
-        tws = test_two_sample(domain_powers_wake_c[domain_names[0]],  domain_powers_wake_t[domain_names[0]])# test for slow Wake
-        twd = test_two_sample(domain_powers_wake_c[domain_names[1]],  domain_powers_wake_t[domain_names[1]])# test for delta w/o slow in Wake
-        twD = test_two_sample(domain_powers_wake_c[domain_names[2]],  domain_powers_wake_t[domain_names[2]])# test for delta in Wake
-        twt = test_two_sample(domain_powers_wake_c[domain_names[3]],  domain_powers_wake_t[domain_names[3]])# test for theta in Wake
+        tws = test_two_sample(domain_powers_wake_c['Slow'],  domain_powers_wake_t['Slow'])# test for slow Wake
+        twd = test_two_sample(domain_powers_wake_c['Delta w/o slow'],  domain_powers_wake_t['Delta w/o slow'])# test for delta w/o slow in Wake
+        twD = test_two_sample(domain_powers_wake_c['Delta'],  domain_powers_wake_t['Delta'])# test for delta in Wake
+        twt = test_two_sample(domain_powers_wake_c['Theta'],  domain_powers_wake_t['Theta'])# test for theta in Wake
 
         num = len(domain_powers_rem_t)
         row1  = [group_t, 'REM', 'Slow', num, 
-            np.mean(domain_powers_rem_t[0]),  np.std(domain_powers_rem_t[0]),
+            np.mean(domain_powers_rem_t['Slow']),  np.std(domain_powers_rem_t['Slow']),
             trs['p_value'], trs['stars'], trs['method']]
         row2  = [group_t, 'REM', 'Delta w/o Slow', num, 
-            np.mean(domain_powers_rem_t[1]), np.std(domain_powers_rem_t[1]),
+            np.mean(domain_powers_rem_t['Delta w/o slow']), np.std(domain_powers_rem_t['Delta w/o slow']),
             trd['p_value'], trd['stars'], trd['method']]
         row3  = [group_t, 'REM', 'Delta', num, 
-            np.mean(domain_powers_rem_t[2]), np.std(domain_powers_rem_t[2]), 
+            np.mean(domain_powers_rem_t['Delta']), np.std(domain_powers_rem_t['Delta']), 
             trD['p_value'], trD['stars'], trD['method']]
         row4  = [group_t, 'REM', 'Theta', num, 
-            np.mean(domain_powers_rem_t[3]), np.std(domain_powers_rem_t[3]),
+            np.mean(domain_powers_rem_t['Theta']), np.std(domain_powers_rem_t['Theta']),
             trt['p_value'], trt['stars'], trt['method']]
 
         num = len(domain_powers_nrem_t)
         row5  = [group_t, 'NREM', 'Slow', num, 
-            np.mean(domain_powers_nrem_t[0]),  np.std(domain_powers_nrem_t[0]), 
+            np.mean(domain_powers_nrem_t['Slow']),  np.std(domain_powers_nrem_t['Slow']), 
              tns['p_value'], tns['stars'], tns['method']]
         row6  = [group_t, 'NREM', 'Delta w/o Slow', num, 
-            np.mean(domain_powers_nrem_t[1]), np.std(domain_powers_nrem_t[1]), 
+            np.mean(domain_powers_nrem_t['Delta w/o slow']), np.std(domain_powers_nrem_t['Delta w/o slow']), 
              tnd['p_value'], tnd['stars'], tnd['method']]
         row7  = [group_t, 'NREM', 'Delta', num, 
-            np.mean(domain_powers_nrem_t[2]), np.std(domain_powers_nrem_t[2]), 
+            np.mean(domain_powers_nrem_t['Delta']), np.std(domain_powers_nrem_t['Delta']), 
              tnD['p_value'], tnD['stars'], tnD['method']]
         row8  = [group_t, 'NREM', 'Theta', num, 
-            np.mean(domain_powers_nrem_t[3]), np.std(domain_powers_nrem_t[3]), 
+            np.mean(domain_powers_nrem_t['Theta']), np.std(domain_powers_nrem_t['Theta']), 
              tnt['p_value'], tnt['stars'], tnt['method']]
 
         num = len(domain_powers_wake_t)
         row9  = [group_t, 'Wake', 'Slow', num, 
-            np.mean(domain_powers_wake_t[0]),  np.std(domain_powers_wake_t[0]), 
+            np.mean(domain_powers_wake_t['Slow']),  np.std(domain_powers_wake_t['Slow']), 
             tws['p_value'], tws['stars'], tws['method']]
         row10 = [group_t, 'Wake', 'Delta w/o Slow', num, 
-            np.mean(domain_powers_wake_t[1]), np.std(domain_powers_wake_t[1]), 
+            np.mean(domain_powers_wake_t['Delta w/o slow']), np.std(domain_powers_wake_t['Delta w/o slow']), 
             twd['p_value'], twd['stars'], twd['method']]
         row11 = [group_t, 'Wake', 'Delta', num, 
-            np.mean(domain_powers_wake_t[2]), np.std(domain_powers_wake_t[2]), 
+            np.mean(domain_powers_wake_t['Delta']), np.std(domain_powers_wake_t['Delta']), 
             twD['p_value'], twD['stars'], twD['method']]
         row12 = [group_t, 'Wake', 'Theta', num, 
-            np.mean(domain_powers_wake_t[3]), np.std(domain_powers_wake_t[3]), 
+            np.mean(domain_powers_wake_t['Theta']), np.std(domain_powers_wake_t['Theta']), 
             twt['p_value'], twt['stars'], twt['method']]
 
         psd_stats_df = psd_stats_df.append([row1, row2, row3, row4,

@@ -200,7 +200,7 @@ class  TestFunctions(unittest.TestCase):
         # a small mouse_info_df
         mif = pd.DataFrame({'Device label':['ID33572'], 
                     'Stats report':['Yes'], 
-                    'Mouse group':['T287DT'], 
+                    'Mouse group':['T287D'], 
                     'Mouse ID':'AAV0837_1',
                     'Experiment label': ['FASTER2_20200206_EEG_2019-023'], 
                     'FASTER_DIR':['../test/data/FASTER2_20200206_EEG_2019-023/']})
