@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 import unittest
 import numpy as np
+import pandas as pd
 import sys
 import datetime
 import pickle
 sys.path.append('../')
 import plot_summary as ps
 import stage
+import eeg_tools as et
+import os
 
 class  TestFunctions(unittest.TestCase):
     """Test class for plot_summary.py
@@ -14,7 +17,7 @@ class  TestFunctions(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # dummy stage calls of one day (24 hours)
-        cls.stage_call = np.array(
+        cls.stage_call_dummy = np.array(
             ['REM']*450 + ['NREM']*0   + ['WAKE']*0   + ['UNKNOWN']*0 +  # 0
             ['REM']*0   + ['NREM']*450 + ['WAKE']*0   + ['UNKNOWN']*0 +  # 1
             ['REM']*0   + ['NREM']*0   + ['WAKE']*450 + ['UNKNOWN']*0 +  # 2
@@ -42,7 +45,9 @@ class  TestFunctions(unittest.TestCase):
         )
 
         # Sample EEG voltage matrix
-        data_dir = '../test/data/FASTER2_20200206_EEG_2019-023/data'
+        faster_dir = '../test/data/FASTER2_20200206_EEG_2019-023'
+        data_dir = os.path.join(faster_dir, 'data')
+        result_dir = os.path.join(faster_dir, 'result')
         device_id = 'ID33572'
         EPOCH_LEN_SEC = 8
         epoch_num = 1800
@@ -53,6 +58,9 @@ class  TestFunctions(unittest.TestCase):
         (cls.eeg_vm_org, _, _) = stage.read_voltage_matrices(
             data_dir, device_id, cls.sample_freq, EPOCH_LEN_SEC, epoch_num, start_datetime)
 
+        # Sample stage call
+        stage_call = et.read_stages(result_dir, device_id, 'faster2')
+        cls.stage_call = stage_call[0:1800]
 
     def test_collect_mouse_info(self):
         faster_dir_list = ['../test/data/FASTER2_20200206_EEG_2019-023',
@@ -93,7 +101,7 @@ class  TestFunctions(unittest.TestCase):
             [0, 0, 60,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
         ])
 
-        ans = ps.stagetime_profile(self.stage_call)
+        ans = ps.stagetime_profile(self.stage_call_dummy)
 
         np.testing.assert_array_equal(exp, ans)
 
@@ -110,7 +118,7 @@ class  TestFunctions(unittest.TestCase):
                 [0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
             ]])
         
-        ans = ps.stagetime_circadian_profile(self.stage_call)
+        ans = ps.stagetime_circadian_profile(self.stage_call_dummy)
 
         np.testing.assert_array_equal(exp, ans)
 
@@ -177,5 +185,36 @@ class  TestFunctions(unittest.TestCase):
         np.testing.assert_array_almost_equal(exp, ans)
        
  
+    def test_make_psd_stats(self):
+        # conventional PSD from voltage matrix
+        conv_psd = np.apply_along_axis(lambda y: stage.psd(y, self.n_fft, self.sample_freq), 1, self.eeg_vm_org)
+
+        bidx_unknown = (self.stage_call == 'UNKNOWN')
+        bidx_rem = (self.stage_call == 'REM') & (~bidx_unknown)
+        bidx_nrem = (self.stage_call == 'NREM') & (~bidx_unknown)
+        bidx_wake = (self.stage_call == 'WAKE') & (~bidx_unknown)
+        exp_psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
+        exp_psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
+        exp_psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
+
+        # a small mouse_info_df
+        mif = pd.DataFrame({'Device label':['ID33572'], 
+                    'Stats report':['Yes'], 
+                    'Mouse group':['T287DT'], 
+                    'Mouse ID':'AAV0837_1',
+                    'Experiment label': ['FASTER2_20200206_EEG_2019-023'], 
+                    'FASTER_DIR':['../test/data/FASTER2_20200206_EEG_2019-023/']})
+
+        # TEST
+        df = ps.make_psd_profile(mif, 100, slice(0,1800,None), 'faster2')
+        ans_psd_mean_rem = df.iloc[0][5:].tolist()
+        ans_psd_mean_nrem = df.iloc[1][5:].tolist()
+        ans_psd_mean_wake = df.iloc[2][5:].tolist()
+
+        np.testing.assert_array_almost_equal(exp_psd_mean_rem, ans_psd_mean_rem)
+        np.testing.assert_array_almost_equal(exp_psd_mean_nrem, ans_psd_mean_nrem)
+        np.testing.assert_array_almost_equal(exp_psd_mean_wake, ans_psd_mean_wake)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1262,14 +1262,15 @@ def conv_PSD_by_stage(spec_norm, stage_call):
     
     return [psd_mean_rem, psd_mean_nrem, psd_mean_wake]
 
-def make_psd_stats(mouse_info_df, sample_freq, epoch_range, stage_ext):
+def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
     """makes summary PSD statics of each mouse:
-            psd_mean_df: mean PSD profile of each stage for each mice
+            psd_mean_df: mean PSD profiles of each stage for each mice
    
     Arguments:
         mouse_info_df {pd.DataFram} -- an dataframe given by mouse_info_collected()
-        sample_freq {int} -- 
-        epoch_range {int} -- 
+        sample_freq {int} -- sampling frequency
+        epoch_range {slice} -- a range of target epochs
+        stage_ext {str} -- a file sub-extention (e.g. 'faster2' for *.faster2.csv)
 
     Returns:
         psd_mean_df {pd.DataFrame} --  Experiment label, Mouse group, Mouse ID, 
@@ -1286,21 +1287,24 @@ def make_psd_stats(mouse_info_df, sample_freq, epoch_range, stage_ext):
         exp_label = r['Experiment label'].strip()
         faster_dir = r['FASTER_DIR']
 
+
+        if stats_report == 'NO':
+            print(f'[{i+1}] skipping: {faster_dir} {device_label}')
+            continue
+        print(f'[{i+1}] reading PSD and stage of: {faster_dir} {device_label}')
+
         # read stage of the mouse
         stage_call = et.read_stages(os.path.join(
             faster_dir, 'result'), device_label, stage_ext)
-        stage_call = stage_call[epoch_range]
+        stage_call = stage_call[epoch_range]        
 
-        if stats_report == 'NO':
-            print(f'[{i+1}] skipping PSD: {faster_dir} {device_label}')
-            continue
-        print(f'[{i+1}] reading PSD: {faster_dir} {device_label}')
-        
         # read the normalized EEG PSDs and the associated normalization factors and means
         pkl_path_eeg = os.path.join(
             faster_dir, 'result', 'PSD', f'{device_label}_EEG_PSD.pkl')
         with open(pkl_path_eeg, 'rb') as pkl:
             snorm_psd = pickle.load(pkl)
+
+        # convert the spectrum normalized PSD to the conventional PSD
         conv_psd = conv_PSD_from_snorm_PSD(snorm_psd)
         conv_psd = conv_psd[epoch_range,:]
 
@@ -1319,10 +1323,18 @@ def make_psd_stats(mouse_info_df, sample_freq, epoch_range, stage_ext):
         psd_mean_df = psd_mean_df.append([
             [exp_label, mouse_group, mouse_id, device_label, 'Wake'] + psd_mean_wake.tolist()], ignore_index=True)
 
-    print(psd_mean_df)
+    # frequency bins
+    # assures frequency bins compatibe among different sampling frequencies
+    n_fft = int(256 * sample_freq/100)
+    # same frequency bins given by signal.welch()
+    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+
+    freq_columns = [f'f@{x}' for x in freq_bins.tolist()]
+    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label', 'Stage'] + freq_columns
+    psd_mean_df.columns = column_names
     return psd_mean_df
 
-def _make_psd_stats(mouse_info_df, sample_freq, epoch_num):
+def _make_psd_profile(mouse_info_df, sample_freq, epoch_num):
     """ makes summary PSD statics of each mouse:
             psd_domain_table: mean power of each freq domain (slow, delta w/o slow, delta, theta) in each stage (REM, NREM, Wake) of individual mouse 
             psd_stage_table: power of all freq bins in each stage (REM, NREM, Wake) of inidividual mouse
@@ -1648,21 +1660,177 @@ def write_sleep_stats(stagetime_stats, output_dir):
     stagetime_df.to_csv(os.path.join(output_dir, 'stage-time_table.csv'), index=False)
 
 
-def write_psd_stats():
+def write_psd_stats(psd_profiles_df, output_dir):
     """ writes three PSD tables:
-        1. psd_table.csv: mean PSD profile of each stage for each mice
+        1. psd_profile.csv: mean PSD profile of each stage for each mice
         2. psd_freq_domain_table.csv: PSD power averaged within frequency domains of each stage for each mice 
         3. psd_stats_table.csv: statistical tests for each frequency domains between groups 
 
     """
-    psd_table = []
+    domain_names = ['Slow', 'Delta w/o slow', 'Delta', 'Theta']
+    def _domain_powers(group):
+        bidx_group = (psd_domain_df['Mouse group'] == group) 
+        bidx_rem  =  (psd_domain_df['Stage'] == 'REM')
+        bidx_nrem =  (psd_domain_df['Stage'] == 'NREM')
+        bidx_wake =  (psd_domain_df['Stage'] == 'Wake')
+
+        domain_powers_rem  = psd_domain_df.iloc[bidx_group & bidx_rem ][domain_names]
+        domain_powers_nrem = psd_domain_df.iloc[bidx_group & bidx_nrem][domain_names]
+        domain_powers_wake = psd_domain_df.iloc[bidx_group & bidx_wake][domain_names]
+
+        return [domain_powers_rem, domain_powers_nrem, domain_powers_wake]
+    
+    # get freq_bins from column names
+    freq_bin_columns = psd_profiles_df.columns[5:].tolist()
+    freq_bins = np.array([float(x.strip().split('@')[1]) for x in freq_bin_columns])
+    
+    # frequency domains
+    bidx_theta_freq = (freq_bins>=4) & (freq_bins<10) # 15 bins
+    bidx_delta_freq = (freq_bins<4) # 11 bins
+    bidx_delta_wo_slow_freq =  (1<=freq_bins) & (freq_bins<4) # 8 bins (delta without slow)
+    bidx_slow_freq = (freq_bins<1) # 3 bins
+
+    # make psd_domain_df
+    row_list = []
+    for _, r in psd_profiles_df.iterrows():
+        infos = r[:5]
+        powers = r[5:]
+        powers_slow = powers[bidx_slow_freq]
+        powers_delta_wo_slow = powers[bidx_delta_wo_slow_freq]
+        powers_delta = powers[bidx_delta_freq]
+        powers_theta = powers[bidx_theta_freq]
+        
+        slow_p = np.mean(powers_slow)
+        delta_wo_slow_p = np.mean(powers_delta_wo_slow)
+        delta_p = np.mean(powers_delta)
+        theta_p = np.mean(powers_theta)
+        domain_powers = pd.Series([slow_p, delta_wo_slow_p, delta_p, theta_p], index=domain_names)
+
+        row = pd.concat([infos, domain_powers])
+        row_list.append(row)
+    psd_domain_df = pd.DataFrame(row_list)
 
 
+    # make psd_stats_df
+    psd_stats_df = pd.DataFrame() # mouse_group, stage_type, wave_type, num, mean, SD, pvalue, star, method
 
-    psd_stats_df.to_csv(os.path.join(output_dir, 'psd_stats_table.csv'), index=False)
+    ## mouse_group_set
+    mouse_group_list = psd_profiles_df['Mouse group'].tolist()
+    mouse_group_set = sorted(set(mouse_group_list), key=mouse_group_list.index)  # unique elements with preseved order
+
+    ## control
+    group_c = mouse_group_set[0] # index=0 should be always control group
+
+    ## domain_powers_[stage] contains 4 list of powers: 
+    ## [slow x mice, delta wo slow x mice, delta x mice, theta x mice]
+    [domain_powers_rem_c, domain_powers_nrem_c, domain_powers_wake_c] = _domain_powers(group_c)
+
+    num = len(domain_powers_rem_c)
+    row1  = [group_c, 'REM', 'Slow', num, 
+        np.mean(domain_powers_rem_c[0]),  np.std(domain_powers_rem_c[0]), np.nan, None, None]
+    row2  = [group_c, 'REM', 'Delta w/o Slow', num, 
+        np.mean(domain_powers_rem_c[1]), np.std(domain_powers_rem_c[1]), np.nan, None, None]
+    row3  = [group_c, 'REM', 'Delta', num, 
+        np.mean(domain_powers_rem_c[2]), np.std(domain_powers_rem_c[2]), np.nan, None, None]
+    row4  = [group_c, 'REM', 'Theta', num, 
+        np.mean(domain_powers_rem_c[3]), np.std(domain_powers_rem_c[3]), np.nan, None, None]
+
+    num = len(domain_powers_nrem_c)
+    row5  = [group_c, 'NREM', 'Slow', num, 
+        np.mean(domain_powers_nrem_c[0]),  np.std(domain_powers_nrem_c[0]), np.nan, None, None]
+    row6  = [group_c, 'NREM', 'Delta w/o Slow', num, 
+        np.mean(domain_powers_nrem_c[1]), np.std(domain_powers_nrem_c[1]), np.nan, None, None]
+    row7  = [group_c, 'NREM', 'Delta', num, 
+        np.mean(domain_powers_nrem_c[2]), np.std(domain_powers_nrem_c[2]), np.nan, None, None]
+    row8  = [group_c, 'NREM', 'Theta', num, 
+        np.mean(domain_powers_nrem_c[3]), np.std(domain_powers_nrem_c[3]), np.nan, None, None]
+
+    num = len(domain_powers_wake_c)
+    row9  = [group_c, 'Wake', 'Slow', num, 
+        np.mean(domain_powers_wake_c[0]),  np.std(domain_powers_wake_c[0]), np.nan, None, None]
+    row10 = [group_c, 'Wake', 'Delta w/o Slow', num, 
+        np.mean(domain_powers_wake_c[1]), np.std(domain_powers_wake_c[1]), np.nan, None, None]
+    row11 = [group_c, 'Wake', 'Delta', num, 
+        np.mean(domain_powers_wake_c[2]), np.std(domain_powers_wake_c[2]), np.nan, None, None]
+    row12 = [group_c, 'Wake', 'Theta', num, 
+        np.mean(domain_powers_wake_c[3]), np.std(domain_powers_wake_c[3]), np.nan, None, None]
+
+    psd_stats_df = psd_stats_df.append([row1, row2, row3, row4,
+                                        row5, row6, row7, row8,
+                                        row9, row10,row11,row12])
+
+    ## treatment
+    for group_t in mouse_group_set:
+        [domain_powers_rem_t, domain_powers_nrem_t, domain_powers_wake_t] = _domain_powers(group_t)
+
+        trs = test_two_sample(domain_powers_rem_c[domain_names[0]],  domain_powers_rem_t[domain_names[0]]) # test for slow REM
+        trd = test_two_sample(domain_powers_rem_c[domain_names[1]],  domain_powers_rem_t[domain_names[1]]) # test for delta w/o slow in REM
+        trD = test_two_sample(domain_powers_rem_c[domain_names[2]],  domain_powers_rem_t[domain_names[2]]) # test for delta in REM
+        trt = test_two_sample(domain_powers_rem_c[domain_names[3]],  domain_powers_rem_t[domain_names[3]]) # test for theta in REM
+
+        tns = test_two_sample(domain_powers_nrem_c[domain_names[0]],  domain_powers_nrem_t[domain_names[0]]) # test for slow NREM
+        tnd = test_two_sample(domain_powers_nrem_c[domain_names[1]],  domain_powers_nrem_t[domain_names[1]]) # test for delta w/o slow in NREM
+        tnD = test_two_sample(domain_powers_nrem_c[domain_names[2]],  domain_powers_nrem_t[domain_names[2]]) # test for delta in NREM
+        tnt = test_two_sample(domain_powers_nrem_c[domain_names[3]],  domain_powers_nrem_t[domain_names[3]]) # test for theta in NREM
+
+        tws = test_two_sample(domain_powers_wake_c[domain_names[0]],  domain_powers_wake_t[domain_names[0]])# test for slow Wake
+        twd = test_two_sample(domain_powers_wake_c[domain_names[1]],  domain_powers_wake_t[domain_names[1]])# test for delta w/o slow in Wake
+        twD = test_two_sample(domain_powers_wake_c[domain_names[2]],  domain_powers_wake_t[domain_names[2]])# test for delta in Wake
+        twt = test_two_sample(domain_powers_wake_c[domain_names[3]],  domain_powers_wake_t[domain_names[3]])# test for theta in Wake
+
+        num = len(domain_powers_rem_t)
+        row1  = [group_t, 'REM', 'Slow', num, 
+            np.mean(domain_powers_rem_t[0]),  np.std(domain_powers_rem_t[0]),
+            trs['p_value'], trs['stars'], trs['method']]
+        row2  = [group_t, 'REM', 'Delta w/o Slow', num, 
+            np.mean(domain_powers_rem_t[1]), np.std(domain_powers_rem_t[1]),
+            trd['p_value'], trd['stars'], trd['method']]
+        row3  = [group_t, 'REM', 'Delta', num, 
+            np.mean(domain_powers_rem_t[2]), np.std(domain_powers_rem_t[2]), 
+            trD['p_value'], trD['stars'], trD['method']]
+        row4  = [group_t, 'REM', 'Theta', num, 
+            np.mean(domain_powers_rem_t[3]), np.std(domain_powers_rem_t[3]),
+            trt['p_value'], trt['stars'], trt['method']]
+
+        num = len(domain_powers_nrem_t)
+        row5  = [group_t, 'NREM', 'Slow', num, 
+            np.mean(domain_powers_nrem_t[0]),  np.std(domain_powers_nrem_t[0]), 
+             tns['p_value'], tns['stars'], tns['method']]
+        row6  = [group_t, 'NREM', 'Delta w/o Slow', num, 
+            np.mean(domain_powers_nrem_t[1]), np.std(domain_powers_nrem_t[1]), 
+             tnd['p_value'], tnd['stars'], tnd['method']]
+        row7  = [group_t, 'NREM', 'Delta', num, 
+            np.mean(domain_powers_nrem_t[2]), np.std(domain_powers_nrem_t[2]), 
+             tnD['p_value'], tnD['stars'], tnD['method']]
+        row8  = [group_t, 'NREM', 'Theta', num, 
+            np.mean(domain_powers_nrem_t[3]), np.std(domain_powers_nrem_t[3]), 
+             tnt['p_value'], tnt['stars'], tnt['method']]
+
+        num = len(domain_powers_wake_t)
+        row9  = [group_t, 'Wake', 'Slow', num, 
+            np.mean(domain_powers_wake_t[0]),  np.std(domain_powers_wake_t[0]), 
+            tws['p_value'], tws['stars'], tws['method']]
+        row10 = [group_t, 'Wake', 'Delta w/o Slow', num, 
+            np.mean(domain_powers_wake_t[1]), np.std(domain_powers_wake_t[1]), 
+            twd['p_value'], twd['stars'], twd['method']]
+        row11 = [group_t, 'Wake', 'Delta', num, 
+            np.mean(domain_powers_wake_t[2]), np.std(domain_powers_wake_t[2]), 
+            twD['p_value'], twD['stars'], twD['method']]
+        row12 = [group_t, 'Wake', 'Theta', num, 
+            np.mean(domain_powers_wake_t[3]), np.std(domain_powers_wake_t[3]), 
+            twt['p_value'], twt['stars'], twt['method']]
+
+        psd_stats_df = psd_stats_df.append([row1, row2, row3, row4,
+                                            row5, row6, row7, row8,
+                                            row9, row10,row11,row12])
+
+    psd_stats_df.columns = ['Mouse group', 'Stage type',
+                            'Wake type', 'N', 'Mean', 'SD', 'Pvalue', 'Stars', 'Method']
+
+    # write tabels
+    psd_profiles_df.to_csv(os.path.join(output_dir, 'psd_profile.csv'), index=False)
     psd_domain_df.to_csv(os.path.join(output_dir, 'psd_freq_domain_table.csv'), index=False)
-    psd_stage_df.to_csv(os.path.join(output_dir, 'psd_stage_table.csv'), index=False)
-
+    psd_stats_df.to_csv(os.path.join(output_dir, 'psd_stats_table.csv'), index=False)
 
 
 def _write_psd_stats(psd_stats, output_dir):
@@ -1807,15 +1975,14 @@ if __name__ == '__main__':
     # set the epoch range to be summarized
     if args.epoch_range:
         # use the range given by the command line option
-        epoch_range = slice(*map(lambda x: int(x.strip())
-                                if x.strip() else None, args.epoch_range.split(':')))
+        epoch_range = slice(*[int(x.strip()) if x else None for x in args.epoch_range.split(':')])
     else:
         # default: use the all epochs
         epoch_range = slice(0, epoch_num, None)
 
     # set the file sub-extention of the stage files to be summarized
     if stage_ext == None:
-        # default: *.faster2.csv
+        # default: 'faster2' for *.faster2.csv
         stage_ext = 'faster2'
 
     # set the output directory
@@ -1835,11 +2002,11 @@ if __name__ == '__main__':
     # write a table of stats
     write_sleep_stats(stagetime_stats, output_dir)
 
-    # # prepare Powerspectrum density (PSD) statistics
-    psd_stats = make_psd_stats(mouse_info_df, sample_freq, epoch_range, stage_ext)
+    # # prepare Powerspectrum density (PSD) profiles for individual mice
+    psd_profiles_df = make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext)
 
     # # write a table of PDS
-    # write_psd_stats(psd_stats, output_dir)
+    write_psd_stats(psd_profiles_df, output_dir)
 
     # # draw stagetime profile of individual mice
     # draw_stagetime_profile_individual(stagetime_stats, output_dir)
