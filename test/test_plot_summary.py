@@ -185,7 +185,7 @@ class  TestFunctions(unittest.TestCase):
         np.testing.assert_array_almost_equal(exp, ans)
        
  
-    def test_make_psd_stats(self):
+    def test_make_psd_profile(self):
         # conventional PSD from voltage matrix
         conv_psd = np.apply_along_axis(lambda y: stage.psd(y, self.n_fft, self.sample_freq), 1, self.eeg_vm_org)
 
@@ -215,6 +215,57 @@ class  TestFunctions(unittest.TestCase):
         np.testing.assert_array_almost_equal(exp_psd_mean_nrem, ans_psd_mean_nrem)
         np.testing.assert_array_almost_equal(exp_psd_mean_wake, ans_psd_mean_wake)
 
+
+    def test_make_psd_domain(self):
+        psd_profile_df = pd.read_csv("../test/data/FASTER2_20200306_EEG_2019-025/summary/psd_profile.csv")
+        
+        # test
+        ans_df = ps.make_psd_domain(psd_profile_df)
+
+        ans_slow = ans_df.iloc[0]['Slow']
+        ans_delta_wo_slow = ans_df.iloc[0]['Delta w/o slow']
+        ans_delta = ans_df.iloc[0]['Delta']
+        ans_theta = ans_df.iloc[0]['Theta']
+
+        # calculated by Excel
+        exp_slow = 0.020354406
+        exp_delta_wo_slow = 0.048376081
+        exp_delta = 0.040733806
+        exp_theta = 0.038871448
+
+        np.testing.assert_almost_equal(ans_slow, exp_slow)
+        np.testing.assert_almost_equal(ans_delta_wo_slow, exp_delta_wo_slow)
+        np.testing.assert_almost_equal(ans_delta, exp_delta)
+        np.testing.assert_almost_equal(ans_theta, exp_theta)
+
+    
+    def test_make_psd_stats(self):
+        psd_profile_df = pd.read_csv("../test/data/FASTER2_20200306_EEG_2019-025/summary/psd_profile.csv")
+        psd_domain_df = ps.make_psd_domain(psd_profile_df)
+
+        # test
+        ans_df = ps.make_psd_stats(psd_domain_df)
+        ans_n = ans_df.iloc[0]['N']
+        ans_mean = ans_df.iloc[0]['Mean']
+        ans_sd = ans_df.iloc[0]['SD']
+        ans_pvalue = ans_df.iloc[12]['Pvalue']
+        ans_stars = ans_df.iloc[12]['Stars']
+        ans_method = ans_df.iloc[12]['Method']
+
+        # calculated by a different code
+        exp_n = 3
+        exp_mean = 0.016761628477375
+        exp_sd = 0.00275619660337911
+        exp_pvalue = 0.431024979258898
+        exp_stars = ''
+        exp_method = "Student's t-test"
+
+        np.testing.assert_equal(ans_n, exp_n)
+        np.testing.assert_almost_equal(ans_mean, exp_mean)
+        np.testing.assert_almost_equal(ans_sd, exp_sd)
+        np.testing.assert_almost_equal(ans_pvalue, exp_pvalue)
+        np.testing.assert_equal(ans_stars, exp_stars)
+        np.testing.assert_equal(ans_method, exp_method)
 
 if __name__ == "__main__":
     unittest.main()
