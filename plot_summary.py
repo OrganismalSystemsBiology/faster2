@@ -1232,37 +1232,79 @@ def conv_PSD_from_snorm_PSD(spec_norm):
     
     return psd_mat    
 
-
-def conv_PSD_by_stage(spec_norm, stage_call):
-    """ calculates the mean PSD of each stage from the given PSD matrix.
-    The shape of the input PSD matrix is (epoch_num, freq_bins). The input PSD 
-    matrix is assumed to be spectrum normalized, but the output PSD is conventional
-    PSD (i.e. not spectrum normalized nor decibel tranformed).
-
+def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
+    """makes summary log PSD statics of each mouse:
+            psd_mean_df: mean log (decibel like) PSD profiles of each stage for each mice.
+            This function is same with make_psd_profile() except the log transformation. 
+   
     Arguments:
-        spec_norm {'psd':a matrix of spectrum normalized PSD,
-                   'norm_fac: an array of factors used to normalize the PSD
-                   'mean': an array of means used to normalize the PSD} -- a dict of 
-                   spectrum normalized PSD and the associated factors and means.
-        stage_call {np.arary(epoch_num)} -- an array of stage calls
+        mouse_info_df {pd.DataFram} -- an dataframe given by mouse_info_collected()
+        sample_freq {int} -- sampling frequency
+        epoch_range {slice} -- a range of target epochs
+        stage_ext {str} -- a file sub-extention (e.g. 'faster2' for *.faster2.csv)
 
     Returns:
-        [np.array(freq_bins)] -- a list of 3 arrays: REM PSD, NREM PSD, and Wake PSD
+        psd_mean_df {pd.DataFrame} --  Experiment label, Mouse group, Mouse ID, 
+            Device label, Stage, [freq_bins...]
+
     """
-    bidx_unknown = (stage_call == 'UNKNOWN')
-    bidx_rem  = (stage_call == 'REM')  & (~bidx_unknown)
-    bidx_nrem = (stage_call == 'NREM') & (~bidx_unknown)
-    bidx_wake = (stage_call == 'WAKE') & (~bidx_unknown)
-    
-    psd_norm_mat = spec_norm['psd']
-    nf = spec_norm['norm_fac']
-    nm = spec_norm['mean']
-    psd_mat = np.vectorize(log_psd_inv)(psd_norm_mat, nf, nm)
-    psd_mean_rem = np.apply_along_axis(np.mean, 0, psd_mat[bidx_rem, :])
-    psd_mean_nrem = np.apply_along_axis(np.mean, 0, psd_mat[bidx_nrem, :])
-    psd_mean_wake = np.apply_along_axis(np.mean, 0, psd_mat[bidx_wake, :])
-    
-    return [psd_mean_rem, psd_mean_nrem, psd_mean_wake]
+
+    psd_mean_df = pd.DataFrame()
+    for i, r in mouse_info_df.iterrows():
+        device_label = r['Device label'].strip()
+        stats_report = r['Stats report'].strip().upper()
+        mouse_group = r['Mouse group'].strip()
+        mouse_id = r['Mouse ID'].strip()
+        exp_label = r['Experiment label'].strip()
+        faster_dir = r['FASTER_DIR']
+
+
+        if stats_report == 'NO':
+            print(f'[{i+1}] skipping: {faster_dir} {device_label}')
+            continue
+        print(f'[{i+1}] reading PSD and stage of: {faster_dir} {device_label}')
+
+        # read stage of the mouse
+        stage_call = et.read_stages(os.path.join(
+            faster_dir, 'result'), device_label, stage_ext)
+        stage_call = stage_call[epoch_range]        
+
+        # read the normalized EEG PSDs and the associated normalization factors and means
+        pkl_path_eeg = os.path.join(
+            faster_dir, 'result', 'PSD', f'{device_label}_EEG_PSD.pkl')
+        with open(pkl_path_eeg, 'rb') as pkl:
+            snorm_psd = pickle.load(pkl)
+
+        # convert the spectrum normalized PSD to the log PSD
+        conv_psd = 10*np.log10(conv_PSD_from_snorm_PSD(snorm_psd)) # this is the only difference to make_psd_profile()
+        conv_psd = conv_psd[epoch_range,:]
+
+        bidx_unknown = (stage_call == 'UNKNOWN')
+        bidx_rem = (stage_call == 'REM') & (~bidx_unknown)
+        bidx_nrem = (stage_call == 'NREM') & (~bidx_unknown)
+        bidx_wake = (stage_call == 'WAKE') & (~bidx_unknown)
+        psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
+        psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
+        psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
+
+        psd_mean_df = psd_mean_df.append([
+            [exp_label, mouse_group, mouse_id, device_label, 'REM'] + psd_mean_rem.tolist()], ignore_index=True)
+        psd_mean_df = psd_mean_df.append([
+            [exp_label, mouse_group, mouse_id, device_label, 'NREM'] + psd_mean_nrem.tolist()], ignore_index=True)
+        psd_mean_df = psd_mean_df.append([
+            [exp_label, mouse_group, mouse_id, device_label, 'Wake'] + psd_mean_wake.tolist()], ignore_index=True)
+
+    # frequency bins
+    # assures frequency bins compatibe among different sampling frequencies
+    n_fft = int(256 * sample_freq/100)
+    # same frequency bins given by signal.welch()
+    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+
+    freq_columns = [f'f@{x}' for x in freq_bins.tolist()]
+    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label', 'Stage'] + freq_columns
+    psd_mean_df.columns = column_names
+    return psd_mean_df
+
 
 def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
     """makes summary PSD statics of each mouse:
@@ -1337,7 +1379,7 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
     return psd_mean_df
 
 
-def draw_PSDs_individual(psd_profiles_df, sample_freq, output_dir):
+def draw_PSDs_individual(psd_profiles_df, sample_freq, output_dir, opt_label=''):
     # assures frequency bins compatibe among different sampling frequencies
     n_fft = int(256 * sample_freq/100)
     # same frequency bins given by signal.welch()
@@ -1375,11 +1417,12 @@ def draw_PSDs_individual(psd_profiles_df, sample_freq, output_dir):
         mouse_tag_list = [str(x) for x in df.iloc[0, 0:4]]
         fig.suptitle(
             f'Powerspectrum density: {"  ".join(mouse_tag_list)}')
-        filename = f'PSD_{"_".join(mouse_tag_list)}.jpg'
+        filename = f'PSD_{"_".join(mouse_tag_list)}{opt_label}.jpg'
         fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
                     bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
-def draw_PSDs_group(psd_profiles_df, sample_freq, output_dir):
+
+def draw_PSDs_group(psd_profiles_df, sample_freq, output_dir, opt_label=''):
     # assures frequency bins compatibe among different sampling frequencies
     n_fft = int(256 * sample_freq/100)
     # same frequency bins given by signal.welch()
@@ -1477,7 +1520,7 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, output_dir):
 
         fig.suptitle(
             f'Powerspectrum density: {mouse_group_set[0]} (n={num_c}) v.s. {mouse_group_set[g_idx]} (n={num_t})')
-        filename = f'PSD_{mouse_group_set[0]}_vs_{mouse_group_set[g_idx]}.jpg'
+        filename = f'PSD_{mouse_group_set[0]}_vs_{mouse_group_set[g_idx]}{opt_label}.jpg'
         fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
                     bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
@@ -1640,7 +1683,7 @@ def make_psd_stats(psd_domain_df):
     return psd_stats_df
 
 
-def write_psd_stats(psd_profiles_df, output_dir):
+def write_psd_stats(psd_profiles_df, output_dir, opt_label=''):
     """ writes three PSD tables:
         1. psd_profile.csv: mean PSD profile of each stage for each mice
         2. psd_freq_domain_table.csv: PSD power averaged within frequency domains of each stage for each mice 
@@ -1651,9 +1694,9 @@ def write_psd_stats(psd_profiles_df, output_dir):
     psd_stats_df = make_psd_stats(psd_domain_df)
 
     # write tabels
-    psd_profiles_df.to_csv(os.path.join(output_dir, 'psd_profile.csv'), index=False)
-    psd_domain_df.to_csv(os.path.join(output_dir, 'psd_freq_domain_table.csv'), index=False)
-    psd_stats_df.to_csv(os.path.join(output_dir, 'psd_stats_table.csv'), index=False)
+    psd_profiles_df.to_csv(os.path.join(output_dir, f'psd_profile{opt_label}.csv'), index=False)
+    psd_domain_df.to_csv(os.path.join(output_dir, f'psd_freq_domain_table{opt_label}.csv'), index=False)
+    psd_stats_df.to_csv(os.path.join(output_dir, f'psd_stats_table{opt_label}.csv'), index=False)
 
 
 if __name__ == '__main__':
@@ -1709,12 +1752,6 @@ if __name__ == '__main__':
     # write a table of stats
     write_sleep_stats(stagetime_stats, output_dir)
 
-    # # prepare Powerspectrum density (PSD) profiles for individual mice
-    psd_profiles_df = make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext)
-
-    # # write a table of PDS
-    write_psd_stats(psd_profiles_df, output_dir)
-
     # # draw stagetime profile of individual mice
     draw_stagetime_profile_individual(stagetime_stats, output_dir)
  
@@ -1742,7 +1779,16 @@ if __name__ == '__main__':
     # draw sleep/wake transition probability (log odds)
     draw_swtransition_barchart_logodds(stagetime_stats, output_dir)
 
-    # # draw power density plot
+    # prepare Powerspectrum density (PSD) profiles for individual mice
+    psd_profiles_df = make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext)
+    log_psd_profiles_df = make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext) # decebel-like
+
+    # write a table of PSD
+    write_psd_stats(psd_profiles_df, output_dir)
+    write_psd_stats(log_psd_profiles_df, output_dir, '_log')
+
+    # draw power density plot
     draw_PSDs_individual(psd_profiles_df, sample_freq, output_dir)
-
-
+    draw_PSDs_individual(psd_log_profiles_df, sample_freq, output_dir, 'log')
+    draw_PSDs_group(psd_profiles_df, sample_freq, output_dir)
+    draw_PSDs_group(psd_log_profiles_df, sample_freq, output_dir, 'log')

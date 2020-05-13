@@ -137,7 +137,7 @@ class  TestFunctions(unittest.TestCase):
 
         exp = 0.4297953 # calculated in R by wilcox.test(x,y,exact=F, correct=F)$p.value
         ans = ps.test_two_sample(x,y)
-        
+
         np.testing.assert_almost_equal(exp, ans['p_value'])
         np.testing.assert_equal("Wilcoxon test", ans['method'])
         np.testing.assert_equal("", ans['stars'])
@@ -288,6 +288,38 @@ class  TestFunctions(unittest.TestCase):
 
         # TEST
         df = ps.make_psd_profile(mif, 100, slice(0,1800,None), 'faster2')
+        ans_psd_mean_rem = df.iloc[0][5:].tolist()
+        ans_psd_mean_nrem = df.iloc[1][5:].tolist()
+        ans_psd_mean_wake = df.iloc[2][5:].tolist()
+
+        np.testing.assert_array_almost_equal(exp_psd_mean_rem, ans_psd_mean_rem)
+        np.testing.assert_array_almost_equal(exp_psd_mean_nrem, ans_psd_mean_nrem)
+        np.testing.assert_array_almost_equal(exp_psd_mean_wake, ans_psd_mean_wake)
+
+
+    def test_make_log_psd_profile(self):
+        # conventional PSD from voltage matrix
+        conv_psd = np.apply_along_axis(lambda y: stage.psd(y, self.n_fft, self.sample_freq), 1, self.eeg_vm_org)
+        conv_psd = 10*np.log10(conv_psd)
+
+        bidx_unknown = (self.stage_call == 'UNKNOWN')
+        bidx_rem = (self.stage_call == 'REM') & (~bidx_unknown)
+        bidx_nrem = (self.stage_call == 'NREM') & (~bidx_unknown)
+        bidx_wake = (self.stage_call == 'WAKE') & (~bidx_unknown)
+        exp_psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
+        exp_psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
+        exp_psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
+
+        # a small mouse_info_df
+        mif = pd.DataFrame({'Device label':['ID33572'], 
+                    'Stats report':['Yes'], 
+                    'Mouse group':['T287D'], 
+                    'Mouse ID':'AAV0837_1',
+                    'Experiment label': ['FASTER2_20200206_EEG_2019-023'], 
+                    'FASTER_DIR':['../test/data/FASTER2_20200206_EEG_2019-023/']})
+
+        # TEST
+        df = ps.make_log_psd_profile(mif, 100, slice(0,1800,None), 'faster2')
         ans_psd_mean_rem = df.iloc[0][5:].tolist()
         ans_psd_mean_nrem = df.iloc[1][5:].tolist()
         ans_psd_mean_wake = df.iloc[2][5:].tolist()
