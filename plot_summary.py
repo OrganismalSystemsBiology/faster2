@@ -1417,7 +1417,7 @@ def draw_PSDs_individual(psd_profiles_df, sample_freq, output_dir, opt_label='')
         mouse_tag_list = [str(x) for x in df.iloc[0, 0:4]]
         fig.suptitle(
             f'Powerspectrum density: {"  ".join(mouse_tag_list)}')
-        filename = f'PSD_{"_".join(mouse_tag_list)}{opt_label}.jpg'
+        filename = f'{opt_label}PSD_{"_".join(mouse_tag_list)}.jpg'
         fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
                     bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
@@ -1520,7 +1520,7 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, output_dir, opt_label=''):
 
         fig.suptitle(
             f'Powerspectrum density: {mouse_group_set[0]} (n={num_c}) v.s. {mouse_group_set[g_idx]} (n={num_t})')
-        filename = f'PSD_{mouse_group_set[0]}_vs_{mouse_group_set[g_idx]}{opt_label}.jpg'
+        filename = f'{opt_label}PSD_{mouse_group_set[0]}_vs_{mouse_group_set[g_idx]}.jpg'
         fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
                     bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
@@ -1694,9 +1694,9 @@ def write_psd_stats(psd_profiles_df, output_dir, opt_label=''):
     psd_stats_df = make_psd_stats(psd_domain_df)
 
     # write tabels
-    psd_profiles_df.to_csv(os.path.join(output_dir, f'psd_profile{opt_label}.csv'), index=False)
-    psd_domain_df.to_csv(os.path.join(output_dir, f'psd_freq_domain_table{opt_label}.csv'), index=False)
-    psd_stats_df.to_csv(os.path.join(output_dir, f'psd_stats_table{opt_label}.csv'), index=False)
+    psd_profiles_df.to_csv(os.path.join(output_dir, f'{opt_label}PSD_profile.csv'), index=False)
+    psd_domain_df.to_csv(os.path.join(output_dir, f'{opt_label}PSD_freq_domain_table.csv'), index=False)
+    psd_stats_df.to_csv(os.path.join(output_dir, f'{opt_label}PSD_stats_table.csv'), index=False)
 
 
 if __name__ == '__main__':
@@ -1785,10 +1785,10 @@ if __name__ == '__main__':
 
     # write a table of PSD
     write_psd_stats(psd_profiles_df, output_dir)
-    write_psd_stats(log_psd_profiles_df, output_dir, '_log')
+    write_psd_stats(log_psd_profiles_df, output_dir, 'log-')
 
     # draw power density plot
     draw_PSDs_individual(psd_profiles_df, sample_freq, output_dir)
-    draw_PSDs_individual(psd_log_profiles_df, sample_freq, output_dir, 'log')
+    draw_PSDs_individual(log_psd_profiles_df, sample_freq, output_dir, 'log-')
     draw_PSDs_group(psd_profiles_df, sample_freq, output_dir)
-    draw_PSDs_group(psd_log_profiles_df, sample_freq, output_dir, 'log')
+    draw_PSDs_group(log_psd_profiles_df, sample_freq, output_dir, 'log-')
