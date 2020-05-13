@@ -62,6 +62,87 @@ class  TestFunctions(unittest.TestCase):
         stage_call = et.read_stages(result_dir, device_id, 'faster2')
         cls.stage_call = stage_call[0:1800]
 
+    
+    def test_test_two_samples_1(self):
+        # case 1: (x,y)~normal dist, eqaul variance between x,y
+        # rnorm(20)
+        x = np.array([-2.11474504, 0.07514748,  1.08321138, 0.59016378,
+                      -0.04564552, -2.62057918, -1.32851937, 1.71542292,
+                      0.99186626, 0.32985441, -0.00738640, 0.67014891,
+                      -0.07817505, 0.12347018, -0.04558761, -0.62279079,
+                      1.05188492, 1.00611101,  1.30288529, -0.37993559])
+        # rnorm(20)
+        y = np.array([1.19839898, 1.47494754, -0.86085112, -1.74540238,
+                      0.06592349, -1.32656423,  0.14253285, -0.23655643,
+                      -2.41977403, 0.10170696, -1.34227134, -0.04263858,
+                      -0.95247291, 1.27389145,  0.08989706, 0.91369910,
+                      1.41455185, 0.37031156, -1.38824560, -0.48298429])
+        exp = 0.4444081 # calculated in R by t.test(x,y, var.equal=T)$p.value
+        ans = ps.test_two_sample(x,y)
+        np.testing.assert_almost_equal(exp, ans['p_value'])
+        np.testing.assert_equal("Student's t-test", ans['method'])
+        np.testing.assert_equal("", ans['stars'])
+
+
+    def test_test_two_samples_2(self):
+        # case 2: (x,y)~normal dist, NOT eqaul variance between x,y
+        # rnorm(20)
+        x = np.array([-2.11474504, 0.07514748,  1.08321138, 0.59016378,
+                      -0.04564552, -2.62057918, -1.32851937, 1.71542292,
+                      0.99186626, 0.32985441, -0.00738640, 0.67014891,
+                      -0.07817505, 0.12347018, -0.04558761, -0.62279079,
+                      1.05188492, 1.00611101,  1.30288529, -0.37993559])
+        # rnorm(20, sd=5)
+        y = np.array([3.7625258, 2.9305043, -0.5908568, 1.4358666, -6.2935640,
+                      3.1244294, 5.6344052, 7.3062716, -0.4502659,  0.3271298,
+                      -0.8690113, -2.8706936, -1.9556485, 13.9742048, -0.7297829,
+                      -2.4053616, 2.5806931, 6.8943658, 1.5190817,  6.1774943])
+
+        exp = 0.08442955 # calculated in R by t.test(x,y)$p.value
+        ans = ps.test_two_sample(x,y)
+        np.testing.assert_almost_equal(exp, ans['p_value'])
+        np.testing.assert_equal("Welch's t-test", ans['method'])
+        np.testing.assert_equal("", ans['stars'])
+
+
+    def test_test_two_samples_3(self):
+        # case 3: x obeys normal dist. but y does not. Equal variance of (x,y)
+        # rnorm(20)
+        x = np.array([-2.11474504, 0.07514748,  1.08321138, 0.59016378,
+                      -0.04564552, -2.62057918, -1.32851937, 1.71542292,
+                      0.99186626, 0.32985441, -0.00738640, 0.67014891,
+                      -0.07817505, 0.12347018, -0.04558761, -0.62279079,
+                      1.05188492, 1.00611101,  1.30288529, -0.37993559])
+        # rnorm(20) but this FAILS Shapiro test
+        y = np.array([0.60874031, 0.27950822, 0.51005652, 0.19058967,
+                      0.96623791 - 1.09896277 - 0.78564818, 0.95238928,
+                      -0.39770532, 1.12683608, 0.51255756, 0.62453564,
+                      -0.07906373, 0.67780482, 0.78982522 - 0.04997242,
+                      -0.06509925 - 2.11578914, 0.70092554 - 1.08215608])
+
+        exp = 0.9734088 # calculated in R by wilcox.test(x,y,exact=F, correct=F)$p.value
+        ans = ps.test_two_sample(x,y)
+        np.testing.assert_almost_equal(exp, ans['p_value'])
+        np.testing.assert_equal("Wilcoxon test", ans['method'])
+        np.testing.assert_equal("", ans['stars'])
+
+
+    def test_test_two_samples_4(self):
+        # case 4: In the case of data length < 3, normality cannot be tested.
+        #         Therefore, Wilcoxon test should be selected.
+        x = np.array([0.1596474, 0.1850897, 0.1764961, 0.2131736, 0.1999569,
+                      0.1996548, 0.2321302, 0.1890020, 0.1666172, 0.1775435,
+                      0.1846986])
+        y = np.array([np.nan, np.nan, np.nan, 0.3164970, 0.1842207])
+
+        exp = 0.4297953 # calculated in R by wilcox.test(x,y,exact=F, correct=F)$p.value
+        ans = ps.test_two_sample(x,y)
+        
+        np.testing.assert_almost_equal(exp, ans['p_value'])
+        np.testing.assert_equal("Wilcoxon test", ans['method'])
+        np.testing.assert_equal("", ans['stars'])
+
+
     def test_collect_mouse_info(self):
         faster_dir_list = ['../test/data/FASTER2_20200206_EEG_2019-023',
                            '../test/data/FASTER2_20200213_EEG_2019-024']
