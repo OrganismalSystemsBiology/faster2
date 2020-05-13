@@ -1280,9 +1280,9 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         conv_psd = conv_psd[epoch_range,:]
 
         bidx_unknown = (stage_call == 'UNKNOWN')
-        bidx_rem = (stage_call == 'REM') & (~bidx_unknown)
-        bidx_nrem = (stage_call == 'NREM') & (~bidx_unknown)
-        bidx_wake = (stage_call == 'WAKE') & (~bidx_unknown)
+        bidx_rem =  (stage_call[~bidx_unknown] == 'REM')  
+        bidx_nrem = (stage_call[~bidx_unknown] == 'NREM') 
+        bidx_wake = (stage_call[~bidx_unknown] == 'WAKE') 
         psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
         psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
         psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
@@ -1353,9 +1353,9 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         conv_psd = conv_psd[epoch_range,:]
 
         bidx_unknown = (stage_call == 'UNKNOWN')
-        bidx_rem = (stage_call == 'REM') & (~bidx_unknown)
-        bidx_nrem = (stage_call == 'NREM') & (~bidx_unknown)
-        bidx_wake = (stage_call == 'WAKE') & (~bidx_unknown)
+        bidx_rem =  (stage_call[~bidx_unknown] == 'REM')
+        bidx_nrem = (stage_call[~bidx_unknown] == 'NREM')
+        bidx_wake = (stage_call[~bidx_unknown] == 'WAKE')
         psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
         psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
         psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
