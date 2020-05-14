@@ -98,7 +98,7 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
             continue
         
         # read a stage file
-        print(f'[{i+1}] reading stage: {faster_dir} {device_label}')
+        print(f'[{i+1}] reading stage: {faster_dir} {device_label} {stage_ext}')
         stage_call = et.read_stages(os.path.join(faster_dir, 'result'), device_label, stage_ext)
         stage_call = stage_call[epoch_range]
         epoch_num = len(stage_call)
