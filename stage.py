@@ -831,7 +831,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    result_dir = os.path.normpath(args.result_dir)
-    pickle_input_data = os.path.normpath(args.pickle_input_data)
+    result_dir = os.path.abspath(args.result_dir)
+    pickle_input_data = os.path.abspath(args.pickle_input_data)
 
     main(args.data_dir, result_dir, args.pickle_input_data)

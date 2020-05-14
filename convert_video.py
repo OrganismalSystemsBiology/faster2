@@ -67,8 +67,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    target_dir = args.target_dir
-    output_dir = args.output_dir
+    target_dir = os.path.abspath(args.target_dir)
+    output_dir = os.path.abspath(args.output_dir)
     worker_num = args.worker
     encoder = args.encoder
 

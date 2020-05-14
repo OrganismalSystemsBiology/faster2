@@ -22,10 +22,11 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    data_dir = os.path.normpath(args.data_dir)
-    result_dir = os.path.normpath(args.result_dir)
+    data_dir = os.path.abspath(args.data_dir)
+    result_dir = os.path.abspath(args.result_dir)
     psd_data_dir = os.path.join(result_dir, 'PSD')
     cluster_params_dir = os.path.join(result_dir, 'cluster_params')
+    print(result_dir)
 
     exp_info_df = stage.read_exp_info(data_dir)
     (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime) = stage.interpret_exp_info(exp_info_df)
@@ -34,7 +35,7 @@ if __name__ == '__main__':
 
 
     dt_now = datetime.now()
-    print(f'started plotting: {dt_now}')
+    print(f'started plotting spectrums: {dt_now}')
     if args.workers == None:
         # draw timeseries plots mouse by mouse
         for i, r in mouse_info_df.iterrows():

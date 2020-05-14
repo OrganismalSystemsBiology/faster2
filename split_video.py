@@ -39,7 +39,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     input_video = args.input_video
-    output_dir = os.path.normpath(args.output_dir)
+    output_dir = os.path.abspath(args.output_dir)
     clip_length = args.clip_length
     clip_name = args.clip_name
     start_datetime_opt = args.start_datetime
