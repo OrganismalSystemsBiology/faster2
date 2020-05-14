@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    data_dir = args.data_dir
+    data_dir = os.path.normpath(args.data_dir)
     exp_info_df = stage.read_exp_info(data_dir)
     (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime) = stage.interpret_exp_info(exp_info_df)
 

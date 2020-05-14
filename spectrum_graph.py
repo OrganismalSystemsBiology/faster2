@@ -236,7 +236,7 @@ class SpectrumAnalysisPlots:
             90), color='C1', alpha=0.6, label=r'$\theta$')
         # ratio of theta/delta
         line_tdr, = ax.plot(x_pos, np.zeros(
-            90), color=stage.COLOR_REM, linewidth=2, label=r'$\delta/\theta$')
+            90), color=stage.COLOR_REM, linewidth=2, label=r'$\theta/\delta$')
         ax.axvline(x=0)
         ax.set_ylabel('power')
         ax.legend(bbox_to_anchor=(1, 1), loc='upper right',

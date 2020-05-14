@@ -17,7 +17,7 @@ if __name__ == '__main__':
     parser.add_argument("-s", "--start_datetime", help="a string of the start datetime of the input video (e.g. 2020-04-29_19-39-04)")
     args = parser.parse_args()
 
-    target_dir = args.target_dir
+    target_dir = os.path.normpath(args.target_dir)
     video_start_datetime_opt = args.start_datetime
 
     # get directories of the target dir i.e. [camera_ids]/

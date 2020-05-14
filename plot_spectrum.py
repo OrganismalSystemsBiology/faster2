@@ -22,8 +22,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    data_dir = args.data_dir
-    result_dir = args.result_dir
+    data_dir = os.path.normpath(args.data_dir)
+    result_dir = os.path.normpath(args.result_dir)
     psd_data_dir = os.path.join(result_dir, 'PSD')
     cluster_params_dir = os.path.join(result_dir, 'cluster_params')
 

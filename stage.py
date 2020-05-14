@@ -824,11 +824,14 @@ def main(data_dir, result_dir, pickle_input_data):
     return 0
 
 if __name__ == '__main__':
-   parser = argparse.ArgumentParser()
-   parser.add_argument("-d", "--data_dir", required=True, help="path to the directory of input data")
-   parser.add_argument("-r", "--result_dir", required=True, help="path to the directory of staging result")
-   parser.add_argument("-p", "--pickle_input_data", help="flag to pickle input data", action='store_true')
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--data_dir", required=True, help="path to the directory of input data")
+    parser.add_argument("-r", "--result_dir", required=True, help="path to the directory of staging result")
+    parser.add_argument("-p", "--pickle_input_data", help="flag to pickle input data", action='store_true')
 
-   args = parser.parse_args()
-   
-   main(args.data_dir, args.result_dir, args.pickle_input_data)
+    args = parser.parse_args()
+
+    result_dir = os.path.normpath(args.result_dir)
+    pickle_input_data = os.path.normpath(args.pickle_input_data)
+
+    main(args.data_dir, result_dir, args.pickle_input_data)
