@@ -131,7 +131,6 @@ dmypy.json
 # ygriku
 .vscode
 iPythonWork
-/data
 /graph
 /summary        
 figure/
