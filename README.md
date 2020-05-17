@@ -1,5 +1,5 @@
 ## What is it?
-FASTER2 is a set of Python scripts for automatically identifying sleep stages of mouse based on EEG/EMG singals. FASTER2 is a successor of FASTER (Fully Automated Sleep sTaging method via EEG/EMG Recordings) reported by [Sunagawa et al. in 2013](https://onlinelibrary.wiley.com/doi/abs/10.1111/gtc.12053). FASTER2 uses different algorithms from the predecessor and was developed from scratch. We also develeped a simple viewer of the data so that a user can visually inspect the results of FASTER2.
+FASTER2 is a set of Python scripts for automatically identifying sleep stages of mouse-based on EEG/EMG signals. FASTER2 is a successor of FASTER (Fully Automated Sleep sTaging method via EEG/EMG Recordings) reported by [Sunagawa et al. in 2013](https://onlinelibrary.wiley.com/doi/abs/10.1111/gtc.12053). FASTER2 uses different algorithms from the predecessor and is developed from scratch. We also developed a simple viewer of the data so that a user can visually inspect the results of FASTER2.
 
 
 ## Main features
@@ -17,7 +17,7 @@ git clone https://github.com/ygriku/faster2.git # via HTTPS
 ```
 
 ## Installation
-You need to have [Python](https://www.python.org/) to run FASATER2. It is recommendable to have a virtual environment for FASTER2. Because FASTER2 depends on several python libraries, run the following command in the FASTER2's virtual environment. So far, we developed and tested FASTER2 on Windows10 (x64), but probably it works on other platforms such as Linux or MacOS.
+You need to have [Python](https://www.python.org/) to run FASATER2. It is recommendable to have a virtual environment for FASTER2. Because FASTER2 depends on several python libraries, run the following command in the FASTER2's virtual environment. So far, we developed and tested FASTER2 on Windows10 (x64), but probably it works on other platforms such as Linux or macOS.
 
 ```sh
 pip install pandas hmmlearn matplotlib mne pillow
@@ -36,11 +36,11 @@ There are three steps to RUN a FASTER2 analysis. We recommend you to have a "wor
 ### Prepare a working directory
 - Copy the downloaded FASTER2 directory rename it as, for example, [a big drive]/FASTER2_Rec001.
 - Copy your raw data into [a big drive]/FASTER2_Rec001/data directory.
-   - If your data is from telemetry devices of [DSI; Data Science International](https://www.datasci.com/), you need to export EEG/EMG data into csv file:
+   - If your data is from telemetry devices of [DSI; Data Science International](https://www.datasci.com/), you need to export EEG/EMG data into a CSV file:
    - If your data is an EDF file, just put the file in the data/ directory.
 
 ### Write the experiment information
-The two CSV files in the directry describes the experiment information necessary to
+The two CSV files in the directory describe the experiment information necessary to
 perform FASTER2 analysis.
 
 #### exp.info.csv
@@ -49,7 +49,7 @@ This file describes experiment parameters common to all the recorded mice:
 |----            |----      |----          |----        |----         |
 |EEG_2020-001    |EEG_A-E   |2020/05/25 08:00:00|2020/05/27 08:00:00|100|
 
-Since the downloaded FASTER2 folder has an example exp.info.csv file, you can simply change it to describe your experiment. Be aware, you must keep the headers unchanged because FASTER2 uses the headers to parse the CSV file.
+Since the downloaded FASTER2 folder has an example exp.info.csv file, you can simply change it to describe your experiment. Be aware; you must keep the headers unchanged because FASTER2 uses the headers to parse the CSV file.
 
 #### mouse.info.csv
 This file describes information about individual mouse in the exeriment:
@@ -76,5 +76,5 @@ to something like:
 set PYTHON=C:\Users\rikuhiro\codework\python\faster2\.venv\Scripts\python.exe
 ```
 
-Then, run the run.bat. The bat file executes four Python scripts. The first two scripts perform the main FASATER2 analysis (staging and basic summary statistics). This main process takes about a couple of minuites per mouse depending on the input data format and size. The latter two scripts plot many graphs of voltage timeseries and spectrums. This latter scripts are optional but useful for human visual inspection. The plotting process takes about 60 minuites for 8 mice x 2 days recordings on a PC of modelate specs at the middle of 2020.
+Then, run the run.bat. The bat file executes four Python scripts. The first two scripts perform the main FASATER2 analysis (staging and basic summary statistics). This main process takes about a couple of minutes per mouse, depending on the input data format and size. The latter two scripts plot many graphs of voltage time-series and spectrums. These latter scripts are optional but useful for human visual inspection. The plotting process takes about 60 minutes for 8 mice x 2 days recordings on a PC of moderate specs in the middle of 2020.
 
