@@ -28,18 +28,32 @@ pip install pandas hmmlearn matplotlib mne pillow
 There are three steps to RUN a FASTER2 analysis. We recommend you to have a "working directory" for a FASTER2 session that keeps the related information in one place.
 
 - Prepare a working directory for an EEG/EM dataset, the experiment information, and FASTER2 scripts.
-- Write the experiment information (recording date, mouse ID etc.) into CSV files.
+- Copy the data and write the experiment information (recording date, mouse ID etc.) into CSV files.
 - Run the FASTER2 script.
 
 
 
 ### Prepare a working directory
-- Copy the downloaded FASTER2 directory rename it as, for example, [a big drive]/FASTER2_Rec001.
-- Copy your raw data into [a big drive]/FASTER2_Rec001/data directory.
+1. Copy the downloaded FASTER2 directory rename it as, for example, [a big drive]/FASTER2_Rec001.
+1. (Optional) Delete the test/ directory.
+1. Open the sample_run.bat file with an editor, and edit the path to your Python executable.
+
+Edit your sample_run.bat:
+```
+set PYTHON=[path to your python executable]
+```
+to something like: 
+```
+set PYTHON=C:\Users\rikuhiro\codework\python\faster2\.venv\Scripts\python.exe
+```
+
+You can use this modified delectory as your "template" directory by savint it as, for example, "FASTER2_template". In the future analysis, you can start from copying & renaming the directory instead of starting from the downloaded directory.
+
+### Copy the data and write the experiment information
+Copy your raw data into the [a big drive]/FASTER2_Rec001/data directory.
    - If your data is from telemetry devices of [DSI; Data Science International](https://www.datasci.com/), you need to export EEG/EMG data into a CSV file:
    - If your data is an EDF file, just put the file in the data/ directory.
 
-### Write the experiment information
 The two CSV files in the directory describe the experiment information necessary to
 perform FASTER2 analysis.
 
@@ -65,16 +79,6 @@ This file describes information about individual mouse in the exeriment:
 |ID46770|MT|ES020-1-1-G6_4|2019/03/24| Yes| Right 4(C4)|
 
 ### Run FASTER2 script
-Open the sample_run.bat file with an editor, and edit the path to your Python executable.
-
-Edit the line:
-```
-set PYTHON=[path to your python executable]
-```
-to something like: 
-```
-set PYTHON=C:\Users\rikuhiro\codework\python\faster2\.venv\Scripts\python.exe
-```
 
 Then, run the run.bat. The bat file executes four Python scripts. The first two scripts perform the main FASATER2 analysis (staging and basic summary statistics). This main process takes about a couple of minutes per mouse, depending on the input data format and size. The latter two scripts plot many graphs of voltage time-series and spectrums. These latter scripts are optional but useful for human visual inspection. The plotting process takes about 60 minutes for 8 mice x 2 days recordings on a PC of moderate specs in the middle of 2020.
 
