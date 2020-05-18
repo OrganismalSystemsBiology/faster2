@@ -1,5 +1,5 @@
 ## What is it?
-FASTER2 is a set of Python scripts for automatically identifying sleep stages of mouse-based on EEG/EMG signals. FASTER2 is a successor of FASTER (Fully Automated Sleep sTaging method via EEG/EMG Recordings) reported by [Sunagawa et al. in 2013](https://onlinelibrary.wiley.com/doi/abs/10.1111/gtc.12053). FASTER2 uses different algorithms from the predecessor and is developed from scratch. We also developed a simple viewer of the data so that a user can visually inspect the results of FASTER2.
+FASTER2 is a set of Python scripts for automatically identifying sleep stages of mouse by analyzing EEG/EMG signals. FASTER2 is a successor of FASTER reported by [Sunagawa et al. in 2013](https://onlinelibrary.wiley.com/doi/abs/10.1111/gtc.12053). FASTER2 uses different algorithms from the predecessor and is developed from scratch. We also developed a simple viewer of the data so that a user can visually inspect the results of FASTER2.
 
 
 ## Main features
