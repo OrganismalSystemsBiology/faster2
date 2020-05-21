@@ -1713,7 +1713,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     faster_dir_list = [os.path.abspath(x) for x in args.faster2_dirs]
-    output_dir = os.path.abspath(args.output_dir)
+    if args.output_dir:
+        output_dir = os.path.abspath(args.output_dir)
+    else:
+        output_dir = None
     stage_ext = args.stage_ext
 
     # collect mouse_infos of the specified (multiple) FASTER dirs
