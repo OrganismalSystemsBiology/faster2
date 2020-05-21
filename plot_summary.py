@@ -389,6 +389,7 @@ def _set_common_features_stagetime_profile_rem(ax, x_max):
 def draw_stagetime_profile_individual(stagetime_stats, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     stagetime_profile_list = stagetime_stats['stagetime_profile']
+    epoch_num = stagetime_stats['epoch_num']
     x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
     x = np.arange(x_max)
     for i, profile in enumerate(stagetime_profile_list):
@@ -432,7 +433,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
         stagetime_profile_mean = np.apply_along_axis(np.mean, 0, stagetime_profile_mat[bidx])
         stagetime_profile_sd   = np.apply_along_axis(np.std, 0, stagetime_profile_mat[bidx])
         stagetime_profile_stats_list.append(np.array([stagetime_profile_mean, stagetime_profile_sd]))
-
+    epoch_num = stagetime_stats['epoch_num']
     x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
     x = np.arange(x_max)
     if len(mouse_groups_set)>1:
@@ -1725,7 +1726,9 @@ if __name__ == '__main__':
     # set the epoch range to be summarized
     if args.epoch_range:
         # use the range given by the command line option
-        epoch_range = slice(*[int(x.strip()) if x else None for x in args.epoch_range.split(':')])
+        range = [int(x.strip()) if x else None for x in args.epoch_range.split(':')]
+        epoch_range = slice(*range)
+        epoch_num = range[1] - range[0]
     else:
         # default: use the all epochs
         epoch_range = slice(0, epoch_num, None)
