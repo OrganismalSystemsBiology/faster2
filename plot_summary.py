@@ -1729,9 +1729,9 @@ if __name__ == '__main__':
     # set the epoch range to be summarized
     if args.epoch_range:
         # use the range given by the command line option
-        range = [int(x.strip()) if x else None for x in args.epoch_range.split(':')]
-        epoch_range = slice(*range)
-        epoch_num = range[1] - range[0]
+        e_range = [int(x.strip()) if x else None for x in args.epoch_range.split(':')]
+        epoch_range = slice(*e_range)
+        epoch_num = e_range[1] - e_range[0]
     else:
         # default: use the all epochs
         epoch_range = slice(0, epoch_num, None)
