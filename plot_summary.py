@@ -1276,11 +1276,22 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         with open(pkl_path_eeg, 'rb') as pkl:
             snorm_psd = pickle.load(pkl)
 
+        # Check the consistency of unknown epochs betweeen PSD and the stage file
+        bidx_unknown = (stage_call == 'UNKNOWN')
+        bidx_unknown_psd = snorm_psd['bidx_unknown']
+        if not np.all(bidx_unknown == bidx_unknown_psd[epoch_range]):
+            print('[Error] "unknown" in the stage file is inconsistent with the PSD. Skipping.')
+            break
+
         # convert the spectrum normalized PSD to the log PSD
         conv_psd = 10*np.log10(conv_PSD_from_snorm_PSD(snorm_psd)) # this is the only difference to make_psd_profile()
-        conv_psd = conv_psd[epoch_range,:]
 
-        bidx_unknown = (stage_call == 'UNKNOWN')
+        # extract the selected & valid epochs' PSD
+        bidx_selected = np.repeat(False, len(bidx_unknown_psd))
+        bidx_selected[epoch_range] = True    # epochs selected by the user
+        bidx_target = bidx_selected[~bidx_unknown_psd]    # leave only valid epochs
+        conv_psd = conv_psd[bidx_target,:]
+
         bidx_rem =  (stage_call[~bidx_unknown] == 'REM')  
         bidx_nrem = (stage_call[~bidx_unknown] == 'NREM') 
         bidx_wake = (stage_call[~bidx_unknown] == 'WAKE') 
@@ -1349,11 +1360,22 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         with open(pkl_path_eeg, 'rb') as pkl:
             snorm_psd = pickle.load(pkl)
 
+        # Check the consistency of unknown epochs betweeen PSD and the stage file
+        bidx_unknown = (stage_call == 'UNKNOWN')
+        bidx_unknown_psd = snorm_psd['bidx_unknown']
+        if not np.all(bidx_unknown == bidx_unknown_psd[epoch_range]):
+            print('[Error] "unknown" in the stage file is inconsistent with the PSD. Skipping.')
+            break
+
         # convert the spectrum normalized PSD to the conventional PSD
         conv_psd = conv_PSD_from_snorm_PSD(snorm_psd)
-        conv_psd = conv_psd[epoch_range,:]
 
-        bidx_unknown = (stage_call == 'UNKNOWN')
+        # extract the selected & valid epochs' PSD
+        bidx_selected = np.repeat(False, len(bidx_unknown_psd))
+        bidx_selected[epoch_range] = True    # epochs selected by the user
+        bidx_target = bidx_selected[~bidx_unknown_psd]    # leave only valid epochs
+        conv_psd = conv_psd[bidx_target,:]
+
         bidx_rem =  (stage_call[~bidx_unknown] == 'REM')
         bidx_nrem = (stage_call[~bidx_unknown] == 'NREM')
         bidx_wake = (stage_call[~bidx_unknown] == 'WAKE')

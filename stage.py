@@ -398,12 +398,13 @@ def pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id):
             pickle.dump(emg_vm, pkl)
 
 
-def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, result_dir, device_id):
+def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, bidx_unknown, result_dir, device_id):
     """ pickles the power spectrum density matrices for subsequent analyses
     
     Args:
         spec_norm_eeg (dict): a dict returned by spectrum_normalize() for EEG data
         spec_norm_emg (dict): a dict returned by spectrum_normalize() for EMG data
+        bidx_unknown (np.array): an array of the boolean index
         result_dir (str):  path to the directory of the pickled data (PSD/)
         device_id (str): a string to identify the recording device (e.g. ID47467)
     """
@@ -737,7 +738,10 @@ def main(data_dir, result_dir, pickle_input_data):
         extrp_ratio_emg = np.apply_along_axis(remove_extreme_power, 1, psd_norm_mat_emg)
 
         # save the PSD matrices and associated factors for subsequent analyses
-        pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, result_dir, device_id)
+        ## set bidx_unknown; other factors were set by spectrum_normalize()
+        spec_norm_eeg['bidx_unknown'] = bidx_unknown 
+        spec_norm_emg['bidx_unknown'] = bidx_unknown
+        pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, bidx_unknown, result_dir, device_id)
 
         # spread epochs on the 3D (Low freq. x High freq. x REM metric) space
         psd_mat = np.concatenate([
@@ -832,6 +836,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     result_dir = os.path.abspath(args.result_dir)
-    pickle_input_data = os.path.abspath(args.pickle_input_data)
+    pickle_input_data = args.pickle_input_data
 
     main(args.data_dir, result_dir, args.pickle_input_data)
