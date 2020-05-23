@@ -1280,8 +1280,9 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         bidx_unknown = (stage_call == 'UNKNOWN')
         bidx_unknown_psd = snorm_psd['bidx_unknown']
         if not np.all(bidx_unknown == bidx_unknown_psd[epoch_range]):
-            print('[Error] "unknown" in the stage file is inconsistent with the PSD. Skipping.')
-            break
+            print('[Warning] "unknown" in the stage file is inconsistent with the PSD.')
+            print(f'... in stage file {np.sum(bidx_unknown)}, in PSD {bidx_unknown_psd[epoch_range]}')
+            bidx_unknown = (bidx_unknown | bidx_unknown_psd[epoch_range])
 
         # convert the spectrum normalized PSD to the log PSD
         conv_psd = 10*np.log10(conv_PSD_from_snorm_PSD(snorm_psd)) # this is the only difference to make_psd_profile()
@@ -1364,8 +1365,9 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         bidx_unknown = (stage_call == 'UNKNOWN')
         bidx_unknown_psd = snorm_psd['bidx_unknown']
         if not np.all(bidx_unknown == bidx_unknown_psd[epoch_range]):
-            print('[Error] "unknown" in the stage file is inconsistent with the PSD. Skipping.')
-            break
+            print('[Warning] "unknown" in the stage file is inconsistent with the PSD.')
+            print(f'... in stage file {np.sum(bidx_unknown)}, in PSD {bidx_unknown_psd[epoch_range]}')
+            bidx_unknown = (bidx_unknown | bidx_unknown_psd[epoch_range])
 
         # convert the spectrum normalized PSD to the conventional PSD
         conv_psd = conv_PSD_from_snorm_PSD(snorm_psd)
