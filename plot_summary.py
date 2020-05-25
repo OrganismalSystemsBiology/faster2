@@ -1268,7 +1268,6 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         # read stage of the mouse
         stage_call = et.read_stages(os.path.join(
             faster_dir, 'result'), device_label, stage_ext)
-        stage_call = stage_call[epoch_range]        
 
         # read the normalized EEG PSDs and the associated normalization factors and means
         pkl_path_eeg = os.path.join(
@@ -1276,26 +1275,28 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         with open(pkl_path_eeg, 'rb') as pkl:
             snorm_psd = pickle.load(pkl)
 
-        # Check the consistency of unknown epochs betweeen PSD and the stage file
-        bidx_unknown = (stage_call == 'UNKNOWN')
-        bidx_unknown_psd = snorm_psd['bidx_unknown']
-        if not np.all(bidx_unknown == bidx_unknown_psd[epoch_range]):
-            print('[Warning] "unknown" in the stage file is inconsistent with the PSD.')
-            print(f'... in stage file {np.sum(bidx_unknown)}, in PSD {bidx_unknown_psd[epoch_range]}')
-            bidx_unknown = (bidx_unknown | bidx_unknown_psd[epoch_range])
-
         # convert the spectrum normalized PSD to the log PSD
         conv_psd = 10*np.log10(conv_PSD_from_snorm_PSD(snorm_psd)) # this is the only difference to make_psd_profile()
 
-        # extract the selected & valid epochs' PSD
-        bidx_selected = np.repeat(False, len(bidx_unknown_psd))
-        bidx_selected[epoch_range] = True    # epochs selected by the user
-        bidx_target = bidx_selected[~bidx_unknown_psd]    # leave only valid epochs
-        conv_psd = conv_psd[bidx_target,:]
+        # Break at the error: the unknown PSD is not recoverable
+        bidx_unknown_psd = snorm_psd['bidx_unknown']
+        if not np.all(stage_call[bidx_unknown_psd] == 'UNKNOWN'):
+            print('[Error] "unknown" is recoverable')
+            idx = list(np.where(bidx_unknown_psd)[0][stage_call[bidx_unknown_psd] != 'UNKNOWN'])
+            print(f'... in stage file at {idx}')
+            break
+        
+        # remove unknown-PSD epoch from stage_call
+        stage_call = stage_call[~bidx_unknown_psd]
 
-        bidx_rem =  (stage_call[~bidx_unknown] == 'REM')  
-        bidx_nrem = (stage_call[~bidx_unknown] == 'NREM') 
-        bidx_wake = (stage_call[~bidx_unknown] == 'WAKE') 
+        # bidx_target: bidx for the selected range 
+        bidx_selected = np.repeat(False, len(bidx_unknown_psd))
+        bidx_selected[epoch_range] = True 
+        bidx_target = bidx_selected[~bidx_unknown_psd]
+
+        bidx_rem =  (stage_call == 'REM') & bidx_target
+        bidx_nrem = (stage_call == 'NREM') & bidx_target
+        bidx_wake = (stage_call == 'WAKE') & bidx_target
         psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
         psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
         psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
@@ -1353,7 +1354,6 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         # read stage of the mouse
         stage_call = et.read_stages(os.path.join(
             faster_dir, 'result'), device_label, stage_ext)
-        stage_call = stage_call[epoch_range]        
 
         # read the normalized EEG PSDs and the associated normalization factors and means
         pkl_path_eeg = os.path.join(
@@ -1361,26 +1361,28 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         with open(pkl_path_eeg, 'rb') as pkl:
             snorm_psd = pickle.load(pkl)
 
-        # Check the consistency of unknown epochs betweeen PSD and the stage file
-        bidx_unknown = (stage_call == 'UNKNOWN')
-        bidx_unknown_psd = snorm_psd['bidx_unknown']
-        if not np.all(bidx_unknown == bidx_unknown_psd[epoch_range]):
-            print('[Warning] "unknown" in the stage file is inconsistent with the PSD.')
-            print(f'... in stage file {np.sum(bidx_unknown)}, in PSD {bidx_unknown_psd[epoch_range]}')
-            bidx_unknown = (bidx_unknown | bidx_unknown_psd[epoch_range])
-
-        # convert the spectrum normalized PSD to the conventional PSD
+         # convert the spectrum normalized PSD to the conventional PSD
         conv_psd = conv_PSD_from_snorm_PSD(snorm_psd)
 
-        # extract the selected & valid epochs' PSD
-        bidx_selected = np.repeat(False, len(bidx_unknown_psd))
-        bidx_selected[epoch_range] = True    # epochs selected by the user
-        bidx_target = bidx_selected[~bidx_unknown_psd]    # leave only valid epochs
-        conv_psd = conv_psd[bidx_target,:]
+        # Break at the error: the unknown PSD is not recoverable
+        bidx_unknown_psd = snorm_psd['bidx_unknown']
+        if not np.all(stage_call[bidx_unknown_psd] == 'UNKNOWN'):
+            print('[Error] "unknown" is recoverable')
+            idx = list(np.where(bidx_unknown_psd)[0][stage_call[bidx_unknown_psd] != 'UNKNOWN'])
+            print(f'... in stage file at {idx}')
+            break
 
-        bidx_rem =  (stage_call[~bidx_unknown] == 'REM')
-        bidx_nrem = (stage_call[~bidx_unknown] == 'NREM')
-        bidx_wake = (stage_call[~bidx_unknown] == 'WAKE')
+        # remove unknown-PSD epoch from stage_call
+        stage_call = stage_call[~bidx_unknown_psd]
+
+        # bidx_target: bidx for the selected range 
+        bidx_selected = np.repeat(False, len(bidx_unknown_psd))
+        bidx_selected[epoch_range] = True 
+        bidx_target = bidx_selected[~bidx_unknown_psd]
+    
+        bidx_rem =  (stage_call == 'REM') & bidx_target
+        bidx_nrem = (stage_call == 'NREM') & bidx_target
+        bidx_wake = (stage_call == 'WAKE') & bidx_target
         psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
         psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
         psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
