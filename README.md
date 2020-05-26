@@ -1,7 +1,7 @@
 ## What is it?
 FASTER2 is a set of Python scripts for automatically identifying sleep stages of mouse by analyzing EEG/EMG signals. There is also a simple viewer of the analyzed data so that a user can visually inspect the results of FASTER2.
 
-FASTER2 is a successor of FASTER that was reported by [Sunagawa et al. in 2013](https://onlinelibrary.wiley.com/doi/abs/10.1111/gtc.12053). FASTER2 is written from scratch and uses different algorithms from the predecessor.
+FASTER2 is a successor of FASTER [Sunagawa et al. in 2013](https://onlinelibrary.wiley.com/doi/abs/10.1111/gtc.12053). FASTER2 is written from scratch and uses different algorithms from the predecessor.
 
 ## Main features
 - Automatic sleep staging (REM, NREM, and Wake) of mouse EEG/EMG data.
@@ -65,7 +65,7 @@ set PYTHON=[path to your python executable]
 ```
 to something like: 
 ```
-set PYTHON=C:\Users\rikuhiro\codework\python\faster2\.venv\Scripts\python.exe
+set PYTHON=C:\Users\user-name\faster2-env\.venv\Scripts\python.exe
 ```
 
 You can use this modified delectory as your "template" directory by savint it as, for example, "FASTER2_template". In the future analysis, you can start from copying & renaming the directory instead of starting from the downloaded directory.
