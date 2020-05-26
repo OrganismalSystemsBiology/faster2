@@ -287,7 +287,7 @@ class  TestFunctions(unittest.TestCase):
                     'FASTER_DIR':['../test/data/FASTER2_20200206_EEG_2019-023/']})
 
         # TEST
-        df = ps.make_psd_profile(mif, 100, slice(0,1800,None), 'faster2')
+        df = ps.make_psd_profile(mif, 100, slice(0,1800,None), 'faster2_1800')
         ans_psd_mean_rem = df.iloc[0][5:].tolist()
         ans_psd_mean_nrem = df.iloc[1][5:].tolist()
         ans_psd_mean_wake = df.iloc[2][5:].tolist()
@@ -319,7 +319,7 @@ class  TestFunctions(unittest.TestCase):
                     'FASTER_DIR':['../test/data/FASTER2_20200206_EEG_2019-023/']})
 
         # TEST
-        df = ps.make_log_psd_profile(mif, 100, slice(0,1800,None), 'faster2')
+        df = ps.make_log_psd_profile(mif, 100, slice(0,1800,None), 'faster2_1800')
         ans_psd_mean_rem = df.iloc[0][5:].tolist()
         ans_psd_mean_nrem = df.iloc[1][5:].tolist()
         ans_psd_mean_wake = df.iloc[2][5:].tolist()

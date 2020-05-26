@@ -301,7 +301,7 @@ def test_two_sample(x, y):
         normality_xx_p = stats.shapiro(xx)[1]
         normality_yy_p = stats.shapiro(yy)[1]
     
-    equal_variance_p = var_test(x,y)['p_value']
+    equal_variance_p = var_test(xx,yy)['p_value']
         
     if not ((normality_xx_p < 0.05) or (normality_yy_p < 0.05) or (equal_variance_p < 0.05)):
         # When any null-hypotheses of the normalities of x and of y, 

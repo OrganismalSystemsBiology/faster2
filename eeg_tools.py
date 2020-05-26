@@ -68,7 +68,7 @@ class DSI_TXT_Reader:
         return(res_data)
  
 def read_stages(stage_folder_path, label, type='auto'):
-    stage_file_path = os.path.join(stage_folder_path, f'{label}.{type}*.csv')
+    stage_file_path = os.path.join(stage_folder_path, f'{label}.{type}.stage.csv')
 
     # read stages
     stage_file = glob(stage_file_path)
