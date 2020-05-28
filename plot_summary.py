@@ -290,47 +290,47 @@ def test_two_sample(x, y):
         p_value = np.nan
         stars = ''
         method = None
-
-    # If input data length < 3, Shapiro test is not applicable,
-    # so we assume false normality of the distribution.
-    if (len(xx) < 3) or (len(yy) < 3):
-        # Forced rejection of distribution normality
-        normality_xx_p = 0
-        normality_yy_p = 0
     else:
-        normality_xx_p = stats.shapiro(xx)[1]
-        normality_yy_p = stats.shapiro(yy)[1]
-    
-    equal_variance_p = var_test(xx,yy)['p_value']
+        # If input data length < 3, Shapiro test is not applicable,
+        # so we assume false normality of the distribution.
+        if (len(xx) < 3) or (len(yy) < 3):
+            # Forced rejection of distribution normality
+            normality_xx_p = 0
+            normality_yy_p = 0
+        else:
+            normality_xx_p = stats.shapiro(xx)[1]
+            normality_yy_p = stats.shapiro(yy)[1]
         
-    if not ((normality_xx_p < 0.05) or (normality_yy_p < 0.05) or (equal_variance_p < 0.05)):
-        # When any null-hypotheses of the normalities of x and of y, 
-        # and the equal variance of (x,y) are NOT rejected,
-        # use Student's t-test        
-        method = "Student's t-test"
-        p_value = stats.ttest_ind(xx, yy, equal_var=True)[1]
-    elif not ((normality_xx_p < 0.05) or (normality_yy_p < 0.05)) and (equal_variance_p < 0.05):
-        # When null-hypotheses of the normality of x and of y are NOT rejected,
-        # but that of the equal variance of (x,y) is rejected,
-        # use Welch's t-tet
-        method = "Welch's t-test"
-        p_value = stats.ttest_ind(xx, yy, equal_var=False)[1]
-    else:
-        # If none of above was satisfied, use Wilcoxon's ranksum test.
-        method = "Wilcoxon test"
-        # same as stats.mannwhitneyu() with alternative='two-sided', use_continuity=False 
-        # or R's wilcox.test(x, y, exact=F, correct=F)
-        p_value = stats.ranksums(xx, yy)[1]
+        equal_variance_p = var_test(xx,yy)['p_value']
+            
+        if not ((normality_xx_p < 0.05) or (normality_yy_p < 0.05) or (equal_variance_p < 0.05)):
+            # When any null-hypotheses of the normalities of x and of y, 
+            # and the equal variance of (x,y) are NOT rejected,
+            # use Student's t-test        
+            method = "Student's t-test"
+            p_value = stats.ttest_ind(xx, yy, equal_var=True)[1]
+        elif not ((normality_xx_p < 0.05) or (normality_yy_p < 0.05)) and (equal_variance_p < 0.05):
+            # When null-hypotheses of the normality of x and of y are NOT rejected,
+            # but that of the equal variance of (x,y) is rejected,
+            # use Welch's t-tet
+            method = "Welch's t-test"
+            p_value = stats.ttest_ind(xx, yy, equal_var=False)[1]
+        else:
+            # If none of above was satisfied, use Wilcoxon's ranksum test.
+            method = "Wilcoxon test"
+            # same as stats.mannwhitneyu() with alternative='two-sided', use_continuity=False 
+            # or R's wilcox.test(x, y, exact=F, correct=F)
+            p_value = stats.ranksums(xx, yy)[1]
 
-    # stars
-    if not np.isnan(p_value) and p_value<0.001:
-        stars = '***'
-    elif p_value < 0.01:
-        stars = '**'
-    elif p_value < 0.05:
-        stars = '*'
-    else:
-        stars = ''
+        # stars
+        if not np.isnan(p_value) and p_value<0.001:
+            stars = '***'
+        elif p_value < 0.01:
+            stars = '**'
+        elif p_value < 0.05:
+            stars = '*'
+        else:
+            stars = ''
     
     res = {'p_value': p_value, 'stars':stars, 'method':method}
     return res
