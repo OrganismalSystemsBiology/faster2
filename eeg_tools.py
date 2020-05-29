@@ -4,7 +4,9 @@ import pandas as pd
 import os
 import numpy as np
 from glob import glob
-import stage
+import chardet
+import locale
+
 
 class DSI_TXT_Reader:
     def __init__(self, dataroot, label, signal_type, epoch_len_sec=8, sample_freq=100):
@@ -42,7 +44,7 @@ class DSI_TXT_Reader:
             filepaths.append(os.path.join(self._dataroot, filename))
 
         # check encodings
-        enc = stage.encode_lookup(filepaths[0])
+        enc = encode_lookup(filepaths[0])
 
         if not set(filepaths).issubset(self._filepaths_of_opened_file):
             # read files
@@ -119,3 +121,40 @@ def patch_nan(y):
         y[bidx_nan] = y[~bidx_nan][0:nan_len]
     
     return nan_len/len(y)
+
+
+def encode_lookup(target_path):
+    """
+    Tries to find what encoding the target file uses.
+
+    input
+        target_path
+
+    output
+        encoding string
+    """
+    code_list = ['cp932','euc_jisx0213', 'iso2022jp', 'iso2022_kr','big5','big5hkscs','johab','euc_kr','utf_16','iso8859_15','latin_1','ascii', 'Unknown']
+
+    # First ask chardet
+    readinSize = 1024*2000 # readin 2MB for checking the encoding
+    with open(target_path, 'rb') as fh:
+        data = fh.read(readinSize)
+    enc = chardet.detect(data)['encoding']
+
+    # chardet and OS's preferred encoding is the first candidates
+    code_list = [enc, locale.getpreferredencoding()] + code_list
+
+    # Find the encoding that can read the target_file without Exception
+    for enc in code_list:
+        try:
+            with open(target_path,  "r", encoding=enc) as f:
+                f.readlines()
+            break
+        except:
+            pass
+
+    # fallback to the OS default in case all attempts failed 
+    if enc=='Unknown':
+        enc = locale.getpreferredencoding()
+
+    return enc
