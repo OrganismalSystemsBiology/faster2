@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import numpy as np
 from glob import glob
+import stage
 
 class DSI_TXT_Reader:
     def __init__(self, dataroot, label, signal_type, epoch_len_sec=8, sample_freq=100):
@@ -39,13 +40,17 @@ class DSI_TXT_Reader:
             file_number = hour
             filename = '%s.%s.%04d.txt' % (self._label, self._signal_type, file_number)
             filepaths.append(os.path.join(self._dataroot, filename))
-            
+
+        # check encodings
+        enc = stage.encode_lookup(filepaths[0])
+
         if not set(filepaths).issubset(self._filepaths_of_opened_file):
             # read files
             dask_dataframe = dd.read_csv(filepaths,
                                          engine='python',
                                          dtype={'time':np.float64, 'value':np.float64}, 
-                                         names=['time', 'value'], skiprows=5, header=None)
+                                         names=['time', 'value'], skiprows=5, header=None,
+                                         encoding=enc)
             print(f'Reading {len(filepaths)} {self._signal_type} files in {self._dataroot}:')
             with ProgressBar():
                 self._data_buffer = dask_dataframe.compute()

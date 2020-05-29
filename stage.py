@@ -17,6 +17,7 @@ import pickle
 import chardet
 from glob import glob
 import mne
+import locale
 
 FASTER2_NAME = 'FASTER2'
 EPOCH_LEN_SEC = 8
@@ -110,11 +111,30 @@ def encode_lookup(target_path):
     output
         encoding string
     """
+    code_list = ['cp932','euc_jisx0213', 'iso2022jp', 'iso2022_kr','big5','big5hkscs','johab','euc_kr','utf_16','iso8859_15','latin_1','ascii', 'Unknown']
+
+    # First ask chardet
     readinSize = 1024*2000 # readin 2MB for checking the encoding
     with open(target_path, 'rb') as fh:
         data = fh.read(readinSize)
-
     enc = chardet.detect(data)['encoding']
+
+    # chardet and OS's preferred encoding is the first candidates
+    code_list = [enc, locale.getpreferredencoding()] + code_list
+
+    # Find the encoding that can read the target_file without Exception
+    for enc in code_list:
+        try:
+            with open(filename,  "r", encoding=enc) as f:
+                f.readlines()
+            break
+        except:
+            pass
+
+    # fallback to the OS default in case all attempts failed 
+    if enc=='Unknown':
+        enc = locale.getpreferredencoding()
+
     return enc
 
 
