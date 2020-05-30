@@ -790,15 +790,15 @@ def main(data_dir, result_dir, pickle_input_data):
         stage_file_path = os.path.join(result_dir, f'{device_id}.faster2.stage.csv')
         os.makedirs(result_dir, exist_ok=True)
 
-        with open(stage_file_path, 'w', newline='', encoding='UTF-8') as f:
+        with open(stage_file_path, 'w', encoding='UTF-8') as f:
             f.write(f'# Exp label: {exp_label} Recorded at {rack_label}\n')
             f.write(f'# Device ID: {device_id} Mouse group: {mouse_group} Mouse ID: {mouse_id} DOB: {dob}\n')
             f.write(f'# Start: {start_datetime} End: {end_datetime} Note: {note}\n')
             f.write(f'# Epoch num: {epoch_num}\n')
             f.write(f'# Sampling frequency: {sample_freq}\n')
             f.write(f'# Staged by {FASTER2_NAME}\n')
-        with open(stage_file_path, 'a', newline='') as f:
-            stage_table.to_csv(f, header=True, index=False)
+        with open(stage_file_path, 'a') as f:
+            stage_table.to_csv(f, header=True, index=False, line_terminator='\n')
 
         # draw scatter plots
         draw_scatter_plots(result_dir, device_id,  stage_coord, pred2,
