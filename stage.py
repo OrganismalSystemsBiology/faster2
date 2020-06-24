@@ -122,7 +122,7 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
         sample_freq (int): sampling frequency 
         epoch_len_sec (int): the length of an epoch in seconds
         epoch_num (int): the number of epochs to be read.
-        start_datetime (datetime): start datetime of the analysis (used only for EDF file).
+        start_datetime (datetime): start datetime of the analysis (used only for EDF file and dsi.txt).
     
     Returns:
         (np.array(2), np.arrray(2), bool): a pair of voltage 2D matrices in a tuple
@@ -194,9 +194,13 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
                                             f'{device_id}', 
                                             'EMG', 
                                             sample_freq=sample_freq)
-            
-            eeg_df = dsi_reader_eeg.read_epochs(1, epoch_num)
-            emg_df = dsi_reader_emg.read_epochs(1, epoch_num)
+            if isinstance(start_datetime, datetime):
+                end_datetime = start_datetime + timedelta(seconds=epoch_len_sec*epoch_num)
+                eeg_df = dsi_reader_eeg.read_epochs_by_datetime(start_datetime, end_datetime)
+                emg_df = dsi_reader_emg.read_epochs_by_datetime(start_datetime, end_datetime)
+            else:
+                eeg_df = dsi_reader_eeg.read_epochs(1, epoch_num)
+                emg_df = dsi_reader_emg.read_epochs(1, epoch_num)
             eeg_vm = eeg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
             emg_vm = emg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
         except FileNotFoundError:

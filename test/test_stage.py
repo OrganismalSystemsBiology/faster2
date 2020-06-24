@@ -84,6 +84,17 @@ class  TestStage(unittest.TestCase):
         np.testing.assert_array_equal(exp, ans)
 
 
+    def test_read_voltage_matrices_dsi_by_startdatetime(self):
+        exp = [[450, 800], [450, 800]]
+
+        start_datetime = datetime.datetime(2020, 2 , 7, 8, 0, 0)
+        (eeg_vm, emg_vm, _) = stage.read_voltage_matrices(
+            '../test/data/FASTER2_20200206_EEG_2019-023/data', 'ID33572', 100, 8, 450, start_datetime)
+        ans = [eeg_vm.shape, emg_vm.shape]
+        
+        np.testing.assert_array_equal(exp, ans)
+
+
     def test_psd_100Hz(self):
         exp = np.load('data/Power_EEG_0thRow_ID46770_FASTER2_20200206_EEG_2019-023.npy')
         # this is from 0th row of EEG at ID46770 from FASTER2_20200206_EEG_2019-023
