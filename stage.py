@@ -339,7 +339,7 @@ def shrink_rem_cluster(means, covar):
         new_w = (z_mean/(2*np.abs(V[2, idx_of_maxZ])))**2 # 2SD (95% confidnece area) of the new maxZ-axis points at z=0
 
         sr = new_w / W[idx_of_maxZ] # shrink ratio
-        zc = np.abs(V[2,:] / V[2, idx_of_maxZ]) # z contributions of all axes relative to the maxZ-axis
+        zc = np.abs(V[2,:])*2*np.sqrt(W) / (np.abs(V[2,:])*2*np.sqrt(W))[idx_of_maxZ] # z contributions of all axes relative to the maxZ-axis
         sh_axes = 1 - (1-sr)*zc # shrink ratios of each axis
 
         W_updated = W * sh_axes
