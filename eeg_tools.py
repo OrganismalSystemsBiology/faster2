@@ -117,7 +117,8 @@ class DSI_TXT_Reader:
         # include the previous file of the first file if the first file does not start at the start_datetime
         idx_first = np.where(bidx_targetfiles)[0][0] # first file's index
         if idx_first > 0 and file_datetimes[idx_first] > start_datetime:
-            bidx_targetfiles[idx_first - 1] = True
+            idx_first = idx_first - 1
+            bidx_targetfiles[idx_first] = True
 
         filepaths = np.array(file_list)[bidx_targetfiles].tolist()
 
@@ -138,12 +139,8 @@ class DSI_TXT_Reader:
             # assign absolute timestamps to rows
             print('Assigning absolute timestamps to rows')
             nrow = self._data_buffer.shape[0]
-            nrow_a_file = int(nrow/len(filepaths))
-            times_in_a_file = np.arange(0, nrow_a_file)/self._sample_freq
-            timestamps = []
-            for file_dt in file_datetimes[bidx_targetfiles]:
-                timestamps.extend([file_dt + timedelta(seconds=t) for t in times_in_a_file])
-
+            times = np.arange(0, nrow)/self._sample_freq
+            timestamps = [file_datetimes[idx_first] + timedelta(seconds=t) for t in times]
             self._data_buffer.time = timestamps
 
         bidx_target_rows =  (self._data_buffer.time >= start_datetime) & (self._data_buffer.time < end_datetime)

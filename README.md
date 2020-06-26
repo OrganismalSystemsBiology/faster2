@@ -87,7 +87,7 @@ This file describes experiment parameters common to all the recorded mice:
 Since the downloaded FASTER2 folder has an example exp.info.csv file, you can simply change it to describe your experiment. Be aware; you must keep the header line unchanged because FASTER2 uses the headers to parse the CSV file.
 
 #### mouse.info.csv
-This file describes information about the individual mouse in the exeriment:
+This file describes information about the individual mouse in the experiment:
 |Device label|Mouse group|Mouse ID|DOB|Stats report| Note|
 |----   |----|----|----|----|----|
 |ID47395|WT|ES015-5-G7_1  |2019/03/25| Yes| Left 1(B1) |
@@ -103,10 +103,45 @@ This file describes information about the individual mouse in the exeriment:
 * Mouse group: The plot_summary.py calculates statistics (e.g. means) of mice in the same group. 
 * Mouse ID: Label of the individual mice.
 * DOB: Date of birth of the mouse
-* Stats report: "Yes" or "No". If it is Yes, the it will be included in the statistics.
+* Stats report: "Yes" or "No". If it is Yes, the mouse will be included in the statistics.
 * Note: Additional information.
+
+_Note_ The control group of mice should be placed first of the list, because the subsequent statistical analysis (plot_summary.py) assumes the first group of the list be the control group.
+
 
 ### Run FASTER2 script
 
-Then, run the sample_run.bat. The bat file executes four Python scripts. The first two scripts perform the main FASATER2 analysis (staging and basic summary statistics). This main process takes about a couple of minutes per mouse, depending on the input data format and size. The latter two scripts plot many graphs of voltage time-series and spectrums. These latter scripts are optional but useful for human visual inspection. The plotting process takes about 60 minutes for 8 mice x 2 days recordings on a PC of moderate specs in the middle of 2020.
+Then, run the sample_run.bat. The bat file executes four Python scripts. The first two scripts perform the main FASATER2 analysis (staging and basic summary statistics). This main process takes about a couple of minutes per mouse, depending on the input data format and size. The latter two scripts plot many graphs of voltage time-series and spectrums. These scripts are optional but useful for human visual inspection. The plotting process takes about 60 minutes for 8 mice x 2 days recordings on a PC of moderate specs in the middle of 2020.
 
+
+### Video
+As it is not feasible to have a huge video file with length of days, there are usually a set of multiple video clips (from minutes to hours) for each mouse. These video files need to be arranged in a folder of the corresponding mouse. Our viewr (signal_view) assumes that the set of folders be placed in the "video" folder in the FASTER2 folder. Also, the names of individual folders must be same with the device labels in mouse.info.csv.
+
+_note_ Each video file must contain a datatime in its file name to indicate when the file started recording. For example, the filename should be like: CAM-61E0-C1_2018-01-27_06-58-47.avi. 
+
+
+-+ FASTER2_experimentID-000/
+ |
+ +- data/
+ +- result/
+ +- summary/
+ +- video/
+
+There are three scripts to process videos.
+* convert_video.py
+* make_video_info.py
+* split_video.py 
+
+Because signal_view can recognize only a couple of video codecs, probably you need to convert video files by using convert_video.py. convert_video.py is just a utility script to call [ffmpeg](https://ffmpeg.org/). You need to install it before using convert_video.py.
+
+
+```sh
+ python convert_video.py -t g:\tmp_Wake61 -o g:\tmp_Waka61_out/video -w 3 -e h264_nvenc
+ ```
+ In the example above, I specified the encoder option (-e) as h264_nvenc to utilize NVIDIA GPU. The default is libx264 which uses only CPU. Also, you may need to search an optimal worker number (-w options) for your PC.
+
+ signal_view needs to know when each video file started recording and how long it was. The information is stored in video.info.csv for each mouse. You can generate the video_info.csv files of mice in the video/ folder by using make_video_info.py.
+
+ ```sh
+ python make_video_info.py -t FASTER2_experimentID-000/video
+ ```
