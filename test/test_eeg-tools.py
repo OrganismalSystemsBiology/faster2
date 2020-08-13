@@ -3,7 +3,7 @@ import unittest
 import os
 import sys
 sys.path.append('../')
-import eeg_tools as et
+import faster2lib.eeg_tools as et
 import numpy as np
 from datetime import datetime
 

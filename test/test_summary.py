@@ -6,9 +6,9 @@ import sys
 import datetime
 import pickle
 sys.path.append('../')
-import plot_summary as ps
+import summary as ps
 import stage
-import eeg_tools as et
+import faster2lib.eeg_tools as et
 import os
 
 class  TestFunctions(unittest.TestCase):

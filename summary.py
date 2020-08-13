@@ -15,7 +15,7 @@ import textwrap
 
 from scipy import stats
 
-import eeg_tools as et
+import faster2lib.eeg_tools as et
 import stage
 
 DOMAIN_NAMES = ['Slow', 'Delta w/o slow', 'Delta', 'Theta']
