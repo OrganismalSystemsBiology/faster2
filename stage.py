@@ -473,18 +473,26 @@ def spectrum_normalize(voltage_matrix, n_fft, sample_freq):
 
 
 def classify_active_and_NREM(stage_coord_2D):
-    # make an empirical prior covariance
-    t = np.pi/4 # angle of the covariance's long axis
-    w = np.diag([800,10]) # eigen values for long & short axes respectively
-    d = np.matrix([[np.cos(t), np.sin(t)], [np.cos(t-np.pi/2), np.sin(t-np.pi/2)]])
-    custom_covars = d@w@d # the inverse of the eigen value decomposition
-    
+    # Initialize active/stative(NREM) clusters by Gaussian mixture model ignoring transition probablity
+    print('Initialize active/NREM clusters with GMM')
+    gmm = mixture.GaussianMixture(n_components=2, covariance_type='full')
+    gmm_model = gmm.fit(stage_coord_2D)
+    mm = gmm_model.means_
+    cc = gmm_model.covariances_
+    if mm[0,1] < mm[1,1]:
+        # flip the order of clusters if necessary
+        mm = np.array([mm[1],mm[0]])
+        cc = np.array([cc[1],cc[0]])
+    print(mm)
+    print(cc)
+
     # classify active and NREM stages by Gaussian HMM on the 2D plane of (active x sleep)
-    model = hmm.GaussianHMM(n_components=2, covariance_type='full', init_params='', params='stmc')
+    print('Refine active/NREM clusters with Gaussian HMM')
+    model = hmm.GaussianHMM(n_components=2, covariance_type='full', init_params='', params='st')
     model.startprob_ = np.array([0.5, 0.5])
     model.transmat_ = np.array([[0.96666511, 0.03333489], [0.03497405, 0.96502595]])
-    model.covars_ = np.array([custom_covars, custom_covars])
-    model.means_ = np.array([[-50, 20], [50, -50]])
+    model.means_ = mm
+    model.covars_ = cc
     remodel = model.fit(stage_coord_2D)
     print(remodel.means_)
     print(remodel.covars_)
