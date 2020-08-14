@@ -830,7 +830,6 @@ def main(data_dir, result_dir, pickle_input_data):
                                     'Outlier ratio EEG-TS': extreme_power_ratio[:, 0],
                                     'Outlier ratio EMG-TS': extreme_power_ratio[:, 1]})
         stage_file_path = os.path.join(result_dir, f'{device_id}.faster2.stage.csv')
-        os.makedirs(result_dir, exist_ok=True)
 
         with open(stage_file_path, 'w', encoding='UTF-8') as f:
             f.write(f'# Exp label: {exp_label} Recorded at {rack_label}\n')
@@ -862,6 +861,7 @@ if __name__ == '__main__':
     result_dir = os.path.abspath(args.result_dir)
     pickle_input_data = args.pickle_input_data
 
+    os.makedirs(result_dir, exist_ok=True)
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     log = initialize_logger(os.path.join(result_dir, f'stage.{dt_str}.log'))
     main(args.data_dir, result_dir, args.pickle_input_data)
