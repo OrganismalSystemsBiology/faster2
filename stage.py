@@ -513,7 +513,6 @@ def classify_active_and_NREM(stage_coord_2D):
         # flip the order of clusters if necessary
         mm = np.array([mm[1],mm[0]])
         cc = np.array([cc[1],cc[0]])
-        gmm_pred = np.array([0 if x==1 else 1 for x in gmm_pred])
     print_log(f'Means:\n{mm}')
     print_log(f'Covariances:\n{cc}')
 
