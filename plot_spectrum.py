@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 import stage
-import spectrum_graph as sg
+import faster2lib.spectrum_graph as sg
 
 import concurrent.futures
 from datetime import datetime

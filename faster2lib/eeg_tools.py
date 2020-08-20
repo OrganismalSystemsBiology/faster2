@@ -239,3 +239,10 @@ def encode_lookup(target_path):
         enc = locale.getpreferredencoding()
 
     return enc
+
+
+def print_log(msg):
+    if 'log' in globals():
+        log.debug(msg) 
+    else:
+        print(msg)

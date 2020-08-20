@@ -62,7 +62,14 @@ def initialize_logger(log_file):
     return(logger)
 
 
-def read_mouse_info(data_dir):
+def print_log(msg):
+    if 'log' in globals():
+        log.debug(msg)
+    else:
+        print(msg)
+
+
+def read_mouse_info(data_dir):      
     """This function reads the mouse.info.csv file 
     and returns a DataFrame with fixed column names.
 
@@ -84,7 +91,7 @@ def read_mouse_info(data_dir):
     try:
         codename = et.encode_lookup(filepath)
     except LookupError as e:
-        log.debug(e)
+        print_log(e)
         exit(1)
 
     csv_df = pd.read_csv(filepath,
@@ -162,12 +169,12 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
         # Try to read pickled data
         pkl_path = os.path.join(data_dir, 'pkl', f'{device_id}_EEG.pkl')
         with open(pkl_path, 'rb') as pkl:
-            log.debug(f'reading {pkl_path}')
+            print_log(f'reading {pkl_path}')
             eeg_vm = pickle.load(pkl)
         
         pkl_path = os.path.join(data_dir, 'pkl', f'{device_id}_EMG.pkl')
         with open(pkl_path, 'rb') as pkl:
-            log.debug(f'reading {pkl_path}')
+            print_log(f'reading {pkl_path}')
             emg_vm = pickle.load(pkl)
 
     elif len(find_edf_files(data_dir))>0:
@@ -194,7 +201,7 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
                 eeg = raw.get_data(f'EEG{device_id}')[0]
                 emg = raw.get_data(f'EMG{device_id}')[0]
         except ValueError:
-            log.debug(f'Failed to extract the data of "{device_id}" from {edf_file}. '\
+            print_log(f'Failed to extract the data of "{device_id}" from {edf_file}. '\
                   f'Check the channel name: "EEG/EMG{device_id}" is in the EDF file.')
             raise
         raw.close()
@@ -202,7 +209,7 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
             eeg_vm = eeg.reshape(-1, epoch_len_sec * sample_freq)
             emg_vm = emg.reshape(-1, epoch_len_sec * sample_freq)
         except ValueError:
-            log.debug(f'Failed to extract {epoch_num} epochs from {edf_file}. '\
+            print_log(f'Failed to extract {epoch_num} epochs from {edf_file}. '\
                    'Check the validity of the epoch number, start datetime, and sampling frequency.')
             raise
     elif os.path.exists(os.path.join(data_dir, 'dsi.txt')):
@@ -227,7 +234,7 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
             eeg_vm = eeg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
             emg_vm = emg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
         except FileNotFoundError:
-            log.debug(f'The dsi.txt file for {device_id} was not found in {data_dir}.')        
+            print_log(f'The dsi.txt file for {device_id} was not found in {data_dir}.')        
             raise
     else:
         raise FileNotFoundError(f'Data file was not found for device {device_id} in {data_dir}.')
@@ -299,7 +306,7 @@ def interpret_exp_info(exp_info_df):
         exp_label = exp_info_df['Experiment label'].values[0]
         rack_label = exp_info_df['Rack label'].values[0]
     except KeyError as e:
-        log.debug(f'Failed to parse the column: {e} in exp.info.csv. Check the headers.')
+        print_log(f'Failed to parse the column: {e} in exp.info.csv. Check the headers.')
         exit(1)
 
     start_datetime = interpret_datetimestr(start_datetime_str)
@@ -353,7 +360,7 @@ def shrink_rem_cluster(means, covar):
     
     if np.any(W<=0):
         # not processable if there is zero or negative component of W
-        log.debug(f'Negative or zero component was found in eigen values of the covariance: {W}')
+        print_log(f'Negative or zero component was found in eigen values of the covariance: {W}')
         covar_updated = np.array([]) 
 
     elif np.any(z_mean - np.abs(V[2,:])*2*np.sqrt(W) <0):
@@ -391,19 +398,19 @@ def pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id):
     # save EEG
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EEG.pkl')
     if os.path.exists(pkl_path):
-        log.debug(f'file already exists. Nothing to be done. {pkl_path}')
+        print_log(f'file already exists. Nothing to be done. {pkl_path}')
     else:
         with open(pkl_path, 'wb') as pkl:
-            log.debug(f'saving the voltage matrix into {pkl_path}')
+            print_log(f'saving the voltage matrix into {pkl_path}')
             pickle.dump(eeg_vm, pkl)
     
     # save EMG
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EMG.pkl')
     if os.path.exists(pkl_path):
-        log.debug(f'file already exists. Nothing to be done. {pkl_path} ')
+        print_log(f'file already exists. Nothing to be done. {pkl_path} ')
     else:
         with open(pkl_path, 'wb') as pkl:
-            log.debug(f'saving the voltage matrix into {pkl_path}')
+            print_log(f'saving the voltage matrix into {pkl_path}')
             pickle.dump(emg_vm, pkl)
 
 
@@ -423,19 +430,19 @@ def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, bidx_unknown, result
     # save EEG PSD
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EEG_PSD.pkl')
     if os.path.exists(pkl_path):
-        log.debug(f'file already exists. Nothing to be done. {pkl_path}')
+        print_log(f'file already exists. Nothing to be done. {pkl_path}')
     else:
         with open(pkl_path, 'wb') as pkl:
-            log.debug(f'saving the EEG PSD matrix into {pkl_path}')
+            print_log(f'saving the EEG PSD matrix into {pkl_path}')
             pickle.dump(spec_norm_eeg, pkl)
     
     # save EMG PSD
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EMG_PSD.pkl')
     if os.path.exists(pkl_path):
-        log.debug(f'file already exists. Nothing to be done. {pkl_path} ')
+        print_log(f'file already exists. Nothing to be done. {pkl_path} ')
     else:
         with open(pkl_path, 'wb') as pkl:
-            log.debug(f'saving the EMG PSD matrix into {pkl_path}')
+            print_log(f'saving the EMG PSD matrix into {pkl_path}')
             pickle.dump(spec_norm_emg, pkl)
 
 
@@ -454,7 +461,7 @@ def pickle_cluster_params(means2, covars2, c_means, c_covars, result_dir, device
     # save
     pkl_path = os.path.join(pickle_dir, f'{device_id}_cluster_params.pkl')
     with open(pkl_path, 'wb') as pkl:
-        log.debug(f'saving the cluster parameters into {pkl_path}')
+        print_log(f'saving the cluster parameters into {pkl_path}')
         pickle.dump({'2stage-means': means2, '2stage-covars': covars2,
                      '3stage-means': c_means, '3stage-covars': c_covars}, pkl)
 
@@ -497,8 +504,8 @@ def spectrum_normalize(voltage_matrix, n_fft, sample_freq):
 
 def classify_active_and_NREM(stage_coord_2D):
     # Initialize active/stative(NREM) clusters by Gaussian mixture model ignoring transition probablity
-    log.debug('Initialize active/NREM clusters with GMM')
-    gmm = mixture.GaussianMixture(n_components=2, covariance_type='full')
+    print_log('Initialize active/NREM clusters with GMM')
+    gmm = mixture.GaussianMixture(n_components=2, covariance_type='full', n_init=10)
     gmm_model = gmm.fit(stage_coord_2D)
     mm = gmm_model.means_
     cc = gmm_model.covariances_
@@ -506,19 +513,20 @@ def classify_active_and_NREM(stage_coord_2D):
         # flip the order of clusters if necessary
         mm = np.array([mm[1],mm[0]])
         cc = np.array([cc[1],cc[0]])
-    log.debug(f'Means:\n{mm}')
-    log.debug(f'Covariances:\n{cc}')
+        gmm_pred = np.array([0 if x==1 else 1 for x in gmm_pred])
+    print_log(f'Means:\n{mm}')
+    print_log(f'Covariances:\n{cc}')
 
     # classify active and NREM stages by Gaussian HMM on the 2D plane of (active x sleep)
-    log.debug('Refine active/NREM clusters with Gaussian HMM')
+    print_log('Refine active/NREM clusters with Gaussian HMM')
     model = hmm.GaussianHMM(n_components=2, covariance_type='full', init_params='', params='st')
     model.startprob_ = np.array([0.5, 0.5])
     model.transmat_ = np.array([[0.96666511, 0.03333489], [0.03497405, 0.96502595]])
     model.means_ = mm
     model.covars_ = cc
     remodel = model.fit(stage_coord_2D)
-    log.debug(f'Means:\n{remodel.means_}')
-    log.debug(f'Covariances:\n{remodel.covars_}')
+    print_log(f'Means:\n{remodel.means_}')
+    print_log(f'Covariances:\n{remodel.covars_}')
     pred = remodel.predict(stage_coord_2D)
     pred_proba = remodel.predict_proba(stage_coord_2D)
 
@@ -526,7 +534,7 @@ def classify_active_and_NREM(stage_coord_2D):
 
 
 def classify_three_stages_first(stage_coord_3D):
-    log.debug('Initialize REM/Wake/NREM clusters with Gaussian HMM')
+    print_log('Initialize REM/Wake/NREM clusters with Gaussian HMM')
     model = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='c', params='smtc')
     model.startprob_ = DEFAULT_START_PROBA
     model.means_ = DEFAULT_MEAN_STAGE_COORDS
@@ -539,15 +547,15 @@ def classify_three_stages_first(stage_coord_3D):
     pred3 = remodel.predict(stage_coord_3D)
     pred3_proba = remodel.predict_proba(stage_coord_3D)
 
-    log.debug(f'HMM score {score}')
-    log.debug(f'Means:\n{means}')
-    log.debug(f'Covariances:\n{covars}')
+    print_log(f'HMM score {score}')
+    print_log(f'Means:\n{means}')
+    print_log(f'Covariances:\n{covars}')
 
     return (pred3, pred3_proba, score, means, covars)
 
 
 def classify_three_stages_update(stage_coord_3D, mm ,cc):
-    log.debug('Update REM/Wake/NREM clusters by Gaussian HMM with the refined covariance of the REM claster')
+    print_log('Update REM/Wake/NREM clusters by Gaussian HMM with the refined covariance of the REM claster')
     model = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='', params='st')
     model.startprob_ = DEFAULT_START_PROBA
     model.transmat_ = DEFAULT_TRANSMAT
@@ -561,9 +569,9 @@ def classify_three_stages_update(stage_coord_3D, mm ,cc):
     pred3 = remodel.predict(stage_coord_3D)
     pred3_proba = remodel.predict_proba(stage_coord_3D)
 
-    log.debug(f'HMM score {score}')
-    log.debug(f'Means:\n{means}')
-    log.debug(f'Covariances:\n{covars}')
+    print_log(f'HMM score {score}')
+    print_log(f'Means:\n{means}')
+    print_log(f'Covariances:\n{covars}')
 
     return (pred3, pred3_proba, score, means, covars)
 
@@ -587,19 +595,19 @@ def classification_process(stage_coord):
     c_pred3, c_pred3_proba, c_score, c_means, c_covars = classify_three_stages_first(
         stage_coord_expacti)
 
-    log.debug(f'(1st estimate) REM:{1440*np.sum(c_pred3==0)/ndata} '
+    print_log(f'(1st estimate) REM:{1440*np.sum(c_pred3==0)/ndata} '
             f'NREM:{1440*np.sum(c_pred3==2)/ndata} '
             f'Wake:{1440*np.sum(c_pred3==1)/ndata}')
 
 
     # try to refine REM cluster by Gaussian mixture model (GMM) on active epochs
-    log.debug('Try to refine the REM cluster by Gaussian mixture model (GMM) focusin on active epochs')
+    print_log('Try to refine the REM cluster by Gaussian mixture model (GMM) focusin on active epochs')
     gmm = mixture.GaussianMixture(n_components=3, covariance_type='full', 
                             means_init=np.array([[-20, 0, 100], [-20, 20, -50], [20, 20, 0]])) #REM, apparent WAKE, WAKE      
     points_active = stage_coord_expacti[(c_pred3==0) | (c_pred3==1), :]
     gmm_model = gmm.fit(points_active)
-    log.debug(f'means:\n{gmm_model.means_}')
-    log.debug(f'covariances:\n{gmm_model.covariances_}')
+    print_log(f'means:\n{gmm_model.means_}')
+    print_log(f'covariances:\n{gmm_model.covariances_}')
     rem_mean_refined = gmm_model.means_[0]
     rem_covar_refined = gmm_model.covariances_[0]
 
@@ -620,11 +628,11 @@ def classification_process(stage_coord):
         c_pred3 = pred3
         c_pred3_proba = pred3_proba
 
-        log.debug(f'(2nd estimate) REM:{1440*np.sum(c_pred3==0)/ndata} '\
+        print_log(f'(2nd estimate) REM:{1440*np.sum(c_pred3==0)/ndata} '\
                 f'NREM:{1440*np.sum(c_pred3==2)/ndata} '\
                 f'Wake:{1440*np.sum(c_pred3==1)/ndata}')
     else:
-        log.debug(f'Tried to refine REM cluster, but no improvement was achieved.')
+        print_log(f'Tried to refine REM cluster, but no improvement was achieved.')
 
     # try to correct REM cluster by shrinking it if the ellipsoid axis crosses the xy-plane to negative
     covar_REM_updated = shrink_rem_cluster(c_means[0], c_covars[0])
@@ -645,7 +653,7 @@ def classification_process(stage_coord):
             c_means = means
             c_covars = covars
         else:
-            log.debug(f'Tried but failed to shrink REM cluster')
+            print_log(f'Tried but failed to shrink REM cluster')
 
     return pred2, pred2_proba, means2, covars2, stage_coord_expacti, c_pred3, c_pred3_proba, c_means, c_covars
 
@@ -725,8 +733,8 @@ def main(data_dir, result_dir, pickle_input_data):
         dob = r[3]
         note = r[4]
 
-        log.debug(f'[{i+1}] Reading voltages of {device_id}')
-        log.debug(f'Epoch num:{epoch_num} recorded at sampling frequency {sample_freq}')
+        print_log(f'[{i+1}] Reading voltages of {device_id}')
+        print_log(f'Epoch num:{epoch_num} recorded at sampling frequency {sample_freq}')
         (eeg_vm_org, emg_vm_org, not_yet_pickled) = read_voltage_matrices(
             data_dir, device_id, sample_freq, EPOCH_LEN_SEC, epoch_num, start_datetime)
 
@@ -784,7 +792,7 @@ def main(data_dir, result_dir, pickle_input_data):
             pred2, pred2_proba, means2, covars2, stage_coord_expacti, c_pred3, c_pred3_proba, c_means, c_covars = classification_process(
                 stage_coord)
         except ValueError:
-            log.debug('Encountered an unhandlable analytical error during the staging. Check the ' 
+            print_log('Encountered an unhandlable analytical error during the staging. Check the ' 
                 'date validity of the mouse.')
             
             continue
@@ -793,7 +801,7 @@ def main(data_dir, result_dir, pickle_input_data):
         # Check the z coordinate of the REM cluster
         rem_cluster_z = c_means[0,2]
         if rem_cluster_z <= 0:
-            log.debug('no effective REM cluster was found')
+            print_log('no effective REM cluster was found')
             c_pred3[c_pred3 == 0] = 1
             c_pred3_proba[c_pred3 == 0] = np.array([0, p[0]+p[1], p[2]] for p in c_pred3_proba[c_pred3 == 0])
             c_means[0] = np.zeros(3)
@@ -813,7 +821,7 @@ def main(data_dir, result_dir, pickle_input_data):
         # pylint: disable=not-an-iterable
         stage_call[~bidx_unknown] =  np.array([STAGE_LABELS[np.argmax(y)] for y in proba_m.T])
 
-        log.debug(f'[{i+1}]  (final estimate) REM:{1440*np.sum(stage_call=="REM")/ndata} '\
+        print_log(f'[{i+1}]  (final estimate) REM:{1440*np.sum(stage_call=="REM")/ndata} '\
                 f'NREM:{1440*np.sum(stage_call=="NREM")/ndata} '\
                 f'Wake:{1440*np.sum(stage_call=="Wake")/ndata}')
 

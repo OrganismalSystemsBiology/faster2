@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 import stage
-import timeseries_graph as tg
+import faster2lib.timeseries_graph as tg
 
 import concurrent.futures
 from datetime import datetime
