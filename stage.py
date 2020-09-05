@@ -772,7 +772,7 @@ def main(data_dir, result_dir, pickle_input_data):
         note = r[4]
 
         print_log(f'#######################################')
-        print_log(f'#### [{i+1}] of mouse.info / devide_id: {device_id}')
+        print_log(f'#### [{i+1}] of mouse.info / device_id: {device_id}')
         print_log(f'Reading voltages')
         print_log(f'Epoch num:{epoch_num} recorded at sampling frequency {sample_freq}')
         (eeg_vm_org, emg_vm_org, not_yet_pickled) = read_voltage_matrices(
@@ -853,7 +853,7 @@ def main(data_dir, result_dir, pickle_input_data):
         stage_call = np.repeat('Unknown', epoch_num)
         stage_call[~bidx_unknown] =  np.array([STAGE_LABELS[y] for y in pred_3D])
 
-        print_log(f'[{i+1}]:Devide ID: {device_id} REM:{1440*np.sum(stage_call=="REM")/ndata:.2f} '\
+        print_log(f'[{i+1}]:Device ID: {device_id} REM:{1440*np.sum(stage_call=="REM")/ndata:.2f} '\
                 f'NREM:{1440*np.sum(stage_call=="NREM")/ndata:.2f} '\
                 f'Wake:{1440*np.sum(stage_call=="Wake")/ndata:.2f}')
 
