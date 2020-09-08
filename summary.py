@@ -1594,6 +1594,8 @@ def write_sleep_stats(stagetime_stats, output_dir):
         
     sleep_stats_df.columns = ['Mouse group', 'Stage type', 'N', 'Mean', 'SD', 'Pvalue', 'Stars', 'Method']
 
+    stagetime_df = stagetime_df.round({'REM':2, 'NREM':2, 'Wake':2, 'Unknown':2})
+
     sleep_stats_df.to_csv(os.path.join(output_dir, 'stage-time_stats_table.csv'), index=False)
     stagetime_df.to_csv(os.path.join(output_dir, 'stage-time_table.csv'), index=False)
 
