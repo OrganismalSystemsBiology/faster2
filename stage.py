@@ -332,12 +332,12 @@ def plot_hist_on_separation_axis(path2figures, d, means, covars, weights):
         covars = covars[::-1]
         weights = weights[::-1]
 
-    d_axis = np.arange(-150,150)
+    d_axis = np.arange(-20,20)
 
     fig = Figure(figsize=(SCATTER_PLOT_FIG_WIDTH, SCATTER_PLOT_FIG_HEIGHT), dpi=FIG_DPI, facecolor='w')
     ax = fig.add_subplot(111)
-    ax.set_xlim(-150, 150)
-    ax.set_ylim(0, 0.02)
+    ax.set_xlim(-20, 20)
+    ax.set_ylim(0, 0.1)
 
     ax.hist(d, bins=100, density=True)
     ax.plot(d_axis, weights[0]*stats.norm.pdf(d_axis,means[0],np.sqrt(covars[0])).ravel(), c=COLOR_WAKE)
@@ -357,8 +357,8 @@ def plot_hist_on_separation_axis(path2figures, d, means, covars, weights):
 def plot_scatter2D(points_2D, classes, means, covariances, colors, xlabel, ylabel, diag_line=False):
     fig = Figure(figsize=(SCATTER_PLOT_FIG_WIDTH, SCATTER_PLOT_FIG_HEIGHT), dpi=FIG_DPI, facecolor='w')
     ax = fig.add_subplot(111)
-    ax.set_xlim(-150, 150)
-    ax.set_ylim(-150, 150)
+    ax.set_xlim(-20, 20)
+    ax.set_ylim(-20, 20)
     
     for i, color in enumerate(colors):
 
@@ -375,7 +375,7 @@ def plot_scatter2D(points_2D, classes, means, covariances, colors, xlabel, ylabe
             ell = mpl.patches.Ellipse(mean, w[0], w[1], 180. + angle, facecolor='none', edgecolor=color)
             ax.add_patch(ell)
     if diag_line==True:
-        ax.plot([-150, 150], [-150, 150], color='gray',linewidth=0.7)
+        ax.plot([-20, 20], [-20, 20], color='gray',linewidth=0.7)
     ax.set_xlabel(xlabel, fontsize=10)
     ax.set_ylabel(ylabel, fontsize=10)
     return fig
@@ -541,7 +541,7 @@ def cancel_weight_bias(stage_coord_2D):
     print_log('Estimate the bias of the two cluster means')
     d = stage_coord_2D@np.array([1,-1]).T # project onto the separation axis
     d = d.reshape(-1,1)
-    gmm = mixture.GaussianMixture(n_components=2, n_init=10) #active, stative
+    gmm = mixture.GaussianMixture(n_components=2, n_init=10) #active, stative, intermediate
     gmm.fit(d)
     weights = gmm.weights_
     means = gmm.means_.flatten()
@@ -559,7 +559,7 @@ def cancel_weight_bias(stage_coord_2D):
 def classify_active_and_NREM(stage_coord_2D):
     # Initialize active/stative(NREM) clusters by Gaussian mixture model ignoring transition probablity
     print_log('Initialize active/NREM clusters with GMM')
-    gmm_2D = mixture.GaussianMixture(n_components=2, covariance_type='full', n_init=10, means_init=[[-20,20],[20,-20]])
+    gmm_2D = mixture.GaussianMixture(n_components=2, covariance_type='full', n_init=10, means_init=[[-5,5],[5,-5]])
     gmm_2D.fit(stage_coord_2D)
 
     gmm_2D_pred = gmm_2D.predict(stage_coord_2D)
@@ -592,13 +592,23 @@ def classify_active_and_NREM(stage_coord_2D):
 
 def classify_Wake_and_REM(stage_coord_active):
     # Classify REM and Wake in the active cluster in the 3D space  (Low freq. x High freq. x REM metric)
-    gmm_active = mixture.GaussianMixture(n_components=2, n_init=10, means_init=[[-20,20,-50],[0,0,100]], weights_init=[0.9, 0.1]) #active, intermdeidate, stative
+    gmm_active = mixture.GaussianMixture(n_components=3, n_init=10, means_init=[[-5,5,-10],[0,0,20], [0, 0, 0]]) #Wake, REM, intermdeidate
     gmm_active.fit(stage_coord_active)
     ww_active = gmm_active.weights_
     mm_active = gmm_active.means_
     cc_active = gmm_active.covariances_
     pred_active = gmm_active.predict(stage_coord_active)
     pred_active_proba = gmm_active.predict_proba(stage_coord_active)
+
+    # Treat the intermediate as wake
+    pred_active[pred_active==2]=0
+    pred_active_proba = np.array([[x[0]+x[2], x[1]] for x in pred_active_proba])
+    
+    # The subsequent process uses the Wake and REM clusters
+    ww_active = ww_active[np.r_[0,1]]
+    mm_active = mm_active[np.r_[0,1]]
+    cc_active = cc_active[np.r_[0,1]]
+    (ww_active, mm_active, cc_active)
 
     if mm_active[0,2] > mm_active[1,2]:
         # flip the order of clusters to assure the order of indices 0:Wake, 1:REM
@@ -610,11 +620,18 @@ def classify_Wake_and_REM(stage_coord_active):
     return (pred_active, pred_active_proba, mm_active, cc_active, ww_active)
 
 
-def find_REMlike_epochs(stage_coord_active, mm_active, cc_active):
+def find_REMlike_epochs(stage_coord_active, pred_active):
+    # Estimate Wake cluster including the intermediate cluster
+    stage_coord_wake = stage_coord_active[pred_active==0]
+    gmm_wake = mixture.GaussianMixture(n_components=1, n_init=10, means_init=[[-5,5,-10]]) #wake + intermediate
+    gmm_wake.fit(stage_coord_wake)
+    mm_wake = gmm_wake.means_
+    cc_wake = gmm_wake.covariances_
+
     # Return REM-like epochs assuming a point is REM if it is above xy-planne and 
     # 3SD (Mahalanobis distance) away from wake cluster's mean
-    icc = linalg.inv(cc_active[0])
-    bidx_REMlike = np.array([distance.mahalanobis(mm_active[0], x ,icc)>3 and x[2]>0 for x in stage_coord_active])
+    icc = linalg.inv(cc_wake[0])
+    bidx_REMlike = np.array([distance.mahalanobis(mm_wake[0], x ,icc)>3 and x[2]>0 for x in stage_coord_active])
 
     return bidx_REMlike
 
@@ -642,7 +659,7 @@ def classification_process(stage_coord):
 
     # Arrange the stage_coord by compressing NREM (pred==1) epochs on xy-plane (z=0), leaving
     # only the active epochs (pred==0) expanded along the z-axis
-    stage_coord_nremflat = np.array([[y[0], y[1], y[2] if pred_2D[i] == 0 else 0]
+    stage_coord_nremflat = np.array([[y[0], y[1], y[2] if pred_2D[i] == 0 else -100]
                                 for i, y in enumerate(stage_coord)])    # Arrange the stage_coord by compressing NREM (pred==1) epochs on xy-plane (z=0), leaving
 
     # Classify REM and Wake in the active cluster in the 3D space  (Low freq. x High freq. x REM metric)
@@ -654,13 +671,14 @@ def classification_process(stage_coord):
     if np.all(mm_active[:,2]<=0):
         # process for data NOT having effective REM cluster
         print_log('No effective REM cluster was found.')
-        bidx_REMlike = find_REMlike_epochs(stage_coord_active, mm_active, cc_active)
+        bidx_REMlike = find_REMlike_epochs(stage_coord_active, pred_active)
         print_log(f'REM like epochs were found: {np.sum(bidx_REMlike)} epochs.')
 
         # construct 3D means and covariances from mm_2D and mm_active with TINY (non-effective) REM cluster
-        mm_3D =  np.vstack([mm_active[0], [0,0,0], np.hstack([mm_2D[1], 0])]) # Wake, REM, NREM
-        cc_3rdD = np.vstack([np.hstack([cc_2D[1], [[0], [0]]]),[0, 0, 0.1]]) # 0.1 is just an arbitral number
-        cc_3D = np.vstack([[cc_active[0]], [np.diag([0.1, 0.1, 0.1])], [cc_3rdD]]) 
+        # This non-effective REM cluster is just for convenience of plotting, so has nothing to do with analytical process.
+        mm_3D =  np.vstack([mm_active[0], [0,0,100], np.hstack([mm_2D[1], 0])]) # Wake, REM, NREM
+        cc_3rdD = np.vstack([np.hstack([cc_2D[1], [[0], [0]]]),[0, 0, 0.01]]) # 0.01 is just an arbitral number
+        cc_3D = np.vstack([[cc_active[0]], [np.diag([0.01, 0.01, 0.01])], [cc_3rdD]]) 
 
         pred_3D = np.array([2 if x==1 else 0 for x in pred_2D]) # change label of NREM from 1 to 2 so that REM can use label:1
         idx_active = np.where(bidx_active)[0]
@@ -681,8 +699,8 @@ def classification_process(stage_coord):
         weights_3c = np.array([np.sum(pred_2D==1), np.sum(pred_active==0), np.sum(pred_active==1)])/ndata
 
         # construct 3D means and covariances from mm_2D and mm_active
-        mm_3D = np.vstack([mm_active, np.hstack([mm_2D[1], 0])]) # Wake, REM, NREM
-        cc_3rdD = np.vstack([np.hstack([cc_2D[1], [[0], [0]]]),[0, 0, 0.1]]) # 0.1 is just an arbitoral z-axis component
+        mm_3D = np.vstack([mm_active, np.hstack([mm_2D[1], -100])]) # Wake, REM, NREM
+        cc_3rdD = np.vstack([np.hstack([cc_2D[1], [[0], [0]]]),[0, 0, 0.01]]) # 0.1 is just an arbitoral z-axis component
         cc_3D = np.vstack([cc_active, [cc_3rdD]])
 
         # 3-stage classification: classify REM, Wake, and NREM by Gaussian HMM on the 3D space
@@ -729,9 +747,9 @@ def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, stage_
     ax = fig.add_subplot(111, projection='3d')
     ax.view_init(elev=10, azim=-135)
 
-    ax.set_xlim(-150, 150)
-    ax.set_ylim(-150, 150)
-    ax.set_zlim(-150, 150)
+    ax.set_xlim(-20, 20)
+    ax.set_ylim(-20, 20)
+    ax.set_zlim(-20, 20)
     ax.set_xlabel(XLABEL, fontsize=10, rotation = 0)
     ax.set_ylabel(YLABEL, fontsize=10, rotation = 0)
     ax.set_zlabel(ZLABEL, fontsize=10, rotation = 0)
@@ -739,7 +757,7 @@ def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, stage_
 
 
     for c in set(c_pred3):
-        t_points = stage_coord_expacti[c_pred3==c]
+        t_points = stage_coord[c_pred3==c]
         ax.scatter3D(t_points[:,0], t_points[:,1], t_points[:,2], s=0.005, color=colors[c])
 
         ax.scatter3D(t_points[:,0], t_points[:,1], min(ax.get_zlim()), s=0.001, color='grey')
@@ -762,6 +780,12 @@ def main(data_dir, result_dir, pickle_input_data):
     bidx_theta_freq = (freq_bins>=4) & (freq_bins<10) # 15 bins
     bidx_delta_freq = (freq_bins<4) # 11 bins
     bidx_muscle_freq = (freq_bins>30) # 52 bins
+
+    n_active_freq = np.sum(bidx_active_freq)
+    n_sleep_freq = np.sum(bidx_sleep_freq)
+    n_theta_freq = np.sum(bidx_theta_freq)
+    n_delta_freq = np.sum(bidx_delta_freq)
+    n_muscle_freq = np.sum(bidx_muscle_freq)
 
     mouse_info_df = read_mouse_info(data_dir)
     for i, r in mouse_info_df.iterrows():
@@ -821,9 +845,9 @@ def main(data_dir, result_dir, pickle_input_data):
             psd_norm_mat_emg.reshape(*psd_norm_mat_emg.shape, 1)
         ], axis=2)
         stage_coord = np.array([(
-            np.sum(y[bidx_sleep_freq, 0]), 
-            np.sum(y[bidx_active_freq,0]),
-            np.sum(y[bidx_theta_freq,0])-np.sum(y[bidx_delta_freq, 0])-np.sum(y[bidx_muscle_freq, 1])
+            np.sum(y[bidx_sleep_freq, 0])/np.sqrt(n_sleep_freq), 
+            np.sum(y[bidx_active_freq,0])/np.sqrt(n_active_freq),
+            np.sum(y[bidx_theta_freq,0])/np.sqrt(n_theta_freq)-np.sum(y[bidx_delta_freq, 0])/np.sqrt(n_delta_freq)-np.sum(y[bidx_muscle_freq, 1])  /np.sqrt(n_muscle_freq)  
         ) for y in psd_mat])
         ndata = len(stage_coord)
 
@@ -853,7 +877,7 @@ def main(data_dir, result_dir, pickle_input_data):
         stage_call = np.repeat('Unknown', epoch_num)
         stage_call[~bidx_unknown] =  np.array([STAGE_LABELS[y] for y in pred_3D])
 
-        print_log(f'[{i+1}]:Device ID: {device_id} REM:{1440*np.sum(stage_call=="REM")/ndata:.2f} '\
+        print_log(f'[{i+1}] Device ID:{device_id}  REM:{1440*np.sum(stage_call=="REM")/ndata:.2f} '\
                 f'NREM:{1440*np.sum(stage_call=="NREM")/ndata:.2f} '\
                 f'Wake:{1440*np.sum(stage_call=="Wake")/ndata:.2f}')
 
