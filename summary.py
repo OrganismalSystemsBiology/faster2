@@ -1406,7 +1406,7 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
     return psd_mean_df
 
 
-def draw_PSDs_individual(psd_profiles_df, sample_freq, output_dir, opt_label=''):
+def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_label=''):
     # assures frequency bins compatibe among different sampling frequencies
     n_fft = int(256 * sample_freq/100)
     # same frequency bins given by signal.welch()
@@ -1424,11 +1424,11 @@ def draw_PSDs_individual(psd_profiles_df, sample_freq, output_dir, opt_label='')
         ax2 = fig.add_subplot(132)
         ax3 = fig.add_subplot(133)
         ax1.set_xlabel('freq. [Hz]')
-        ax1.set_ylabel('REM\nnormalized PSD [AU]')
+        ax1.set_ylabel(f'REM\n{y_label}')
         ax2.set_xlabel('freq. [Hz]')
-        ax2.set_ylabel('NREM\nnormalized PSD [AU]')
+        ax2.set_ylabel(f'NREM\n{y_label}')
         ax3.set_xlabel('freq. [Hz]')
-        ax3.set_ylabel('Wake\nnormalized PSD [AU]')
+        ax3.set_ylabel(f'Wake\n{y_label}')
 
         x = freq_bins
         df = psd_profiles_df.loc[psd_profiles_df['Mouse ID'] == m]
@@ -1449,7 +1449,7 @@ def draw_PSDs_individual(psd_profiles_df, sample_freq, output_dir, opt_label='')
                     bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
-def draw_PSDs_group(psd_profiles_df, sample_freq, output_dir, opt_label=''):
+def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label=''):
     # assures frequency bins compatibe among different sampling frequencies
     n_fft = int(256 * sample_freq/100)
     # same frequency bins given by signal.welch()
@@ -1485,11 +1485,11 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, output_dir, opt_label=''):
         ax2 = fig.add_subplot(132)
         ax3 = fig.add_subplot(133)
         ax1.set_xlabel('freq. [Hz]')
-        ax1.set_ylabel('REM\nnormalized PSD [AU]')
+        ax1.set_ylabel(f'REM\n{y_label}')
         ax2.set_xlabel('freq. [Hz]')
-        ax2.set_ylabel('NREM\nnormalized PSD [AU]')
+        ax2.set_ylabel(f'NREM\n{y_label}')
         ax3.set_xlabel('freq. [Hz]')
-        ax3.set_ylabel('Wake\nnormalized PSD [AU]')
+        ax3.set_ylabel(f'Wake\n{y_label}')
 
         ## _t of Treatment
         df = psd_profiles_df[psd_profiles_df['Mouse group'] == mouse_group_set[g_idx]]
@@ -1815,14 +1815,24 @@ if __name__ == '__main__':
 
     # prepare Powerspectrum density (PSD) profiles for individual mice
     psd_profiles_df = make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext)
-    log_psd_profiles_df = make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext) # decebel-like
+    log_psd_profiles_df = make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext) # decibel-like
 
     # write a table of PSD
     write_psd_stats(psd_profiles_df, output_dir)
     write_psd_stats(log_psd_profiles_df, output_dir, 'log-')
 
     # draw power density plot
-    draw_PSDs_individual(psd_profiles_df, sample_freq, output_dir)
-    draw_PSDs_individual(log_psd_profiles_df, sample_freq, output_dir, 'log-')
-    draw_PSDs_group(psd_profiles_df, sample_freq, output_dir)
-    draw_PSDs_group(log_psd_profiles_df, sample_freq, output_dir, 'log-')
+    draw_PSDs_individual(psd_profiles_df, sample_freq, 'normalized PSD [AU]', output_dir)
+    draw_PSDs_individual(log_psd_profiles_df, sample_freq, 'normalized PSD [AU]', output_dir, 'log-')
+    draw_PSDs_group(psd_profiles_df, sample_freq, 'normalized PSD [AU]', output_dir)
+    draw_PSDs_group(log_psd_profiles_df, sample_freq, 'normalized PSD [AU]', output_dir, 'log-')
+
+    # draw power density plot (percentage of the total power)
+    psd_profiles_percentage_df = psd_profiles_df.copy()
+    total_powers = psd_profiles_df.iloc[:, 5:].apply(np.sum, axis=1)
+    psd_profiles_percentage_df.iloc[:, 5:] = 100*(psd_profiles_df.iloc[:, 5:].T/total_powers).T
+    draw_PSDs_individual(psd_profiles_percentage_df, sample_freq, 'PSD percentage [%]', output_dir, 'percentage-')
+    draw_PSDs_group(psd_profiles_percentage_df, sample_freq, 'PSD percentage [%]', output_dir, 'percentage-')
+
+    # write a table of PSD percentage
+    write_psd_stats(psd_profiles_percentage_df, output_dir, 'percentage-')
