@@ -386,6 +386,22 @@ def _set_common_features_stagetime_profile(ax, x_max):
     ax.set_ylim(-10, 70)
 
 
+def _set_common_features_delta_power_timeseries(ax, x_max):
+    ax.set_yticks([0, 0.1, 0.2, 0.3])
+    ax.set_xticks(np.arange(0, x_max+1, 6))
+    ax.grid(dashes=(2, 2))
+
+    light_bar_base = matplotlib.patches.Rectangle(
+        xy=[0, -0.01], width=x_max, height=0.01, fill=True, color=stage.COLOR_DARK)
+    ax.add_patch(light_bar_base)
+    for day in range(int(x_max/24)):
+        light_bar_light = matplotlib.patches.Rectangle(
+            xy=[24*day, -0.01], width=12, height=0.01, fill=True, color=stage.COLOR_LIGHT)
+        ax.add_patch(light_bar_light)
+
+    ax.set_ylim(-0.015, 0.3)
+
+
 def _set_common_features_stagetime_profile_rem(ax, x_max):
     r = 4  # a scale factor for y-axis
     ax.set_yticks(np.array([0, 20, 40, 60])/r)
@@ -725,6 +741,111 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
             filename = f'stage-time_circadian_profile_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}.jpg'
             fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
                         bbox_inches='tight', dpi=100, quality=85, optimize=True)
+
+
+def draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, output_dir):
+    hourly_ts_list = []
+    for _, ts in psd_delta_timeseries_df.iloc[:,4:].iterrows():
+        ts_mat = ts.to_numpy().reshape(-1, int(3600/stage.EPOCH_LEN_SEC))
+        hourly_ts_list.append(np.apply_along_axis(np.mean, 1, ts_mat))
+
+    x_max = ts_mat.shape[0]
+    x = np.arange(x_max)
+    for i, profile in enumerate(hourly_ts_list):
+        fig = Figure(figsize=(13, 6))
+        ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
+        _set_common_features_delta_power_timeseries(ax1, x_max)
+
+        ax1.set_ylabel('Hourly mean delta power [AU]')
+        ax1.set_xlabel('Time (hours)')
+
+        ax1.plot(x, profile, color=stage.COLOR_NREM)
+
+        fig.suptitle(
+            f'Stage-time profile: {"  ".join(psd_delta_timeseries_df.iloc[i,0:4].values)}')
+        filename = f'delta_power_timeseries_{"_".join(psd_delta_timeseries_df.iloc[i,0:4].values)}.jpg'
+        fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                    bbox_inches='tight', dpi=100, quality=85, optimize=True)
+
+
+def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, output_dir):
+    mouse_groups = psd_delta_timeseries_df['Mouse group'].values
+    mouse_groups_set = sorted(set(mouse_groups), key=list(
+        mouse_groups).index)  # unique elements with preseved order
+    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]  
+
+    hourly_ts_list = []
+    for _, ts in psd_delta_timeseries_df.iloc[:,4:].iterrows():
+        ts_mat = ts.to_numpy().reshape(-1, int(3600/stage.EPOCH_LEN_SEC))
+        hourly_ts_list.append(np.apply_along_axis(np.mean, 1, ts_mat))
+    hourly_ts_mat = np.array(hourly_ts_list)
+
+    delta_timeseries_stats_list=[]
+    for bidx in bidx_group_list:
+        delta_timeseries_mean = np.apply_along_axis(
+            np.mean, 0, hourly_ts_mat[bidx])
+        delta_timeseries_sd = np.apply_along_axis(
+            np.std, 0, hourly_ts_mat[bidx])
+        delta_timeseries_stats_list.append(
+            np.array([delta_timeseries_mean, delta_timeseries_sd]))
+
+    # pylint: disable=E1136  # pylint/issues/3139
+    x_max = hourly_ts_mat.shape[1]
+    x = np.arange(x_max)
+    if len(mouse_groups_set) > 1:
+        # contrast to group index = 0
+        for g_idx in range(1, len(mouse_groups_set)):
+            num = np.sum(bidx_group_list[g_idx])
+            fig = Figure(figsize=(13, 6))
+            ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
+
+            _set_common_features_delta_power_timeseries(ax1, x_max)
+
+            # Control (always the first group)
+            num_c = np.sum(bidx_group_list[0])
+            y = delta_timeseries_stats_list[0][0, :]
+            y_sem = delta_timeseries_stats_list[0][1, :]/np.sqrt(num_c)
+            ax1.plot(x, y, color='grey')
+            ax1.fill_between(x, y - y_sem,
+                            y + y_sem, color='grey', alpha=0.3)
+            ax1.set_ylabel('Hourly mean delta power [AU]')
+            ax1.set_xlabel('Time (hours)')
+
+            # Treatment
+            g_idx = 1
+            num = np.sum(bidx_group_list[g_idx])
+            y = delta_timeseries_stats_list[g_idx][0, :]
+            y_sem = delta_timeseries_stats_list[g_idx][1, :]/np.sqrt(num)
+            ax1.plot(x, y, color=stage.COLOR_NREM)
+            ax1.fill_between(x, y - y_sem,
+                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+
+            fig.suptitle(
+                f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
+            filename = f'delta_power_timeseries_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}.jpg'
+            fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                        bbox_inches='tight', dpi=100, quality=85, optimize=True)
+    else:
+        # single group
+        g_idx = 0
+
+        fig = Figure(figsize=(13, 6))
+        ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
+
+        _set_common_features_delta_power_timeseries(ax1, x_max)
+
+        y = delta_timeseries_stats_list[g_idx][0, :]
+        y_sem = delta_timeseries_stats_list[g_idx][1, :]/np.sqrt(num)
+        ax1.plot(x, y, color=stage.COLOR_NREM)
+        ax1.fill_between(x, y - y_sem,
+                        y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+        ax1.set_ylabel('Hourly mean delta power [AU]')
+        ax1.set_xlabel('Time (hours)')
+
+        fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
+        filename = f'delta_power_timeseries_{mouse_groups_set[g_idx]}.jpg'
+        fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                    bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
 def x_shifts(values, y_min, y_max, width):
