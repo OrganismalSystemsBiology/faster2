@@ -23,10 +23,10 @@ DOMAIN_NAMES = ['Slow', 'Delta w/o slow', 'Delta', 'Theta']
 
 def collect_mouse_info_df(faster_dir_list):
     """ collects multiple mouse info
-    
+
     Arguments:
         faster_dir_list [str] -- a list of paths for FASTER directories
-    
+
     Returns:
         {'mouse_info':pd.DataFrame, 'epoch_num':int, 'sample_freq':np.float} -- A dict of 
         dataframe of the concatenated mouse info, the sampling frequency, 
@@ -51,12 +51,12 @@ def collect_mouse_info_df(faster_dir_list):
             raise(ValueError('sample freq must be equal among the all dataset'))
         else:
             sample_freq_stored = sample_freq
-        
+
         m_info = stage.read_mouse_info(data_dir)
         m_info['Experiment label'] = exp_label
         m_info['FASTER_DIR'] = faster_dir
-        mouse_info_df = pd.concat([mouse_info_df, m_info]) 
-    return ({'mouse_info':mouse_info_df, 'epoch_num':epoch_num, 'sample_freq':sample_freq})
+        mouse_info_df = pd.concat([mouse_info_df, m_info])
+    return ({'mouse_info': mouse_info_df, 'epoch_num': epoch_num, 'sample_freq': sample_freq})
 
 
 def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
@@ -66,7 +66,7 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
             stage circadian profile: hourly profiles of stages over a day
             transition matrix: transition probability matrix among each stage
             sw transitino: Sleep (NREM+REM) and Wake transition probability 
-    
+
     Arguments:
         mouse_info_df {pd.DataFram} -- a dataframe returned by collect_mouse_info_df()
         epoch_range {slice} -- target eopchs to be summarized
@@ -93,34 +93,38 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
         note = r['Note']
         exp_label = r['Experiment label'].strip()
         faster_dir = r['FASTER_DIR']
-        if stats_report=='NO':
+        if stats_report == 'NO':
             print(f'[{i+1}] skipping stage: {faster_dir} {device_label}')
             continue
-        
+
         # read a stage file
         print(f'[{i+1}] reading stage: {faster_dir} {device_label} {stage_ext}')
-        stage_call = et.read_stages(os.path.join(faster_dir, 'result'), device_label, stage_ext)
+        stage_call = et.read_stages(os.path.join(
+            faster_dir, 'result'), device_label, stage_ext)
         stage_call = stage_call[epoch_range]
         epoch_num = len(stage_call)
-        
+
         # stagetime in a day
         rem, nrem, wake, unknown = stagetime_in_a_day(stage_call)
-        stagetime_df = stagetime_df.append([[exp_label, mouse_group, mouse_id, device_label, rem, nrem, wake, unknown, stats_report, note]], ignore_index=True)
-        
+        stagetime_df = stagetime_df.append(
+            [[exp_label, mouse_group, mouse_id, device_label, rem, nrem, wake, unknown, stats_report, note]], ignore_index=True)
+
         # stage time profile
         stagetime_profile_list.append(stagetime_profile(stage_call))
-        
+
         # stage circadian profile
-        stagetime_circadian_profile_list.append(stagetime_circadian_profile(stage_call))
-        
+        stagetime_circadian_profile_list.append(
+            stagetime_circadian_profile(stage_call))
+
         # transition matrix
         transmat_list.append(transmat_from_stages(stage_call))
 
         # sw transition
         swtrans_list.append(swtrans_from_stages(stage_call))
-        
-    stagetime_df.columns = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label', 'REM', 'NREM', 'Wake', 'Unknown', 'Stats report', 'Note']
-    
+
+    stagetime_df.columns = ['Experiment label', 'Mouse group', 'Mouse ID',
+                            'Device label', 'REM', 'NREM', 'Wake', 'Unknown', 'Stats report', 'Note']
+
     return({'stagetime': stagetime_df,
             'stagetime_profile': stagetime_profile_list,
             'stagetime_circadian': stagetime_circadian_profile_list,
@@ -135,49 +139,53 @@ def stagetime_in_a_day(stage_call):
     Notice this function assumes that the length of the 
     stage_call is multiple of days. Also it assumes that the 
     stage calls are CAPITALIZED.
-    
+
     Arguments:
         stage_call {np.array} -- an array of stage calls (e.g. ['WAKE', 'NREM', ...])
-    
+
     Returns:
         [tuple] -- A tuple of sleep times (rem, nrem, wake, unknown)
     """
     ndata = len(stage_call)
 
-    rem = 1440*np.sum(stage_call=="REM")/ndata
-    nrem = 1440*np.sum(stage_call=="NREM")/ndata
-    wake = 1440*np.sum(stage_call=="WAKE")/ndata
-    unknown = 1440*np.sum(stage_call=="UNKNOWN")/ndata
-    
-    return (rem ,nrem, wake, unknown)
+    rem = 1440*np.sum(stage_call == "REM")/ndata
+    nrem = 1440*np.sum(stage_call == "NREM")/ndata
+    wake = 1440*np.sum(stage_call == "WAKE")/ndata
+    unknown = 1440*np.sum(stage_call == "UNKNOWN")/ndata
+
+    return (rem, nrem, wake, unknown)
 
 
-def stagetime_profile (stage_call):
+def stagetime_profile(stage_call):
     """ hourly profiles of stages over the recording
-    
+
     Arguments:
         stage_call {np.array} -- an array of stage calls (e.g. ['WAKE', 
         'NREM', ...])
-    
+
     Returns:
         [np.array(3, len(stage_calls))] -- each row corrensponds the 
         hourly profiles of stages over the recording (rem, nrem, wake)
     """
-    sm = stage_call.reshape(-1, int(3600/stage.EPOCH_LEN_SEC)) # 60 min(3600 sec) bin
-    rem = np.array([np.sum(s=='REM')*stage.EPOCH_LEN_SEC/60 for s in sm]) # unit minuite
-    nrem = np.array([np.sum(s=='NREM')*stage.EPOCH_LEN_SEC/60 for s in sm]) # unit minuite
-    wake = np.array([np.sum(s=='WAKE')*stage.EPOCH_LEN_SEC/60 for s in sm]) # unit minuite
-    
+    sm = stage_call.reshape(-1, int(3600/stage.EPOCH_LEN_SEC)
+                            )  # 60 min(3600 sec) bin
+    rem = np.array([np.sum(s == 'REM')*stage.EPOCH_LEN_SEC /
+                    60 for s in sm])  # unit minuite
+    nrem = np.array([np.sum(s == 'NREM')*stage.EPOCH_LEN_SEC /
+                     60 for s in sm])  # unit minuite
+    wake = np.array([np.sum(s == 'WAKE')*stage.EPOCH_LEN_SEC /
+                     60 for s in sm])  # unit minuite
+
     return np.array([rem, nrem, wake])
 
 
 def stagetime_circadian_profile(stage_call):
     """hourly profiles of stages over a day (circadian profile)
-    
+
     Arguments:
         stage_call {np.array} -- an array of stage calls (e.g. ['WAKE', 
         'NREM', ...])
-    
+
     Returns:
         [np.array(2,3,24)] -- 1st axis: [mean, sd] 
                             x 2nd axis [rem, nrem, wake]
@@ -208,85 +216,94 @@ def stagetime_circadian_profile(stage_call):
 
 def transmat_from_stages(stages):
     """transition probability matrix among each stage
-    
+
     Arguments:
         stages {np.array} -- an array of stage calls (e.g. ['WAKE', 
         'NREM', ...])
-    
+
     Returns:
         [np.array(3,3)] -- a 3x3 matrix of transition probabilites.
         Notice the order is REM, WAKE, NREM.
     """
-    rr = np.sum((stages[:-1]=='REM') & (stages[1:]=='REM'))  # REM -> REM
-    rw = np.sum((stages[:-1]=='REM') & (stages[1:]=='WAKE')) # REM -> Wake
-    rn = np.sum((stages[:-1]=='REM') & (stages[1:]=='NREM')) # REM -> NREM
+    rr = np.sum((stages[:-1] == 'REM') & (stages[1:] == 'REM'))  # REM -> REM
+    rw = np.sum((stages[:-1] == 'REM') & (stages[1:] == 'WAKE'))  # REM -> Wake
+    rn = np.sum((stages[:-1] == 'REM') & (stages[1:] == 'NREM'))  # REM -> NREM
 
-    wr = np.sum((stages[:-1]=='WAKE') & (stages[1:]=='REM'))  # Wake -> REM
-    ww = np.sum((stages[:-1]=='WAKE') & (stages[1:]=='WAKE')) # Wake-> Wake
-    wn = np.sum((stages[:-1]=='WAKE') & (stages[1:]=='NREM')) # Wake-> NREM
+    wr = np.sum((stages[:-1] == 'WAKE') & (stages[1:] == 'REM'))  # Wake -> REM
+    ww = np.sum((stages[:-1] == 'WAKE') &
+                (stages[1:] == 'WAKE'))  # Wake-> Wake
+    wn = np.sum((stages[:-1] == 'WAKE') &
+                (stages[1:] == 'NREM'))  # Wake-> NREM
 
-    nr = np.sum((stages[:-1]=='NREM') & (stages[1:]=='REM'))  # NREM -> REM
-    nw = np.sum((stages[:-1]=='NREM') & (stages[1:]=='WAKE')) # NREM -> Wake
-    nn = np.sum((stages[:-1]=='NREM') & (stages[1:]=='NREM')) # NREM -> NREM
- 
+    nr = np.sum((stages[:-1] == 'NREM') & (stages[1:] == 'REM'))  # NREM -> REM
+    nw = np.sum((stages[:-1] == 'NREM') &
+                (stages[1:] == 'WAKE'))  # NREM -> Wake
+    nn = np.sum((stages[:-1] == 'NREM') &
+                (stages[1:] == 'NREM'))  # NREM -> NREM
+
     r_trans = rr + rw + rn
     w_trans = wr + ww + wn
     n_trans = nr + nw + nn
-    transmat = np.array([[rr, rw, rn]/r_trans, [wr, ww, wn]/w_trans, [nr, nw, nn]/n_trans])
-    
+    transmat = np.array(
+        [[rr, rw, rn]/r_trans, [wr, ww, wn]/w_trans, [nr, nw, nn]/n_trans])
+
     return transmat
 
 
 def swtrans_from_stages(stages):
     """Sleep (REM+NREM) <> Wake transition probability matrix 
     among each stage
-    
+
     Arguments:
         stages {np.array} -- an array of stage calls (e.g. ['WAKE', 
         'NREM', ...])
-    
+
     Returns:
         [np.array(2)] -- a 1D array of transition probabilites.
         Notice the order is Psw, Pws.
     """
-    rr = np.sum((stages[:-1]=='REM') & (stages[1:]=='REM'))  # REM -> REM
-    rw = np.sum((stages[:-1]=='REM') & (stages[1:]=='WAKE')) # REM -> Wake
-    rn = np.sum((stages[:-1]=='REM') & (stages[1:]=='NREM')) # REM -> NREM
+    rr = np.sum((stages[:-1] == 'REM') & (stages[1:] == 'REM'))  # REM -> REM
+    rw = np.sum((stages[:-1] == 'REM') & (stages[1:] == 'WAKE'))  # REM -> Wake
+    rn = np.sum((stages[:-1] == 'REM') & (stages[1:] == 'NREM'))  # REM -> NREM
 
-    wr = np.sum((stages[:-1]=='WAKE') & (stages[1:]=='REM'))  # Wake -> REM
-    ww = np.sum((stages[:-1]=='WAKE') & (stages[1:]=='WAKE')) # Wake-> Wake
-    wn = np.sum((stages[:-1]=='WAKE') & (stages[1:]=='NREM')) # Wake-> NREM
+    wr = np.sum((stages[:-1] == 'WAKE') & (stages[1:] == 'REM'))  # Wake -> REM
+    ww = np.sum((stages[:-1] == 'WAKE') &
+                (stages[1:] == 'WAKE'))  # Wake-> Wake
+    wn = np.sum((stages[:-1] == 'WAKE') &
+                (stages[1:] == 'NREM'))  # Wake-> NREM
 
-    nr = np.sum((stages[:-1]=='NREM') & (stages[1:]=='REM')) # NREM -> REM
-    nw = np.sum((stages[:-1]=='NREM') & (stages[1:]=='WAKE')) # NREM -> Wake
-    nn = np.sum((stages[:-1]=='NREM') & (stages[1:]=='NREM')) # NREM -> NREM
- 
+    nr = np.sum((stages[:-1] == 'NREM') & (stages[1:] == 'REM'))  # NREM -> REM
+    nw = np.sum((stages[:-1] == 'NREM') &
+                (stages[1:] == 'WAKE'))  # NREM -> Wake
+    nn = np.sum((stages[:-1] == 'NREM') &
+                (stages[1:] == 'NREM'))  # NREM -> NREM
+
     s_trans = rr + rw + rn + nr + nw + nn
     w_trans = wr + ww + wn
-    swtrans = np.array([(rw+nw)/s_trans, (wn+wr)/w_trans]) # Psw, Pws
-    
+    swtrans = np.array([(rw+nw)/s_trans, (wn+wr)/w_trans])  # Psw, Pws
+
     return swtrans
 
 
 def test_two_sample(x, y):
-    ## test.two.sample: Performs two-sample statistical tests according to our labratory's standard.
-    ##                          
-    ## Arguments:
-    ##  x: first samples
-    ##  y: second samples
-    ## 
-    ## Return:
-    ##  A dict of (p.value=p.value, method=method (string))
+    # test.two.sample: Performs two-sample statistical tests according to our labratory's standard.
     ##
-    
+    # Arguments:
+    # x: first samples
+    # y: second samples
+    ##
+    # Return:
+    # A dict of (p.value=p.value, method=method (string))
+    ##
+
     # remove nan
     xx = np.array(x)
     yy = np.array(y)
     xx = xx[~np.isnan(xx)]
     yy = yy[~np.isnan(yy)]
-    
+
     # If input data length < 2, any test is not applicable.
-    if (len(xx)<2) or (len(yy)<2):
+    if (len(xx) < 2) or (len(yy) < 2):
         p_value = np.nan
         stars = ''
         method = None
@@ -300,13 +317,13 @@ def test_two_sample(x, y):
         else:
             normality_xx_p = stats.shapiro(xx)[1]
             normality_yy_p = stats.shapiro(yy)[1]
-        
-        equal_variance_p = var_test(xx,yy)['p_value']
-            
+
+        equal_variance_p = var_test(xx, yy)['p_value']
+
         if not ((normality_xx_p < 0.05) or (normality_yy_p < 0.05) or (equal_variance_p < 0.05)):
-            # When any null-hypotheses of the normalities of x and of y, 
+            # When any null-hypotheses of the normalities of x and of y,
             # and the equal variance of (x,y) are NOT rejected,
-            # use Student's t-test        
+            # use Student's t-test
             method = "Student's t-test"
             p_value = stats.ttest_ind(xx, yy, equal_var=True)[1]
         elif not ((normality_xx_p < 0.05) or (normality_yy_p < 0.05)) and (equal_variance_p < 0.05):
@@ -318,12 +335,12 @@ def test_two_sample(x, y):
         else:
             # If none of above was satisfied, use Wilcoxon's ranksum test.
             method = "Wilcoxon test"
-            # same as stats.mannwhitneyu() with alternative='two-sided', use_continuity=False 
+            # same as stats.mannwhitneyu() with alternative='two-sided', use_continuity=False
             # or R's wilcox.test(x, y, exact=F, correct=F)
             p_value = stats.ranksums(xx, yy)[1]
 
         # stars
-        if not np.isnan(p_value) and p_value<0.001:
+        if not np.isnan(p_value) and p_value < 0.001:
             stars = '***'
         elif p_value < 0.01:
             stars = '**'
@@ -331,8 +348,8 @@ def test_two_sample(x, y):
             stars = '*'
         else:
             stars = ''
-    
-    res = {'p_value': p_value, 'stars':stars, 'method':method}
+
+    res = {'p_value': p_value, 'stars': stars, 'method': method}
     return res
 
 
@@ -345,12 +362,12 @@ def var_test(x, y):
     v1 = np.var(y, ddof=1)
     v2 = np.var(x, ddof=1)
     F = v1/v2
-    if F>1:
-        p_value = stats.f.sf(F, df2, df1)*2 # two-sided
+    if F > 1:
+        p_value = stats.f.sf(F, df2, df1)*2  # two-sided
     else:
-        p_value = (1-stats.f.sf(F, df2, df1))*2 # two-sided
-     
-    return {'F':F, 'df1':df1, 'df2':df2, 'p_value':p_value}
+        p_value = (1-stats.f.sf(F, df2, df1))*2  # two-sided
+
+    return {'F': F, 'df1': df1, 'df2': df2, 'p_value': p_value}
 
 
 def _set_common_features_stagetime_profile(ax, x_max):
@@ -370,7 +387,7 @@ def _set_common_features_stagetime_profile(ax, x_max):
 
 
 def _set_common_features_stagetime_profile_rem(ax, x_max):
-    r = 4 # a scale factor for y-axis
+    r = 4  # a scale factor for y-axis
     ax.set_yticks(np.array([0, 20, 40, 60])/r)
     ax.set_xticks(np.arange(0, x_max+1, 6))
     ax.grid(dashes=(2, 2))
@@ -393,7 +410,7 @@ def draw_stagetime_profile_individual(stagetime_stats, output_dir):
     x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
     x = np.arange(x_max)
     for i, profile in enumerate(stagetime_profile_list):
-        fig = Figure(figsize=(13,6))
+        fig = Figure(figsize=(13, 6))
         ax1 = fig.add_subplot(311, xmargin=0, ymargin=0)
         ax2 = fig.add_subplot(312, xmargin=0, ymargin=0)
         ax3 = fig.add_subplot(313, xmargin=0, ymargin=0)
@@ -406,14 +423,15 @@ def draw_stagetime_profile_individual(stagetime_stats, output_dir):
         ax3.set_ylabel('Hourly wake\n duration (min)')
         ax3.set_xlabel('Time (hours)')
 
+        ax1.plot(x, profile[0, :], color=stage.COLOR_REM)
+        ax2.plot(x, profile[1, :], color=stage.COLOR_NREM)
+        ax3.plot(x, profile[2, :], color=stage.COLOR_WAKE)
 
-        ax1.plot(x, profile[0,:], color=stage.COLOR_REM)
-        ax2.plot(x, profile[1,:], color=stage.COLOR_NREM)
-        ax3.plot(x, profile[2,:], color=stage.COLOR_WAKE)
-
-        fig.suptitle(f'Stage-time profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
+        fig.suptitle(
+            f'Stage-time profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
         filename = f'stage-time_profile_{"_".join(stagetime_df.iloc[i,0:4].values)}.jpg'
-        fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+        fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                    bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
 def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
@@ -424,23 +442,26 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
     mouse_groups_set = sorted(set(mouse_groups), key=list(
         mouse_groups).index)  # unique elements with preseved order
 
-    bidx_group_list = [mouse_groups==g for g in mouse_groups_set]
+    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]
 
     # make stats of stagetime profile: mean and sd over each group
-    stagetime_profile_mat = np.array(stagetime_profile_list) # REM, NREM, Wake
+    stagetime_profile_mat = np.array(stagetime_profile_list)  # REM, NREM, Wake
     stagetime_profile_stats_list = []
     for bidx in bidx_group_list:
-        stagetime_profile_mean = np.apply_along_axis(np.mean, 0, stagetime_profile_mat[bidx])
-        stagetime_profile_sd   = np.apply_along_axis(np.std, 0, stagetime_profile_mat[bidx])
-        stagetime_profile_stats_list.append(np.array([stagetime_profile_mean, stagetime_profile_sd]))
+        stagetime_profile_mean = np.apply_along_axis(
+            np.mean, 0, stagetime_profile_mat[bidx])
+        stagetime_profile_sd = np.apply_along_axis(
+            np.std, 0, stagetime_profile_mat[bidx])
+        stagetime_profile_stats_list.append(
+            np.array([stagetime_profile_mean, stagetime_profile_sd]))
     epoch_num = stagetime_stats['epoch_num']
     x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
     x = np.arange(x_max)
-    if len(mouse_groups_set)>1:
+    if len(mouse_groups_set) > 1:
         # contrast to group index = 0
         for g_idx in range(1, len(mouse_groups_set)):
             num = np.sum(bidx_group_list[g_idx])
-            fig = Figure(figsize=(13,6))
+            fig = Figure(figsize=(13, 6))
             ax1 = fig.add_subplot(311, xmargin=0, ymargin=0)
             ax2 = fig.add_subplot(312, xmargin=0, ymargin=0)
             ax3 = fig.add_subplot(313, xmargin=0, ymargin=0)
@@ -449,61 +470,62 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
             _set_common_features_stagetime_profile(ax2, x_max)
             _set_common_features_stagetime_profile(ax3, x_max)
 
-            ## Control (always the first group)
+            # Control (always the first group)
             num_c = np.sum(bidx_group_list[0])
             # REM
-            y     = stagetime_profile_stats_list[0][0, 0, :]
+            y = stagetime_profile_stats_list[0][0, 0, :]
             y_sem = stagetime_profile_stats_list[0][1, 0, :]/np.sqrt(num_c)
             ax1.plot(x, y, color='grey')
             ax1.fill_between(x, y - y_sem,
-                                y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', alpha=0.3)
             ax1.set_ylabel('Hourly REM\n duration (min)')
 
             # NREM
-            y     = stagetime_profile_stats_list[0][0, 1, :]
+            y = stagetime_profile_stats_list[0][0, 1, :]
             y_sem = stagetime_profile_stats_list[0][1, 1, :]/np.sqrt(num_c)
             ax2.plot(x, y, color='grey')
             ax2.fill_between(x, y - y_sem,
-                                y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', alpha=0.3)
             ax2.set_ylabel('Hourly NREM\n duration (min)')
 
             # Wake
-            y     = stagetime_profile_stats_list[0][0, 2, :]
+            y = stagetime_profile_stats_list[0][0, 2, :]
             y_sem = stagetime_profile_stats_list[0][1, 2, :]/np.sqrt(num_c)
             ax3.plot(x, y, color='grey')
             ax3.fill_between(x, y - y_sem/np.sqrt(num),
-                                y + y_sem/np.sqrt(num), color='grey', alpha=0.3)
+                             y + y_sem/np.sqrt(num), color='grey', alpha=0.3)
             ax3.set_ylabel('Hourly wake\n duration (min)')
             ax3.set_xlabel('Time (hours)')
 
-
-            ## Treatment
+            # Treatment
             g_idx = 1
             num = np.sum(bidx_group_list[g_idx])
             # REM
-            y     = stagetime_profile_stats_list[g_idx][0, 0, :]
+            y = stagetime_profile_stats_list[g_idx][0, 0, :]
             y_sem = stagetime_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
             ax1.plot(x, y, color=stage.COLOR_REM)
             ax1.fill_between(x, y - y_sem,
-                                y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_REM, alpha=0.3)
 
             # NREM
-            y     = stagetime_profile_stats_list[g_idx][0, 1, :]
+            y = stagetime_profile_stats_list[g_idx][0, 1, :]
             y_sem = stagetime_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
             ax2.plot(x, y, color=stage.COLOR_NREM)
             ax2.fill_between(x, y - y_sem,
-                                y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
 
             # Wake
-            y     = stagetime_profile_stats_list[g_idx][0, 2, :]
+            y = stagetime_profile_stats_list[g_idx][0, 2, :]
             y_sem = stagetime_profile_stats_list[g_idx][1, 2, :]/np.sqrt(num)
             ax3.plot(x, y, color=stage.COLOR_WAKE)
             ax3.fill_between(x, y - y_sem,
-                                y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
 
-            fig.suptitle(f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
+            fig.suptitle(
+                f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
             filename = f'stage-time_profile_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}.jpg'
-            fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+            fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                        bbox_inches='tight', dpi=100, quality=85, optimize=True)
     else:
         # single group
         g_idx = 0
@@ -511,7 +533,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
         num = np.sum(bidx_group_list[g_idx])
         x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
         x = np.arange(x_max)
-        fig = Figure(figsize=(13,6))
+        fig = Figure(figsize=(13, 6))
         ax1 = fig.add_subplot(311, xmargin=0, ymargin=0)
         ax2 = fig.add_subplot(312, xmargin=0, ymargin=0)
         ax3 = fig.add_subplot(313, xmargin=0, ymargin=0)
@@ -521,33 +543,34 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
         _set_common_features_stagetime_profile(ax3, x_max)
 
         # REM
-        y     = stagetime_profile_stats_list[g_idx][0, 0, :]
+        y = stagetime_profile_stats_list[g_idx][0, 0, :]
         y_sem = stagetime_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
         ax1.plot(x, y, color=stage.COLOR_REM)
         ax1.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_REM, alpha=0.3)
         ax1.set_ylabel('Hourly REM\n duration (min)')
 
         # NREM
-        y     = stagetime_profile_stats_list[g_idx][0, 1, :]
+        y = stagetime_profile_stats_list[g_idx][0, 1, :]
         y_sem = stagetime_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
         ax2.plot(x, y, color=stage.COLOR_NREM)
         ax2.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
         ax2.set_ylabel('Hourly NREM\n duration (min)')
 
         # Wake
-        y     = stagetime_profile_stats_list[g_idx][0, 2, :]
+        y = stagetime_profile_stats_list[g_idx][0, 2, :]
         y_sem = stagetime_profile_stats_list[g_idx][1, 2, :]/np.sqrt(num)
         ax3.plot(x, y, color=stage.COLOR_WAKE)
         ax3.fill_between(x, y - y_sem/np.sqrt(num),
-                            y + y_sem/np.sqrt(num), color=stage.COLOR_WAKE, alpha=0.3)
+                         y + y_sem/np.sqrt(num), color=stage.COLOR_WAKE, alpha=0.3)
         ax3.set_ylabel('Hourly wake\n duration (min)')
         ax3.set_xlabel('Time (hours)')
 
         fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
         filename = f'stage-time_profile_{mouse_groups_set[g_idx]}.jpg'
-        fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+        fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                    bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
 def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir):
@@ -556,7 +579,7 @@ def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir):
     for i, circadian in enumerate(stagetime_circadian_list):
         x_max = 24
         x = np.arange(x_max)
-        fig = Figure(figsize=(13,4))
+        fig = Figure(figsize=(13, 4))
         fig.subplots_adjust(wspace=0.3)
         ax1 = fig.add_subplot(131, xmargin=0, ymargin=0)
         ax2 = fig.add_subplot(132, xmargin=0, ymargin=0)
@@ -575,29 +598,31 @@ def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir):
         num = epoch_num*stage.EPOCH_LEN_SEC/3600/24
 
         # REM
-        y    = circadian[0, 0, :]
+        y = circadian[0, 0, :]
         y_sem = circadian[1, 0, :]/np.sqrt(num)
         ax1.plot(x, y, color=stage.COLOR_REM)
         ax1.fill_between(x, y - y_sem,
-                        y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_REM, alpha=0.3)
 
         # NREM
-        y    = circadian[0, 1, :]
+        y = circadian[0, 1, :]
         y_sem = circadian[1, 1, :]/np.sqrt(num)
         ax2.plot(x, y, color=stage.COLOR_NREM)
         ax2.fill_between(x, y - y_sem,
-                        y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
 
         # Wake
-        y    = circadian[0, 2, :]
+        y = circadian[0, 2, :]
         y_sem = circadian[1, 2, :]/np.sqrt(num)
         ax3.plot(x, y, color=stage.COLOR_WAKE)
         ax3.fill_between(x, y - y_sem,
-                        y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
 
-        fig.suptitle(f'Circadian stage-time profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
+        fig.suptitle(
+            f'Circadian stage-time profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
         filename = f'stage-time_circadian_profile_{"_".join(stagetime_df.iloc[i,0:4].values)}.jpg'
-        fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+        fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                    bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
 def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
@@ -608,7 +633,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
     mouse_groups_set = sorted(set(mouse_groups), key=list(
         mouse_groups).index)  # unique elements with preseved order
 
-    bidx_group_list = [mouse_groups==g for g in mouse_groups_set]
+    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]
 
     # make stats of stagetime circadian profile: mean and sd over each group
     # mouse x [mean of REM, NREM, Wake] x 24 hours
@@ -625,9 +650,9 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
 
     x_max = 24
     x = np.arange(x_max)
-    if len(mouse_groups_set)>1:
-        for g_idx in range(1, len(mouse_groups_set)):        
-            fig = Figure(figsize=(13,4))
+    if len(mouse_groups_set) > 1:
+        for g_idx in range(1, len(mouse_groups_set)):
+            fig = Figure(figsize=(13, 4))
             fig.subplots_adjust(wspace=0.3)
             ax1 = fig.add_subplot(131, xmargin=0, ymargin=0)
             ax2 = fig.add_subplot(132, xmargin=0, ymargin=0)
@@ -643,81 +668,90 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
             ax2.set_ylabel('Hourly NREM\n duration (min)')
             ax3.set_ylabel('Hourly wake\n duration (min)')
 
-
-            ## Control (always the first group)
+            # Control (always the first group)
             num_c = np.sum(bidx_group_list[0])
             # REM
-            y     = stagetime_circadian_profile_stats_list[0][0, 0, :]
-            y_sem = stagetime_circadian_profile_stats_list[0][1, 0, :]/np.sqrt(num_c)
+            y = stagetime_circadian_profile_stats_list[0][0, 0, :]
+            y_sem = stagetime_circadian_profile_stats_list[0][1, 0, :]/np.sqrt(
+                num_c)
             ax1.plot(x, y, color='grey')
             ax1.fill_between(x, y - y_sem,
-                                y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', alpha=0.3)
 
             # NREM
-            y    = stagetime_circadian_profile_stats_list[0][0, 1, :]
-            y_sem = stagetime_circadian_profile_stats_list[0][1, 1, :]/np.sqrt(num_c)
+            y = stagetime_circadian_profile_stats_list[0][0, 1, :]
+            y_sem = stagetime_circadian_profile_stats_list[0][1, 1, :]/np.sqrt(
+                num_c)
             ax2.plot(x, y, color='grey')
             ax2.fill_between(x, y - y_sem,
-                                y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', alpha=0.3)
 
             # Wake
-            y     = stagetime_circadian_profile_stats_list[0][0, 2, :]
-            y_sem = stagetime_circadian_profile_stats_list[0][1, 2, :]/np.sqrt(num_c)
+            y = stagetime_circadian_profile_stats_list[0][0, 2, :]
+            y_sem = stagetime_circadian_profile_stats_list[0][1, 2, :]/np.sqrt(
+                num_c)
             ax3.plot(x, y, color='grey')
             ax3.fill_between(x, y - y_sem,
-                                y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', alpha=0.3)
 
-            ## Treatment
+            # Treatment
             num = np.sum(bidx_group_list[g_idx])
             # REM
-            y    = stagetime_circadian_profile_stats_list[g_idx][0, 0, :]
-            y_sem= stagetime_circadian_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
+            y = stagetime_circadian_profile_stats_list[g_idx][0, 0, :]
+            y_sem = stagetime_circadian_profile_stats_list[g_idx][1, 0, :]/np.sqrt(
+                num)
             ax1.plot(x, y, color=stage.COLOR_REM)
             ax1.fill_between(x, y - y_sem,
-                                y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_REM, alpha=0.3)
 
             # NREM
-            y    = stagetime_circadian_profile_stats_list[g_idx][0, 1, :]
-            y_sem= stagetime_circadian_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
+            y = stagetime_circadian_profile_stats_list[g_idx][0, 1, :]
+            y_sem = stagetime_circadian_profile_stats_list[g_idx][1, 1, :]/np.sqrt(
+                num)
             ax2.plot(x, y, color=stage.COLOR_NREM)
             ax2.fill_between(x, y - y_sem,
-                                y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
 
             # Wake
-            y    = stagetime_circadian_profile_stats_list[g_idx][0, 2, :]
-            y_sem = stagetime_circadian_profile_stats_list[g_idx][1, 2, :]/np.sqrt(num)
+            y = stagetime_circadian_profile_stats_list[g_idx][0, 2, :]
+            y_sem = stagetime_circadian_profile_stats_list[g_idx][1, 2, :]/np.sqrt(
+                num)
             ax3.plot(x, y, color=stage.COLOR_WAKE)
             ax3.fill_between(x, y - y_sem,
-                                y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
 
-            fig.suptitle(f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
+            fig.suptitle(
+                f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
             filename = f'stage-time_circadian_profile_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}.jpg'
-            fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+            fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                        bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
 def x_shifts(values, y_min, y_max, width):
-#    print(y_min, y_max)
-    counts, _ = np.histogram(values,range=(np.min([y_min, np.min(values)]), np.max([y_max, np.max(values)])), bins=30)
+    #    print(y_min, y_max)
+    counts, _ = np.histogram(values, range=(
+        np.min([y_min, np.min(values)]), np.max([y_max, np.max(values)])), bins=30)
     sorted_values = sorted(values)
     shifts = []
 #    print(counts)
-    non_zero_counts = counts[counts>0]
+    non_zero_counts = counts[counts > 0]
     for c in non_zero_counts:
-        if c==1:
+        if c == 1:
             shifts.append(0)
         else:
-            p = np.arange(1,c+1) # point counts
-            s = np.repeat(p, 2)[:p.size] * (-1)**p * width/10 # [-1, 1, -2, 2, ...] * width/10
+            p = np.arange(1, c+1)  # point counts
+            s = np.repeat(p, 2)[:p.size] * (-1)**p * width / \
+                10  # [-1, 1, -2, 2, ...] * width/10
             shifts.extend(s)
-    
+
 #     print(shifts)
 #     print(sorted_values)
     return [np.array(shifts), sorted_values]
 
 
 def scatter_datapoints(ax, w, x_pos, values):
-    s, v =  x_shifts(values, *ax.get_ylim(), w)
-    ax.scatter(x_pos + s, v , color='darkgrey')
+    s, v = x_shifts(values, *ax.get_ylim(), w)
+    ax.scatter(x_pos + s, v, color='darkgrey')
 
 
 def draw_stagetime_barchart(stagetime_stats, output_dir):
@@ -726,16 +760,16 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
     mouse_groups = stagetime_df['Mouse group'].values
     mouse_groups_set = sorted(set(mouse_groups), key=list(
         mouse_groups).index)  # unique elements with preseved order
-    bidx_group_list = [mouse_groups==g for g in mouse_groups_set]
+    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]
     num_groups = len(mouse_groups_set)
 
-    fig = Figure(figsize=(10,4))
+    fig = Figure(figsize=(10, 4))
     fig.subplots_adjust(wspace=0.5)
     ax1 = fig.add_subplot(131)
     ax2 = fig.add_subplot(132)
     ax3 = fig.add_subplot(133)
 
-    w = 0.8 # bar width
+    w = 0.8  # bar width
     x_pos = range(num_groups)
     xtick_str_list = ['\n'.join(textwrap.wrap(mouse_groups_set[g_idx], 8))
                       for g_idx in range(num_groups)]
@@ -749,88 +783,98 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
     ax2.set_ylabel('NREM duration (min)')
     ax3.set_ylabel('Wake duration (min)')
 
-    if num_groups>1:
+    if num_groups > 1:
         # REM
         values_c = stagetime_df['REM'].values[bidx_group_list[0]]
         mean_c = np.mean(values_c)
-        sem_c  = np.std(values_c)/np.sqrt(len(values_c))
-        ax1.bar(x_pos[0], mean_c, yerr=sem_c, align='center', width=w, capsize=6, color='grey', alpha=0.6)
+        sem_c = np.std(values_c)/np.sqrt(len(values_c))
+        ax1.bar(x_pos[0], mean_c, yerr=sem_c, align='center',
+                width=w, capsize=6, color='grey', alpha=0.6)
         scatter_datapoints(ax1, w, x_pos[0], values_c)
         for g_idx in range(1, num_groups):
             values_t = stagetime_df['REM'].values[bidx_group_list[g_idx]]
             mean_t = np.mean(values_t)
-            sem_t  = np.std(values_t)/np.sqrt(len(values_t))
-            ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
+            sem_t = np.std(values_t)/np.sqrt(len(values_t))
+            ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
+                    width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
             scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
 
-        #NREM
+        # NREM
         values_c = stagetime_df['NREM'].values[bidx_group_list[0]]
         mean_c = np.mean(values_c)
-        sem_c  = np.std(values_c)/np.sqrt(len(values_c))
-        ax2.bar(x_pos[0], mean_c, yerr=sem_c, align='center', width=w, capsize=6, color='grey', alpha=0.6)
+        sem_c = np.std(values_c)/np.sqrt(len(values_c))
+        ax2.bar(x_pos[0], mean_c, yerr=sem_c, align='center',
+                width=w, capsize=6, color='grey', alpha=0.6)
         scatter_datapoints(ax2, w, x_pos[0], values_c)
 
         for g_idx in range(1, num_groups):
             values_t = stagetime_df['NREM'].values[bidx_group_list[g_idx]]
             mean_t = np.mean(values_t)
-            sem_t  = np.std(values_t)/np.sqrt(len(values_t))
-            ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
+            sem_t = np.std(values_t)/np.sqrt(len(values_t))
+            ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
+                    width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
             scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
 
-        #Wake
+        # Wake
         values_c = stagetime_df['Wake'].values[bidx_group_list[0]]
         mean_c = np.mean(values_c)
-        sem_c  = np.std(values_c)/np.sqrt(len(values_c))
-        ax3.bar(x_pos[0], mean_c, yerr=sem_c, align='center', width=w, capsize=6, color='grey', alpha=0.6)
+        sem_c = np.std(values_c)/np.sqrt(len(values_c))
+        ax3.bar(x_pos[0], mean_c, yerr=sem_c, align='center',
+                width=w, capsize=6, color='grey', alpha=0.6)
         scatter_datapoints(ax3, w, x_pos[0], values_c)
 
         for g_idx in range(1, num_groups):
             values_t = stagetime_df['Wake'].values[bidx_group_list[g_idx]]
             mean_t = np.mean(values_t)
-            sem_t  = np.std(values_t)/np.sqrt(len(values_t))
-            ax3.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
+            sem_t = np.std(values_t)/np.sqrt(len(values_t))
+            ax3.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
+                    width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
             scatter_datapoints(ax3, w, x_pos[g_idx], values_t)
     else:
         # REM
         values_t = stagetime_df['REM'].values[bidx_group_list[0]]
         mean_t = np.mean(values_t)
-        sem_t  = np.std(values_t)/np.sqrt(len(values_t))
-        ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
+        sem_t = np.std(values_t)/np.sqrt(len(values_t))
+        ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
+                width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
         scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
 
-        #NREM
+        # NREM
         values_t = stagetime_df['NREM'].values[bidx_group_list[0]]
         mean_t = np.mean(values_t)
-        sem_t  = np.std(values_t)/np.sqrt(len(values_t))
-        ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
+        sem_t = np.std(values_t)/np.sqrt(len(values_t))
+        ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
+                width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
         scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
 
-        #Wake
+        # Wake
         values_t = stagetime_df['Wake'].values[bidx_group_list[0]]
         mean_t = np.mean(values_t)
-        sem_t  = np.std(values_t)/np.sqrt(len(values_t))
-        ax3.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
+        sem_t = np.std(values_t)/np.sqrt(len(values_t))
+        ax3.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
+                width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
         scatter_datapoints(ax3, w, x_pos[g_idx], values_t)
 
     fig.suptitle('Stage-times')
     filename = 'stage-time_barchart.jpg'
-    fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+    fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
 def _draw_transition_barchart(mouse_groups, transmat_mat):
     mouse_groups_set = sorted(set(mouse_groups), key=list(
         mouse_groups).index)  # unique elements with preseved order
-    bidx_group_list = [mouse_groups==g for g in mouse_groups_set]
+    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]
     num_groups = len(mouse_groups_set)
 
-    fig = Figure(figsize=(12,8))
+    fig = Figure(figsize=(12, 8))
     fig.subplots_adjust(wspace=0.2)
     ax1 = fig.add_subplot(221)
     ax2 = fig.add_subplot(222)
     ax3 = fig.add_subplot(223)
     ax4 = fig.add_subplot(224)
 
-    w = 0.8 # bar width
+    w = 0.8  # bar width
     ax1.set_xticks([0, 2, 4])
     ax2.set_xticks([0, 2])
     ax3.set_xticks([0, 2])
@@ -839,22 +883,22 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
     ax2.set_xticklabels(['RN', 'RW'])
     ax3.set_xticklabels(['NR', 'NW'])
     ax4.set_xticklabels(['WR', 'WN'])
- 
+
     # control group (always index: 0)
     num_c = np.sum(bidx_group_list[0])
-    rr_vals_c = transmat_mat[bidx_group_list[0]][:,0,0]
-    nn_vals_c = transmat_mat[bidx_group_list[0]][:,1,1]
-    ww_vals_c = transmat_mat[bidx_group_list[0]][:,2,2]
-    rw_vals_c = transmat_mat[bidx_group_list[0]][:,0,1]
-    rn_vals_c = transmat_mat[bidx_group_list[0]][:,0,2]
-    wr_vals_c = transmat_mat[bidx_group_list[0]][:,1,0]
-    wn_vals_c = transmat_mat[bidx_group_list[0]][:,1,2]
-    nr_vals_c = transmat_mat[bidx_group_list[0]][:,2,0]
-    nw_vals_c = transmat_mat[bidx_group_list[0]][:,2,1]
+    rr_vals_c = transmat_mat[bidx_group_list[0]][:, 0, 0]
+    nn_vals_c = transmat_mat[bidx_group_list[0]][:, 1, 1]
+    ww_vals_c = transmat_mat[bidx_group_list[0]][:, 2, 2]
+    rw_vals_c = transmat_mat[bidx_group_list[0]][:, 0, 1]
+    rn_vals_c = transmat_mat[bidx_group_list[0]][:, 0, 2]
+    wr_vals_c = transmat_mat[bidx_group_list[0]][:, 1, 0]
+    wn_vals_c = transmat_mat[bidx_group_list[0]][:, 1, 2]
+    nr_vals_c = transmat_mat[bidx_group_list[0]][:, 2, 0]
+    nw_vals_c = transmat_mat[bidx_group_list[0]][:, 2, 1]
 
     if num_groups > 1:
         # staying
-        ## control
+        # control
         x_pos = 0 - w/2
         ax1.bar(x_pos,
                 height=np.mean(rr_vals_c),
@@ -900,7 +944,7 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
             scatter_datapoints(ax1, w, x_pos, ww_vals_t)
 
         # Trnsitions from REM
-        ## control
+        # control
         x_pos = 0 - w/2
         ax2.bar(x_pos,
                 height=np.mean(rn_vals_c),
@@ -933,7 +977,7 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
             scatter_datapoints(ax2, w, x_pos, rn_vals_t)
 
         # Trnsitions from NREM
-        ## control
+        # control
         x_pos = 0 - w/2
         ax3.bar(x_pos,
                 height=np.mean(nr_vals_c),
@@ -966,7 +1010,7 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
             scatter_datapoints(ax3, w, x_pos, nw_vals_t)
 
         # Trnsitions from Wake
-        ## control
+        # control
         x_pos = 0 - w/2
         ax4.bar(x_pos,
                 height=np.mean(wr_vals_c),
@@ -999,7 +1043,7 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
             scatter_datapoints(ax4, w, x_pos, wn_vals_t)
     else:
         # staying
-        ## single group
+        # single group
         x_pos = 0 - w/2
         ax1.bar(x_pos,
                 height=np.mean(rr_vals_c),
@@ -1019,7 +1063,7 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
         scatter_datapoints(ax1, w, x_pos, ww_vals_c)
         # Trnsitions from REM
-        ## single group
+        # single group
         x_pos = 0 - w/2
         ax2.bar(x_pos,
                 height=np.mean(rn_vals_c),
@@ -1033,7 +1077,7 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
         scatter_datapoints(ax2, w, x_pos, rw_vals_c)
         # Trnsitions from NREM
-        ## single group
+        # single group
         x_pos = 0 - w/2
         ax3.bar(x_pos,
                 height=np.mean(nr_vals_c),
@@ -1047,7 +1091,7 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
         scatter_datapoints(ax3, w, x_pos, nw_vals_c)
         # Trnsitions from Wake
-        ## single group
+        # single group
         x_pos = 0 - w/2
         ax4.bar(x_pos,
                 height=np.mean(wr_vals_c),
@@ -1061,8 +1105,8 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
         scatter_datapoints(ax4, w, x_pos, wn_vals_c)
 
-
     return(fig)
+
 
 def draw_transition_barchart_prob(stagetime_stats, output_dir):
     stagetime_df = stagetime_stats['stagetime']
@@ -1077,13 +1121,15 @@ def draw_transition_barchart_prob(stagetime_stats, output_dir):
     axes[1].set_ylabel('prob. to transit from REM')
     axes[2].set_ylabel('prob. to transit from NREM')
     axes[3].set_ylabel('prob. to transit from Wake')
-    fig.suptitle(f'transition probability: {mouse_groups_set[0]} v.s. {"  ".join(mouse_groups_set[1:])}')
+    fig.suptitle(
+        f'transition probability: {mouse_groups_set[0]} v.s. {"  ".join(mouse_groups_set[1:])}')
     filename = 'transition probability_barchart.jpg'
-    fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+    fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
 def _odd(p, epoch_num):
-    min_p = 1/epoch_num # zero probability is replaced by this value
+    min_p = 1/epoch_num  # zero probability is replaced by this value
     max_p = 1-1/epoch_num
     pp = min(max(p, min_p), max_p)
     return np.log10(pp/(1-pp))
@@ -1104,60 +1150,62 @@ def draw_transition_barchart_logodds(stagetime_stats, output_dir):
     axes[1].set_ylabel('log odds to transit from REM')
     axes[2].set_ylabel('log odds to transit from NREM')
     axes[3].set_ylabel('log odds to transit from Wake')
-    fig.suptitle(f'transition probability (log odds): {mouse_groups_set[0]} v.s. {"  ".join(mouse_groups_set[1:])}')
+    fig.suptitle(
+        f'transition probability (log odds): {mouse_groups_set[0]} v.s. {"  ".join(mouse_groups_set[1:])}')
     filename = 'transition probability_barchart_logodds.jpg'
-    fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+    fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
 def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
     mouse_groups_set = sorted(set(mouse_groups), key=list(
         mouse_groups).index)  # unique elements with preseved order
-    bidx_group_list = [mouse_groups==g for g in mouse_groups_set]
+    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]
     num_groups = len(mouse_groups_set)
 
-    fig = Figure(figsize=(4,4))
+    fig = Figure(figsize=(4, 4))
     ax = fig.add_subplot(111)
 
-    w = 0.8 # bar width
+    w = 0.8  # bar width
     ax.set_xticks([0, 2, 4])
     ax.set_xticklabels(['Psw', 'Pws'])
 
     # control group (always index: 0)
     num_c = np.sum(bidx_group_list[0])
-    sw_vals_c = swtrans_mat[bidx_group_list[0]][:,0]
-    ws_vals_c = swtrans_mat[bidx_group_list[0]][:,1]
+    sw_vals_c = swtrans_mat[bidx_group_list[0]][:, 0]
+    ws_vals_c = swtrans_mat[bidx_group_list[0]][:, 1]
 
     ## Psw and Pws
     x_pos = 0 - w/2
-    ax.bar(x_pos, 
-            height=np.mean(sw_vals_c), 
-            yerr  =np.std(sw_vals_c)/num_c, 
-            align='center', width=w, capsize=6, color='gray', alpha=0.6)
+    ax.bar(x_pos,
+           height=np.mean(sw_vals_c),
+           yerr=np.std(sw_vals_c)/num_c,
+           align='center', width=w, capsize=6, color='gray', alpha=0.6)
     scatter_datapoints(ax, w, x_pos, sw_vals_c)
     x_pos = 2 - w/2
-    ax.bar(x_pos, 
-            height=np.mean(ws_vals_c), 
-            yerr  =np.std(ws_vals_c)/num_c, 
-            align='center', width=w, capsize=6, color='gray', alpha=0.6)
+    ax.bar(x_pos,
+           height=np.mean(ws_vals_c),
+           yerr=np.std(ws_vals_c)/num_c,
+           align='center', width=w, capsize=6, color='gray', alpha=0.6)
     scatter_datapoints(ax, w, x_pos, ws_vals_c)
 
     # test group index: g_idx.
     for g_idx in range(1, num_groups):
         num_t = np.sum(bidx_group_list[g_idx])
-        sw_vals_t = swtrans_mat[bidx_group_list[g_idx]][:,0]
+        sw_vals_t = swtrans_mat[bidx_group_list[g_idx]][:, 0]
         x_pos = 0 + g_idx*w/2
-        ax.bar(x_pos, 
-                height=np.mean(sw_vals_t), 
-                yerr  =np.std(sw_vals_t)/num_t, 
-                align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
+        ax.bar(x_pos,
+               height=np.mean(sw_vals_t),
+               yerr=np.std(sw_vals_t)/num_t,
+               align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
         scatter_datapoints(ax, w, x_pos, sw_vals_t)
 
-        ws_vals_t = swtrans_mat[bidx_group_list[g_idx]][:,1]
+        ws_vals_t = swtrans_mat[bidx_group_list[g_idx]][:, 1]
         x_pos = 2 + g_idx*w/2
-        ax.bar(x_pos, 
-                height=np.mean(ws_vals_t), 
-                yerr  =np.std(ws_vals_t)/num_t, 
-                align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
+        ax.bar(x_pos,
+               height=np.mean(ws_vals_t),
+               yerr=np.std(ws_vals_t)/num_t,
+               align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
         scatter_datapoints(ax, w, x_pos, ws_vals_t)
 
     return(fig)
@@ -1173,9 +1221,11 @@ def draw_swtransition_barchart_prob(stagetime_stats, output_dir):
     fig = _draw_swtransition_barchart(mouse_groups, swtrans_mat)
     axes = fig.axes
     axes[0].set_ylabel('prob. to transit\n between sleep and wake')
-    fig.suptitle(f'sleep/wake trantision probability:\n {mouse_groups_set[0]} v.s. {"  ".join(mouse_groups_set[1:])}')
+    fig.suptitle(
+        f'sleep/wake trantision probability:\n {mouse_groups_set[0]} v.s. {"  ".join(mouse_groups_set[1:])}')
     filename = 'sleep-wake transition probability_barchart.jpg'
-    fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+    fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
 def draw_swtransition_barchart_logodds(stagetime_stats, output_dir):
@@ -1189,9 +1239,11 @@ def draw_swtransition_barchart_logodds(stagetime_stats, output_dir):
     fig = _draw_swtransition_barchart(mouse_groups, swtrans_mat)
     axes = fig.axes
     axes[0].set_ylabel('log odds to transit\n between sleep and wake')
-    fig.suptitle(f'sleep/wake trantision probability (log odds) :\n {mouse_groups_set[0]} v.s. {"  ".join(mouse_groups_set[1:])}')
+    fig.suptitle(
+        f'sleep/wake trantision probability (log odds) :\n {mouse_groups_set[0]} v.s. {"  ".join(mouse_groups_set[1:])}')
     filename = 'sleep-wake transition probability_barchart_logodds.jpg'
-    fig.savefig(os.path.join(output_dir, filename), pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+    fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
 def log_psd_inv(y, normalizing_fac, normalizing_mean):
@@ -1212,6 +1264,7 @@ def log_psd_inv(y, normalizing_fac, normalizing_mean):
 
     return 10**((y / normalizing_fac + normalizing_mean) / 10)
 
+
 def conv_PSD_from_snorm_PSD(spec_norm):
     """ calculates the conventional PSD from the spectrum normalized PSD matrix.
     The shape of the input PSD matrix is (epoch_num, freq_bins). 
@@ -1230,14 +1283,16 @@ def conv_PSD_from_snorm_PSD(spec_norm):
     nf = spec_norm['norm_fac']
     nm = spec_norm['mean']
     psd_mat = np.vectorize(log_psd_inv)(psd_norm_mat, nf, nm)
-    
-    return psd_mat    
+
+    return psd_mat
+
 
 def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
     """makes summary log PSD statics of each mouse:
             psd_mean_df: mean log (decibel like) PSD profiles of each stage for each mice.
+            psd_delta_timeseries_df: timeserieses of delta power for each mice
             This function is same with make_psd_profile() except the log transformation. 
-   
+
     Arguments:
         mouse_info_df {pd.DataFram} -- an dataframe given by mouse_info_collected()
         sample_freq {int} -- sampling frequency
@@ -1250,7 +1305,15 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
 
     """
 
+    # frequency bins
+    # assures frequency bins compatibe among different sampling frequencies
+    n_fft = int(256 * sample_freq/100)
+    # same frequency bins given by signal.welch()
+    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+    bidx_delta_freq = (freq_bins<4) # 11 bins
+
     psd_mean_df = pd.DataFrame()
+    psd_delta_timeseries_df = pd.DataFrame()
     for i, r in mouse_info_df.iterrows():
         device_label = r['Device label'].strip()
         stats_report = r['Stats report'].strip().upper()
@@ -1258,7 +1321,6 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         mouse_id = r['Mouse ID'].strip()
         exp_label = r['Experiment label'].strip()
         faster_dir = r['FASTER_DIR']
-
 
         if stats_report == 'NO':
             print(f'[{i+1}] skipping: {faster_dir} {device_label}')
@@ -1276,25 +1338,27 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
             snorm_psd = pickle.load(pkl)
 
         # convert the spectrum normalized PSD to the log PSD
-        conv_psd = 10*np.log10(conv_PSD_from_snorm_PSD(snorm_psd)) # this is the only difference to make_psd_profile()
+        # this is the only difference to make_psd_profile()
+        conv_psd = 10*np.log10(conv_PSD_from_snorm_PSD(snorm_psd))
 
         # Break at the error: the unknown PSD is not recoverable
         bidx_unknown_psd = snorm_psd['bidx_unknown']
         if not np.all(stage_call[bidx_unknown_psd] == 'UNKNOWN'):
-            print('[Error] "unknown" is recoverable')
-            idx = list(np.where(bidx_unknown_psd)[0][stage_call[bidx_unknown_psd] != 'UNKNOWN'])
+            print('[Error] "unknown" is not recoverable')
+            idx = list(np.where(bidx_unknown_psd)[
+                       0][stage_call[bidx_unknown_psd] != 'UNKNOWN'])
             print(f'... in stage file at {idx}')
             break
-        
+
         # remove unknown-PSD epoch from stage_call
         stage_call = stage_call[~bidx_unknown_psd]
 
-        # bidx_target: bidx for the selected range 
+        # bidx_target: bidx for the selected range
         bidx_selected = np.repeat(False, len(bidx_unknown_psd))
-        bidx_selected[epoch_range] = True 
+        bidx_selected[epoch_range] = True
         bidx_target = bidx_selected[~bidx_unknown_psd]
 
-        bidx_rem =  (stage_call == 'REM') & bidx_target
+        bidx_rem = (stage_call == 'REM') & bidx_target
         bidx_nrem = (stage_call == 'NREM') & bidx_target
         bidx_wake = (stage_call == 'WAKE') & bidx_target
         psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
@@ -1308,22 +1372,30 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         psd_mean_df = psd_mean_df.append([
             [exp_label, mouse_group, mouse_id, device_label, 'Wake'] + psd_mean_wake.tolist()], ignore_index=True)
 
-    # frequency bins
-    # assures frequency bins compatibe among different sampling frequencies
-    n_fft = int(256 * sample_freq/100)
-    # same frequency bins given by signal.welch()
-    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+        # make the delta-power timeseries
+        psd_delta_timeseries = np.apply_along_axis(
+            np.mean, 1, conv_psd[:, bidx_delta_freq])
+        psd_delta_timeseries_df = psd_delta_timeseries_df.append(
+            [[exp_label, mouse_group, mouse_id, device_label] + psd_delta_timeseries.tolist()], ignore_index=True)
+
 
     freq_columns = [f'f@{x}' for x in freq_bins.tolist()]
-    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label', 'Stage'] + freq_columns
+    column_names = ['Experiment label', 'Mouse group',
+                    'Mouse ID', 'Device label', 'Stage'] + freq_columns
     psd_mean_df.columns = column_names
-    return psd_mean_df
+
+    epoch_columns = [f'epoch{x+1}' for x in np.arange(len(conv_psd))]
+    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
+    psd_delta_timeseries_df.columns = column_names
+
+    return psd_mean_df, psd_delta_timeseries_df
 
 
 def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
     """makes summary PSD statics of each mouse:
             psd_mean_df: mean PSD profiles of each stage for each mice
-   
+            psd_delta_timeseries_df: timeserieses of delta power for each mice
+
     Arguments:
         mouse_info_df {pd.DataFram} -- an dataframe given by mouse_info_collected()
         sample_freq {int} -- sampling frequency
@@ -1336,7 +1408,15 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
 
     """
 
+    # frequency bins
+    # assures frequency bins compatibe among different sampling frequencies
+    n_fft = int(256 * sample_freq/100)
+    # same frequency bins given by signal.welch()
+    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+    bidx_delta_freq = (freq_bins<4) # 11 bins
+
     psd_mean_df = pd.DataFrame()
+    psd_delta_timeseries_df = pd.DataFrame()
     for i, r in mouse_info_df.iterrows():
         device_label = r['Device label'].strip()
         stats_report = r['Stats report'].strip().upper()
@@ -1344,7 +1424,6 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         mouse_id = r['Mouse ID'].strip()
         exp_label = r['Experiment label'].strip()
         faster_dir = r['FASTER_DIR']
-
 
         if stats_report == 'NO':
             print(f'[{i+1}] skipping: {faster_dir} {device_label}')
@@ -1367,20 +1446,21 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         # Break at the error: the unknown PSD is not recoverable
         bidx_unknown_psd = snorm_psd['bidx_unknown']
         if not np.all(stage_call[bidx_unknown_psd] == 'UNKNOWN'):
-            print('[Error] "unknown" is recoverable')
-            idx = list(np.where(bidx_unknown_psd)[0][stage_call[bidx_unknown_psd] != 'UNKNOWN'])
+            print('[Error] "unknown" is not recoverable')
+            idx = list(np.where(bidx_unknown_psd)[
+                       0][stage_call[bidx_unknown_psd] != 'UNKNOWN'])
             print(f'... in stage file at {idx}')
             break
 
         # remove unknown-PSD epoch from stage_call
         stage_call = stage_call[~bidx_unknown_psd]
 
-        # bidx_target: bidx for the selected range 
+        # bidx_target: bidx for the selected range
         bidx_selected = np.repeat(False, len(bidx_unknown_psd))
-        bidx_selected[epoch_range] = True 
+        bidx_selected[epoch_range] = True
         bidx_target = bidx_selected[~bidx_unknown_psd]
-    
-        bidx_rem =  (stage_call == 'REM') & bidx_target
+
+        bidx_rem = (stage_call == 'REM') & bidx_target
         bidx_nrem = (stage_call == 'NREM') & bidx_target
         bidx_wake = (stage_call == 'WAKE') & bidx_target
         psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
@@ -1394,16 +1474,23 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         psd_mean_df = psd_mean_df.append([
             [exp_label, mouse_group, mouse_id, device_label, 'Wake'] + psd_mean_wake.tolist()], ignore_index=True)
 
-    # frequency bins
-    # assures frequency bins compatibe among different sampling frequencies
-    n_fft = int(256 * sample_freq/100)
-    # same frequency bins given by signal.welch()
-    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+        # make the delta-power timeseries
+        psd_delta_timeseries = np.apply_along_axis(
+            np.mean, 1, conv_psd[:, bidx_delta_freq])
+        psd_delta_timeseries_df = psd_delta_timeseries_df.append(
+            [[exp_label, mouse_group, mouse_id, device_label] + psd_delta_timeseries.tolist()], ignore_index=True)
+        
 
     freq_columns = [f'f@{x}' for x in freq_bins.tolist()]
-    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label', 'Stage'] + freq_columns
+    column_names = ['Experiment label', 'Mouse group',
+                    'Mouse ID', 'Device label', 'Stage'] + freq_columns
     psd_mean_df.columns = column_names
-    return psd_mean_df
+
+    epoch_columns = [f'epoch{x+1}' for x in np.arange(len(conv_psd))]
+    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
+    psd_delta_timeseries_df.columns = column_names
+
+    return psd_mean_df, psd_delta_timeseries_df
 
 
 def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_label=''):
@@ -1414,7 +1501,8 @@ def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_
 
     # mouse_set
     mouse_list = psd_profiles_df['Mouse ID'].tolist()
-    mouse_set = sorted(set(mouse_list), key=mouse_list.index)  # unique elements with preseved order
+    # unique elements with preseved order
+    mouse_set = sorted(set(mouse_list), key=mouse_list.index)
 
     # draw individual PSDs
     for m in mouse_set:
@@ -1457,12 +1545,13 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
 
     # mouse_group_set
     mouse_group_list = psd_profiles_df['Mouse group'].tolist()
-    mouse_group_set = sorted(set(mouse_group_list), key=mouse_group_list.index)  # unique elements with preseved order
+    # unique elements with preseved order
+    mouse_group_set = sorted(set(mouse_group_list), key=mouse_group_list.index)
 
     # draw gropued PSD
-    ## _c of Control (assuming index = 0 is a control mouse)
+    # _c of Control (assuming index = 0 is a control mouse)
     df = psd_profiles_df[psd_profiles_df['Mouse group'] == mouse_group_set[0]]
-    
+
     psd_mean_mat_rem_c = df[df['Stage'] == 'REM'].iloc[:, 5:].values
     psd_mean_mat_nrem_c = df[df['Stage'] == 'NREM'].iloc[:, 5:].values
     psd_mean_mat_wake_c = df[df['Stage'] == 'Wake'].iloc[:, 5:].values
@@ -1491,8 +1580,9 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
         ax3.set_xlabel('freq. [Hz]')
         ax3.set_ylabel(f'Wake\n{y_label}')
 
-        ## _t of Treatment
-        df = psd_profiles_df[psd_profiles_df['Mouse group'] == mouse_group_set[g_idx]]
+        # _t of Treatment
+        df = psd_profiles_df[psd_profiles_df['Mouse group']
+                             == mouse_group_set[g_idx]]
         psd_mean_mat_rem_t = df[df['Stage'] == 'REM'].iloc[:, 5:].values
         psd_mean_mat_nrem_t = df[df['Stage'] == 'NREM'].iloc[:, 5:].values
         psd_mean_mat_wake_t = df[df['Stage'] == 'Wake'].iloc[:, 5:].values
@@ -1560,18 +1650,22 @@ def write_sleep_stats(stagetime_stats, output_dir):
 
     bidx_group_list = [mouse_groups == g for g in mouse_groups_set]
 
-    sleep_stats_df = pd.DataFrame() # mouse_group, stage_type, num, mean, SD, pvalue, star, method
+    # mouse_group, stage_type, num, mean, SD, pvalue, star, method
+    sleep_stats_df = pd.DataFrame()
 
     # mouse_group's index:0 is always control
     mg = mouse_groups_set[0]
     bidx = bidx_group_list[0]
     num = np.sum(bidx)
-    rem_values_c  = stagetime_df['REM'].values[bidx]
+    rem_values_c = stagetime_df['REM'].values[bidx]
     nrem_values_c = stagetime_df['NREM'].values[bidx]
     wake_values_c = stagetime_df['Wake'].values[bidx]
-    row1 = [mg, 'REM',  num, np.mean(rem_values_c),  np.std(rem_values_c),  np.nan, None, None]
-    row2 = [mg, 'NREM', num, np.mean(nrem_values_c), np.std(nrem_values_c), np.nan, None, None]
-    row3 = [mg, 'Wake', num, np.mean(wake_values_c), np.std(wake_values_c), np.nan, None, None]
+    row1 = [mg, 'REM',  num, np.mean(rem_values_c),  np.std(
+        rem_values_c),  np.nan, None, None]
+    row2 = [mg, 'NREM', num, np.mean(nrem_values_c), np.std(
+        nrem_values_c), np.nan, None, None]
+    row3 = [mg, 'Wake', num, np.mean(wake_values_c), np.std(
+        wake_values_c), np.nan, None, None]
 
     sleep_stats_df = sleep_stats_df.append([row1, row2, row3])
     for i, bidx in enumerate(bidx_group_list[1:]):
@@ -1579,25 +1673,32 @@ def write_sleep_stats(stagetime_stats, output_dir):
         mg = mouse_groups_set[idx]
         bidx = bidx_group_list[idx]
         num = np.sum(bidx)
-        rem_values_t  = stagetime_df['REM'].values[bidx]
+        rem_values_t = stagetime_df['REM'].values[bidx]
         nrem_values_t = stagetime_df['NREM'].values[bidx]
         wake_values_t = stagetime_df['Wake'].values[bidx]
-        
-        tr = test_two_sample(rem_values_c,  rem_values_t) # test for REM
-        tn = test_two_sample(nrem_values_c, nrem_values_t) # test for NREM
-        tw = test_two_sample(wake_values_c, wake_values_t) # test for Wake
-        row1 = [mg, 'REM',  num, np.mean(rem_values_t),  np.std(rem_values_t),  tr['p_value'], tr['stars'], tr['method']]
-        row2 = [mg, 'NREM', num, np.mean(nrem_values_t), np.std(nrem_values_t), tn['p_value'], tn['stars'], tn['method']]
-        row3 = [mg, 'Wake', num, np.mean(wake_values_t), np.std(wake_values_t), tw['p_value'], tw['stars'], tw['method']]
+
+        tr = test_two_sample(rem_values_c,  rem_values_t)  # test for REM
+        tn = test_two_sample(nrem_values_c, nrem_values_t)  # test for NREM
+        tw = test_two_sample(wake_values_c, wake_values_t)  # test for Wake
+        row1 = [mg, 'REM',  num, np.mean(rem_values_t),  np.std(
+            rem_values_t),  tr['p_value'], tr['stars'], tr['method']]
+        row2 = [mg, 'NREM', num, np.mean(nrem_values_t), np.std(
+            nrem_values_t), tn['p_value'], tn['stars'], tn['method']]
+        row3 = [mg, 'Wake', num, np.mean(wake_values_t), np.std(
+            wake_values_t), tw['p_value'], tw['stars'], tw['method']]
 
         sleep_stats_df = sleep_stats_df.append([row1, row2, row3])
-        
-    sleep_stats_df.columns = ['Mouse group', 'Stage type', 'N', 'Mean', 'SD', 'Pvalue', 'Stars', 'Method']
 
-    stagetime_df = stagetime_df.round({'REM':2, 'NREM':2, 'Wake':2, 'Unknown':2})
+    sleep_stats_df.columns = ['Mouse group', 'Stage type',
+                              'N', 'Mean', 'SD', 'Pvalue', 'Stars', 'Method']
 
-    sleep_stats_df.to_csv(os.path.join(output_dir, 'stage-time_stats_table.csv'), index=False)
-    stagetime_df.to_csv(os.path.join(output_dir, 'stage-time_table.csv'), index=False)
+    stagetime_df = stagetime_df.round(
+        {'REM': 2, 'NREM': 2, 'Wake': 2, 'Unknown': 2})
+
+    sleep_stats_df.to_csv(os.path.join(
+        output_dir, 'stage-time_stats_table.csv'), index=False)
+    stagetime_df.to_csv(os.path.join(
+        output_dir, 'stage-time_table.csv'), index=False)
 
 
 def make_psd_domain(psd_profiles_df):
@@ -1612,13 +1713,15 @@ def make_psd_domain(psd_profiles_df):
     """
     # get freq_bins from column names
     freq_bin_columns = psd_profiles_df.columns[5:].tolist()
-    freq_bins = np.array([float(x.strip().split('@')[1]) for x in freq_bin_columns])
-    
+    freq_bins = np.array([float(x.strip().split('@')[1])
+                          for x in freq_bin_columns])
+
     # frequency domains
-    bidx_theta_freq = (freq_bins>=4) & (freq_bins<10) # 15 bins
-    bidx_delta_freq = (freq_bins<4) # 11 bins
-    bidx_delta_wo_slow_freq =  (1<=freq_bins) & (freq_bins<4) # 8 bins (delta without slow)
-    bidx_slow_freq = (freq_bins<1) # 3 bins
+    bidx_theta_freq = (freq_bins >= 4) & (freq_bins < 10)  # 15 bins
+    bidx_delta_freq = (freq_bins < 4)  # 11 bins
+    bidx_delta_wo_slow_freq = (1 <= freq_bins) & (
+        freq_bins < 4)  # 8 bins (delta without slow)
+    bidx_slow_freq = (freq_bins < 1)  # 3 bins
 
     # make psd_domain_df
     row_list = []
@@ -1629,12 +1732,13 @@ def make_psd_domain(psd_profiles_df):
         powers_delta_wo_slow = powers[bidx_delta_wo_slow_freq]
         powers_delta = powers[bidx_delta_freq]
         powers_theta = powers[bidx_theta_freq]
-        
+
         slow_p = np.mean(powers_slow)
         delta_wo_slow_p = np.mean(powers_delta_wo_slow)
         delta_p = np.mean(powers_delta)
         theta_p = np.mean(powers_theta)
-        domain_powers = pd.Series([slow_p, delta_wo_slow_p, delta_p, theta_p], index=DOMAIN_NAMES)
+        domain_powers = pd.Series(
+            [slow_p, delta_wo_slow_p, delta_p, theta_p], index=DOMAIN_NAMES)
 
         row = pd.concat([infos, domain_powers])
         row_list.append(row)
@@ -1654,30 +1758,33 @@ def make_psd_stats(psd_domain_df):
                             mean, SD, pvalue, star, method
     """
     def _domain_powers_by_group(psd_domain_df, group):
-        bidx_group = (psd_domain_df['Mouse group'] == group) 
-        bidx_rem  =  (psd_domain_df['Stage'] == 'REM')
-        bidx_nrem =  (psd_domain_df['Stage'] == 'NREM')
-        bidx_wake =  (psd_domain_df['Stage'] == 'Wake')
+        bidx_group = (psd_domain_df['Mouse group'] == group)
+        bidx_rem = (psd_domain_df['Stage'] == 'REM')
+        bidx_nrem = (psd_domain_df['Stage'] == 'NREM')
+        bidx_wake = (psd_domain_df['Stage'] == 'Wake')
 
-        domain_powers_rem  = psd_domain_df.loc[bidx_group & bidx_rem ][DOMAIN_NAMES]
-        domain_powers_nrem = psd_domain_df.loc[bidx_group & bidx_nrem][DOMAIN_NAMES]
-        domain_powers_wake = psd_domain_df.loc[bidx_group & bidx_wake][DOMAIN_NAMES]
+        domain_powers_rem = psd_domain_df.loc[bidx_group &
+                                              bidx_rem][DOMAIN_NAMES]
+        domain_powers_nrem = psd_domain_df.loc[bidx_group &
+                                               bidx_nrem][DOMAIN_NAMES]
+        domain_powers_wake = psd_domain_df.loc[bidx_group &
+                                               bidx_wake][DOMAIN_NAMES]
 
         return [domain_powers_rem, domain_powers_nrem, domain_powers_wake]
-    
 
-    psd_stats_df = pd.DataFrame() 
+    psd_stats_df = pd.DataFrame()
     # mouse_group_set
     mouse_group_list = psd_domain_df['Mouse group'].tolist()
-    mouse_group_set = sorted(set(mouse_group_list), key=mouse_group_list.index)  # unique elements with preseved order
+    # unique elements with preseved order
+    mouse_group_set = sorted(set(mouse_group_list), key=mouse_group_list.index)
 
     # control
-    group_c = mouse_group_set[0] # index=0 should be always control group
+    group_c = mouse_group_set[0]  # index=0 should be always control group
 
-    ## There are 3 powers_domains_[stages] where [stages] are [REM, NREM, Wake].
-    ## Each powers_domains_[stage] contains 4 Series of domain powers: 
-    ## [slow x mice, delta wo slow x mice, delta x mice, theta x mice]
-    ## Therefore, the following loop results in 12 rows.
+    # There are 3 powers_domains_[stages] where [stages] are [REM, NREM, Wake].
+    # Each powers_domains_[stage] contains 4 Series of domain powers:
+    # [slow x mice, delta wo slow x mice, delta x mice, theta x mice]
+    # Therefore, the following loop results in 12 rows.
     stage_names = ['REM', 'NREM', 'Wake']
     powers_domains_stages_c = _domain_powers_by_group(psd_domain_df, group_c)
 
@@ -1686,29 +1793,30 @@ def make_psd_stats(psd_domain_df):
         for domain_name in DOMAIN_NAMES:
             powers = powers_domains[domain_name]
             num = len(powers)
-            rows.append([group_c, stage_name, domain_name, num, 
-                        np.mean(powers),  np.std(powers), np.nan, None, None])
+            rows.append([group_c, stage_name, domain_name, num,
+                         np.mean(powers),  np.std(powers), np.nan, None, None])
 
     psd_stats_df = psd_stats_df.append(rows)
 
-    ## treatment
+    # treatment
     for group_t in mouse_group_set[1:]:
         rows = []
-        powers_domains_stages_t = _domain_powers_by_group(psd_domain_df, group_t)
+        powers_domains_stages_t = _domain_powers_by_group(
+            psd_domain_df, group_t)
         for stage_name, powers_domains_c, powers_domains_t in zip(stage_names, powers_domains_stages_c, powers_domains_stages_t):
             for domain_name in DOMAIN_NAMES:
                 powers_c = powers_domains_c[domain_name]
                 powers_t = powers_domains_t[domain_name]
                 test = test_two_sample(powers_c, powers_t)
                 num = len(powers_t)
-                rows.append([group_t, stage_name, domain_name, num, 
-                            np.mean(powers_t),  np.std(powers_t), test['p_value'], test['stars'], test['method']])
+                rows.append([group_t, stage_name, domain_name, num,
+                             np.mean(powers_t),  np.std(powers_t), test['p_value'], test['stars'], test['method']])
 
         psd_stats_df = psd_stats_df.append(rows)
 
     psd_stats_df.columns = ['Mouse group', 'Stage type',
                             'Wake type', 'N', 'Mean', 'SD', 'Pvalue', 'Stars', 'Method']
-    
+
     return psd_stats_df
 
 
@@ -1723,9 +1831,12 @@ def write_psd_stats(psd_profiles_df, output_dir, opt_label=''):
     psd_stats_df = make_psd_stats(psd_domain_df)
 
     # write tabels
-    psd_profiles_df.to_csv(os.path.join(output_dir, f'{opt_label}PSD_profile.csv'), index=False)
-    psd_domain_df.to_csv(os.path.join(output_dir, f'{opt_label}PSD_freq_domain_table.csv'), index=False)
-    psd_stats_df.to_csv(os.path.join(output_dir, f'{opt_label}PSD_stats_table.csv'), index=False)
+    psd_profiles_df.to_csv(os.path.join(
+        output_dir, f'{opt_label}PSD_profile.csv'), index=False)
+    psd_domain_df.to_csv(os.path.join(
+        output_dir, f'{opt_label}PSD_freq_domain_table.csv'), index=False)
+    psd_stats_df.to_csv(os.path.join(
+        output_dir, f'{opt_label}PSD_stats_table.csv'), index=False)
 
 
 if __name__ == '__main__':
@@ -1757,7 +1868,8 @@ if __name__ == '__main__':
     # set the epoch range to be summarized
     if args.epoch_range:
         # use the range given by the command line option
-        e_range = [int(x.strip()) if x else None for x in args.epoch_range.split(':')]
+        e_range = [
+            int(x.strip()) if x else None for x in args.epoch_range.split(':')]
         epoch_range = slice(*e_range)
         epoch_num = e_range[1] - e_range[0]
     else:
@@ -1772,11 +1884,12 @@ if __name__ == '__main__':
     # set the output directory
     if output_dir == None:
         # default: output to the first FASTER2 directory
-        if len(faster_dir_list)>1:
-            basenames = [os.path.basename(dir_path) for dir_path in faster_dir_list]
+        if len(faster_dir_list) > 1:
+            basenames = [os.path.basename(dir_path)
+                         for dir_path in faster_dir_list]
             path_ext = '_' + '_'.join(basenames)
         else:
-            path_ext = ''    
+            path_ext = ''
         output_dir = os.path.join(faster_dir_list[0], 'summary' + path_ext)
     os.makedirs(output_dir, exist_ok=True)
 
@@ -1786,12 +1899,12 @@ if __name__ == '__main__':
     # write a table of stats
     write_sleep_stats(stagetime_stats, output_dir)
 
-    # # draw stagetime profile of individual mice
+    # draw stagetime profile of individual mice
     draw_stagetime_profile_individual(stagetime_stats, output_dir)
- 
+
     # draw stagetime profile of grouped mice
     draw_stagetime_profile_grouped(stagetime_stats, output_dir)
-    
+
     # draw stagetime circadian profile of individual mice
     draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir)
 
@@ -1814,25 +1927,34 @@ if __name__ == '__main__':
     draw_swtransition_barchart_logodds(stagetime_stats, output_dir)
 
     # prepare Powerspectrum density (PSD) profiles for individual mice
-    psd_profiles_df = make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext)
-    log_psd_profiles_df = make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext) # decibel-like
+    psd_profiles_df, psd_delta_timeseries_df = make_psd_profile(
+        mouse_info_df, sample_freq, epoch_range, stage_ext)
+    log_psd_profiles_df, log_psd_delta_timeseries_df = make_log_psd_profile(
+        mouse_info_df, sample_freq, epoch_range, stage_ext)  # decibel-like
 
     # write a table of PSD
     write_psd_stats(psd_profiles_df, output_dir)
     write_psd_stats(log_psd_profiles_df, output_dir, 'log-')
 
     # draw power density plot
-    draw_PSDs_individual(psd_profiles_df, sample_freq, 'normalized PSD [AU]', output_dir)
-    draw_PSDs_individual(log_psd_profiles_df, sample_freq, 'normalized PSD [AU]', output_dir, 'log-')
-    draw_PSDs_group(psd_profiles_df, sample_freq, 'normalized PSD [AU]', output_dir)
-    draw_PSDs_group(log_psd_profiles_df, sample_freq, 'normalized PSD [AU]', output_dir, 'log-')
+    draw_PSDs_individual(psd_profiles_df, sample_freq,
+                         'normalized PSD [AU]', output_dir)
+    draw_PSDs_individual(log_psd_profiles_df, sample_freq,
+                         'normalized PSD [AU]', output_dir, 'log-')
+    draw_PSDs_group(psd_profiles_df, sample_freq,
+                    'normalized PSD [AU]', output_dir)
+    draw_PSDs_group(log_psd_profiles_df, sample_freq,
+                    'normalized PSD [AU]', output_dir, 'log-')
 
     # draw power density plot (percentage of the total power)
     psd_profiles_percentage_df = psd_profiles_df.copy()
     total_powers = psd_profiles_df.iloc[:, 5:].apply(np.sum, axis=1)
-    psd_profiles_percentage_df.iloc[:, 5:] = 100*(psd_profiles_df.iloc[:, 5:].T/total_powers).T
-    draw_PSDs_individual(psd_profiles_percentage_df, sample_freq, 'PSD percentage [%]', output_dir, 'percentage-')
-    draw_PSDs_group(psd_profiles_percentage_df, sample_freq, 'PSD percentage [%]', output_dir, 'percentage-')
+    psd_profiles_percentage_df.iloc[:, 5:] = 100 * \
+        (psd_profiles_df.iloc[:, 5:].T/total_powers).T
+    draw_PSDs_individual(psd_profiles_percentage_df, sample_freq,
+                         'PSD percentage [%]', output_dir, 'percentage-')
+    draw_PSDs_group(psd_profiles_percentage_df, sample_freq,
+                    'PSD percentage [%]', output_dir, 'percentage-')
 
     # write a table of PSD percentage
     write_psd_stats(psd_profiles_percentage_df, output_dir, 'percentage-')
