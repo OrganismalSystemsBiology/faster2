@@ -753,7 +753,7 @@ def draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, output_dir):
     hourly_ts_list = []
     for _, ts in psd_delta_timeseries_df.iloc[:,4:].iterrows():
         ts_mat = ts.to_numpy().reshape(-1, int(3600/stage.EPOCH_LEN_SEC))
-        hourly_ts_list.append(np.apply_along_axis(np.mean, 1, ts_mat))
+        hourly_ts_list.append(np.apply_along_axis(np.nanmean, 1, ts_mat))
 
     x_max = ts_mat.shape[0]
     x = np.arange(x_max)
@@ -783,7 +783,7 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, output_dir):
     hourly_ts_list = []
     for _, ts in psd_delta_timeseries_df.iloc[:,4:].iterrows():
         ts_mat = ts.to_numpy().reshape(-1, int(3600/stage.EPOCH_LEN_SEC))
-        hourly_ts_list.append(np.apply_along_axis(np.mean, 1, ts_mat))
+        hourly_ts_list.append(np.apply_along_axis(np.nanmean, 1, ts_mat))
     hourly_ts_mat = np.array(hourly_ts_list)
 
     delta_timeseries_stats_list=[]
@@ -1494,18 +1494,20 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
             [exp_label, mouse_group, mouse_id, device_label, 'Wake'] + psd_mean_wake.tolist()], ignore_index=True)
 
         # make the delta-power timeseries
-        psd_delta_timeseries = np.apply_along_axis(
-            np.mean, 1, conv_psd[:, bidx_delta_freq])
+        psd_delta_timeseries = np.zeros(epoch_num)
+        psd_delta_timeseries[bidx_unknown_psd] = np.nan
+        psd_delta_timeseries[~bidx_unknown_psd] = np.apply_along_axis(np.mean, 1, conv_psd[:, bidx_delta_freq])
+        len(psd_delta_timeseries)
         psd_delta_timeseries_df = psd_delta_timeseries_df.append(
             [[exp_label, mouse_group, mouse_id, device_label] + psd_delta_timeseries.tolist()], ignore_index=True)
-
+ 
 
     freq_columns = [f'f@{x}' for x in freq_bins.tolist()]
     column_names = ['Experiment label', 'Mouse group',
                     'Mouse ID', 'Device label', 'Stage'] + freq_columns
     psd_mean_df.columns = column_names
 
-    epoch_columns = [f'epoch{x+1}' for x in np.arange(len(conv_psd))]
+    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_num)]
     column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
     psd_delta_timeseries_df.columns = column_names
 
@@ -1596,18 +1598,19 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
             [exp_label, mouse_group, mouse_id, device_label, 'Wake'] + psd_mean_wake.tolist()], ignore_index=True)
 
         # make the delta-power timeseries
-        psd_delta_timeseries = np.apply_along_axis(
-            np.mean, 1, conv_psd[:, bidx_delta_freq])
+        psd_delta_timeseries = np.zeros(epoch_num)
+        psd_delta_timeseries[bidx_unknown_psd] = np.nan
+        psd_delta_timeseries[~bidx_unknown_psd] = np.apply_along_axis(np.mean, 1, conv_psd[:, bidx_delta_freq])
+        len(psd_delta_timeseries)
         psd_delta_timeseries_df = psd_delta_timeseries_df.append(
             [[exp_label, mouse_group, mouse_id, device_label] + psd_delta_timeseries.tolist()], ignore_index=True)
-        
 
     freq_columns = [f'f@{x}' for x in freq_bins.tolist()]
     column_names = ['Experiment label', 'Mouse group',
                     'Mouse ID', 'Device label', 'Stage'] + freq_columns
     psd_mean_df.columns = column_names
 
-    epoch_columns = [f'epoch{x+1}' for x in np.arange(len(conv_psd))]
+    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_num)]
     column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
     psd_delta_timeseries_df.columns = column_names
 
@@ -2078,3 +2081,8 @@ if __name__ == '__main__':
 
     # write a table of PSD percentage
     write_psd_stats(psd_profiles_percentage_df, output_dir, 'percentage-')
+
+    # draw delta-power timeseries
+    draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, output_dir)
+    draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, output_dir)
+
