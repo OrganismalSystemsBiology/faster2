@@ -419,6 +419,17 @@ def _set_common_features_stagetime_profile_rem(ax, x_max):
     ax.set_ylim(-10/r, 70/r)
 
 
+def _savefig(output_dir, basefilename, fig):
+    # JPG
+    filename = f'{basefilename}.jpg'
+    fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                bbox_inches='tight', dpi=100, quality=85, optimize=True)
+    # EPS
+    filename = f'{basefilename}.pdf'
+    fig.savefig(os.path.join(output_dir, 'pdf', filename), pad_inches=0,
+                bbox_inches='tight', dpi=100)
+
+
 def draw_stagetime_profile_individual(stagetime_stats, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     stagetime_profile_list = stagetime_stats['stagetime_profile']
@@ -445,9 +456,8 @@ def draw_stagetime_profile_individual(stagetime_stats, output_dir):
 
         fig.suptitle(
             f'Stage-time profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
-        filename = f'stage-time_profile_{"_".join(stagetime_df.iloc[i,0:4].values)}.jpg'
-        fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
-                    bbox_inches='tight', dpi=100, quality=85, optimize=True)
+        filename = f'stage-time_profile_{"_".join(stagetime_df.iloc[i,0:4].values)}'
+        _savefig(output_dir, filename, fig)
 
 
 def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
@@ -539,9 +549,8 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
 
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'stage-time_profile_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}.jpg'
-            fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
-                        bbox_inches='tight', dpi=100, quality=85, optimize=True)
+            filename = f'stage-time_profile_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+            _savefig(output_dir, filename, fig)
     else:
         # single group
         g_idx = 0
@@ -584,9 +593,8 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
         ax3.set_xlabel('Time (hours)')
 
         fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
-        filename = f'stage-time_profile_{mouse_groups_set[g_idx]}.jpg'
-        fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
-                    bbox_inches='tight', dpi=100, quality=85, optimize=True)
+        filename = f'stage-time_profile_{mouse_groups_set[g_idx]}'
+        _savefig(output_dir, filename, fig)
 
 
 def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir):
@@ -636,9 +644,8 @@ def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir):
 
         fig.suptitle(
             f'Circadian stage-time profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
-        filename = f'stage-time_circadian_profile_{"_".join(stagetime_df.iloc[i,0:4].values)}.jpg'
-        fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
-                    bbox_inches='tight', dpi=100, quality=85, optimize=True)
+        filename = f'stage-time_circadian_profile_{"_".join(stagetime_df.iloc[i,0:4].values)}'
+        _savefig(output_dir, filename, fig)
 
 
 def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
@@ -738,9 +745,8 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
 
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'stage-time_circadian_profile_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}.jpg'
-            fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
-                        bbox_inches='tight', dpi=100, quality=85, optimize=True)
+            filename = f'stage-time_circadian_profile_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+            _savefig(output_dir, filename, fig)
 
 
 def draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, output_dir):
@@ -763,9 +769,9 @@ def draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, output_dir):
 
         fig.suptitle(
             f'Stage-time profile: {"  ".join(psd_delta_timeseries_df.iloc[i,0:4].values)}')
-        filename = f'delta_power_timeseries_{"_".join(psd_delta_timeseries_df.iloc[i,0:4].values)}.jpg'
-        fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
-                    bbox_inches='tight', dpi=100, quality=85, optimize=True)
+
+        filename = f'delta_power_timeseries_{"_".join(psd_delta_timeseries_df.iloc[i,0:4].values)}'
+        _savefig(output_dir, filename, fig)
 
 
 def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, output_dir):
@@ -822,9 +828,8 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, output_dir):
 
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'delta_power_timeseries_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}.jpg'
-            fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
-                        bbox_inches='tight', dpi=100, quality=85, optimize=True)
+            filename = f'delta_power_timeseries_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+            _savefig(output_dir, filename, fig)
     else:
         # single group
         g_idx = 0
@@ -843,9 +848,8 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, output_dir):
         ax1.set_xlabel('Time (hours)')
 
         fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
-        filename = f'delta_power_timeseries_{mouse_groups_set[g_idx]}.jpg'
-        fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
-                    bbox_inches='tight', dpi=100, quality=85, optimize=True)
+        filename = f'delta_power_timeseries_{mouse_groups_set[g_idx]}'
+        _savefig(output_dir, filename, fig)
 
 
 def x_shifts(values, y_min, y_max, width):
@@ -977,9 +981,8 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
         scatter_datapoints(ax3, w, x_pos[g_idx], values_t)
 
     fig.suptitle('Stage-times')
-    filename = 'stage-time_barchart.jpg'
-    fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
-                bbox_inches='tight', dpi=100, quality=85, optimize=True)
+    filename = 'stage-time_barchart'
+    _savefig(output_dir, filename, fig)
 
 
 def _draw_transition_barchart(mouse_groups, transmat_mat):
@@ -1244,9 +1247,8 @@ def draw_transition_barchart_prob(stagetime_stats, output_dir):
     axes[3].set_ylabel('prob. to transit from Wake')
     fig.suptitle(
         f'transition probability: {mouse_groups_set[0]} v.s. {"  ".join(mouse_groups_set[1:])}')
-    filename = 'transition probability_barchart.jpg'
-    fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
-                bbox_inches='tight', dpi=100, quality=85, optimize=True)
+    filename = 'transition probability_barchart'
+    _savefig(output_dir, filename, fig)
 
 
 def _odd(p, epoch_num):
@@ -1273,9 +1275,8 @@ def draw_transition_barchart_logodds(stagetime_stats, output_dir):
     axes[3].set_ylabel('log odds to transit from Wake')
     fig.suptitle(
         f'transition probability (log odds): {mouse_groups_set[0]} v.s. {"  ".join(mouse_groups_set[1:])}')
-    filename = 'transition probability_barchart_logodds.jpg'
-    fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
-                bbox_inches='tight', dpi=100, quality=85, optimize=True)
+    filename = 'transition probability_barchart_logodds'
+    _savefig(output_dir, filename, fig)
 
 
 def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
@@ -1344,9 +1345,8 @@ def draw_swtransition_barchart_prob(stagetime_stats, output_dir):
     axes[0].set_ylabel('prob. to transit\n between sleep and wake')
     fig.suptitle(
         f'sleep/wake trantision probability:\n {mouse_groups_set[0]} v.s. {"  ".join(mouse_groups_set[1:])}')
-    filename = 'sleep-wake transition probability_barchart.jpg'
-    fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
-                bbox_inches='tight', dpi=100, quality=85, optimize=True)
+    filename = 'sleep-wake transition probability_barchart'
+    _savefig(output_dir, filename, fig)
 
 
 def draw_swtransition_barchart_logodds(stagetime_stats, output_dir):
@@ -1653,9 +1653,8 @@ def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_
         mouse_tag_list = [str(x) for x in df.iloc[0, 0:4]]
         fig.suptitle(
             f'Powerspectrum density: {"  ".join(mouse_tag_list)}')
-        filename = f'{opt_label}PSD_{"_".join(mouse_tag_list)}.jpg'
-        fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
-                    bbox_inches='tight', dpi=100, quality=85, optimize=True)
+        filename = f'{opt_label}PSD_{"_".join(mouse_tag_list)}'
+        _savefig(output_dir, filename, fig)
 
 
 def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label=''):
@@ -1758,9 +1757,8 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
 
         fig.suptitle(
             f'Powerspectrum density: {mouse_group_set[0]} (n={num_c}) v.s. {mouse_group_set[g_idx]} (n={num_t})')
-        filename = f'{opt_label}PSD_{mouse_group_set[0]}_vs_{mouse_group_set[g_idx]}.jpg'
-        fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
-                    bbox_inches='tight', dpi=100, quality=85, optimize=True)
+        filename = f'{opt_label}PSD_{mouse_group_set[0]}_vs_{mouse_group_set[g_idx]}'
+        _savefig(output_dir, filename, fig)
 
 
 def write_sleep_stats(stagetime_stats, output_dir):
@@ -2013,6 +2011,7 @@ if __name__ == '__main__':
             path_ext = ''
         output_dir = os.path.join(faster_dir_list[0], 'summary' + path_ext)
     os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(os.path.join(output_dir, 'pdf'), exist_ok=True)
 
     # prepare stagetime statistics
     stagetime_stats = make_summary_stats(mouse_info_df, epoch_range, stage_ext)
