@@ -710,6 +710,8 @@ def classification_process(stage_coord):
 
 
 def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, stage_coord_expacti, c_pred3, c_means, c_covars):
+    print_log('Drawing scatter plots')
+    
     colors =  [COLOR_WAKE, COLOR_NREM] 
     axes = [0, 1]
     points = stage_coord[:, np.r_[axes]]
