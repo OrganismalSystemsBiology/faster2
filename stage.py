@@ -466,7 +466,7 @@ def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, bidx_unknown, result
     # save EEG PSD
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EEG_PSD.pkl')
     if os.path.exists(pkl_path):
-        print_log(f'File already exists. Nothing to be done for {pkl_path}')
+        print_log(f'File already exists: {pkl_path}')
     else:
         with open(pkl_path, 'wb') as pkl:
             print_log(f'Saving the EEG PSD matrix into {pkl_path}')
@@ -475,7 +475,7 @@ def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, bidx_unknown, result
     # save EMG PSD
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EMG_PSD.pkl')
     if os.path.exists(pkl_path):
-        print_log(f'File already exists. Nothing to be done for {pkl_path} ')
+        print_log(f'File already exists: {pkl_path} ')
     else:
         with open(pkl_path, 'wb') as pkl:
             print_log(f'Saving the EMG PSD matrix into {pkl_path}')
@@ -561,8 +561,15 @@ def cancel_weight_bias(stage_coord_2D):
 def classify_active_and_NREM(stage_coord_2D):
     # Initialize active/stative(NREM) clusters by Gaussian mixture model ignoring transition probablity
     print_log('Initialize active/NREM clusters with GMM')
+
+    # projection onto the separation "line" (which is perpendicular to the separation "axis")
+    stage_coord_1DD = stage_coord_2D@np.array([1,1]).T
+    bidx_over_outliers = stage_coord_1DD > (np.mean(stage_coord_1DD) + 3*np.std(stage_coord_1DD))
+    bidx_under_outliers = stage_coord_1DD < (np.mean(stage_coord_1DD) - 3*np.std(stage_coord_1DD))
+    bidx_valid = ~(bidx_over_outliers | bidx_under_outliers)
     gmm_2D = mixture.GaussianMixture(n_components=2, covariance_type='full', n_init=10, means_init=[[-5,5],[5,-5]])
-    gmm_2D.fit(stage_coord_2D)
+    # To estimate clusters, use only epochs projected within the reasonable region on the separation line (<3SD) 
+    gmm_2D = gmm_2D.fit(stage_coord_2D[bidx_valid])
 
     gmm_2D_pred = gmm_2D.predict(stage_coord_2D)
     mm_2D = gmm_2D.means_
