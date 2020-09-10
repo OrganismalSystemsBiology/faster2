@@ -170,12 +170,12 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
         # Try to read pickled data
         pkl_path = os.path.join(data_dir, 'pkl', f'{device_id}_EEG.pkl')
         with open(pkl_path, 'rb') as pkl:
-            print_log(f'reading {pkl_path}')
+            print_log(f'Reading {pkl_path}')
             eeg_vm = pickle.load(pkl)
         
         pkl_path = os.path.join(data_dir, 'pkl', f'{device_id}_EMG.pkl')
         with open(pkl_path, 'rb') as pkl:
-            print_log(f'reading {pkl_path}')
+            print_log(f'Reading {pkl_path}')
             emg_vm = pickle.load(pkl)
 
     elif len(find_edf_files(data_dir))>0:
@@ -432,19 +432,19 @@ def pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id):
     # save EEG
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EEG.pkl')
     if os.path.exists(pkl_path):
-        print_log(f'file already exists. Nothing to be done. {pkl_path}')
+        print_log(f'File already exists. Nothing to be done. {pkl_path}')
     else:
         with open(pkl_path, 'wb') as pkl:
-            print_log(f'saving the voltage matrix into {pkl_path}')
+            print_log(f'Saving the voltage matrix into {pkl_path}')
             pickle.dump(eeg_vm, pkl)
     
     # save EMG
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EMG.pkl')
     if os.path.exists(pkl_path):
-        print_log(f'file already exists. Nothing to be done. {pkl_path} ')
+        print_log(f'File already exists. Nothing to be done. {pkl_path} ')
     else:
         with open(pkl_path, 'wb') as pkl:
-            print_log(f'saving the voltage matrix into {pkl_path}')
+            print_log(f'Saving the voltage matrix into {pkl_path}')
             pickle.dump(emg_vm, pkl)
 
 
@@ -461,22 +461,24 @@ def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, bidx_unknown, result
     pickle_dir = os.path.join(result_dir, 'PSD/')
     os.makedirs(pickle_dir, exist_ok=True)
 
+    print_log(f'Saving PSD files')
+
     # save EEG PSD
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EEG_PSD.pkl')
     if os.path.exists(pkl_path):
-        print_log(f'file already exists. Nothing to be done. {pkl_path}')
+        print_log(f'File already exists. Nothing to be done for {pkl_path}')
     else:
         with open(pkl_path, 'wb') as pkl:
-            print_log(f'saving the EEG PSD matrix into {pkl_path}')
+            print_log(f'Saving the EEG PSD matrix into {pkl_path}')
             pickle.dump(spec_norm_eeg, pkl)
     
     # save EMG PSD
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EMG_PSD.pkl')
     if os.path.exists(pkl_path):
-        print_log(f'file already exists. Nothing to be done. {pkl_path} ')
+        print_log(f'File already exists. Nothing to be done for {pkl_path} ')
     else:
         with open(pkl_path, 'wb') as pkl:
-            print_log(f'saving the EMG PSD matrix into {pkl_path}')
+            print_log(f'Saving the EMG PSD matrix into {pkl_path}')
             pickle.dump(spec_norm_emg, pkl)
 
 
@@ -494,8 +496,8 @@ def pickle_cluster_params(means2, covars2, c_means, c_covars, result_dir, device
 
     # save
     pkl_path = os.path.join(pickle_dir, f'{device_id}_cluster_params.pkl')
+    print_log(f'Saving the cluster parameters into {pkl_path}')
     with open(pkl_path, 'wb') as pkl:
-        print_log(f'saving the cluster parameters into {pkl_path}')
         pickle.dump({'2stage-means': means2, '2stage-covars': covars2,
                      '3stage-means': c_means, '3stage-covars': c_covars}, pkl)
 
@@ -572,8 +574,6 @@ def classify_active_and_NREM(stage_coord_2D):
         cc_2D = np.array([cc_2D[1],cc_2D[0]])
         ww_2D = np.array([ww_2D[1],ww_2D[0]])
         gmm_2D_pred = np.array([0 if x==1 else 1 for x in gmm_2D_pred])
-    print_log(f'Means:\n{mm_2D}')
-    print_log(f'Covariances:\n{cc_2D}')
 
     # classify active and NREM stages by Gaussian HMM on the 2D plane of (active x sleep)
     print_log('Refine active/NREM clusters with Gaussian HMM')
@@ -582,8 +582,6 @@ def classify_active_and_NREM(stage_coord_2D):
     ghmm_2D.means_ = mm_2D
     ghmm_2D.covars_ = cc_2D
     ghmm_2D.fit(stage_coord_2D)
-    print_log(f'Means:\n{ghmm_2D.means_}')
-    print_log(f'Covariances:\n{ghmm_2D.covars_}')
     pred_2D = ghmm_2D.predict(stage_coord_2D)
     pred_2D_proba = ghmm_2D.predict_proba(stage_coord_2D)
 
@@ -592,6 +590,7 @@ def classify_active_and_NREM(stage_coord_2D):
 
 def classify_Wake_and_REM(stage_coord_active):
     # Classify REM and Wake in the active cluster in the 3D space  (Low freq. x High freq. x REM metric)
+    print_log('Classify REM and Wake clusters with GMM')
     gmm_active = mixture.GaussianMixture(n_components=3, n_init=10, means_init=[[-5,5,-10],[0,0,20], [0, 0, 0]]) #Wake, REM, intermdeidate
     gmm_active.fit(stage_coord_active)
     ww_active = gmm_active.weights_
@@ -637,7 +636,8 @@ def find_REMlike_epochs(stage_coord_active, pred_active):
 
 
 def classify_three_stages(stage_coord_nremflat, mm_3D, cc_3D, weights_3c):
-    # classify REM, Wake, and NREM by Gaussian HMM on the 3D space
+    # classify REM, Wake, and NREM by Gaussian HMM in the 3D space
+    print_log('Classify REM, Wake, and NREM by Gaussian HMM')
     ghmm_3D = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='t', params='st')
     ghmm_3D.startprob_ = weights_3c
     ghmm_3D.means_ = mm_3D
@@ -796,7 +796,7 @@ def main(data_dir, result_dir, pickle_input_data):
         note = r[4]
 
         print_log(f'#######################################')
-        print_log(f'#### [{i+1}] of mouse.info / device_id: {device_id}')
+        print_log(f'#### [{i+1}] Device_id: {device_id}')
         print_log(f'Reading voltages')
         print_log(f'Epoch num:{epoch_num} recorded at sampling frequency {sample_freq}')
         (eeg_vm_org, emg_vm_org, not_yet_pickled) = read_voltage_matrices(
@@ -806,11 +806,10 @@ def main(data_dir, result_dir, pickle_input_data):
             # if the command line argument has the optinal flag for pickling, pickle the voltage matrices
             pickle_voltage_matrices(eeg_vm_org, emg_vm_org, data_dir, device_id)
 
-
+        print_log('Preprocessing and calculating PSD')
         # recover nans in the data if possible
         nan_ratio_eeg = np.apply_along_axis(et.patch_nan, 1, eeg_vm_org)
         nan_ratio_emg = np.apply_along_axis(et.patch_nan, 1, emg_vm_org)
-
 
         # exclude unrecoverable epochs as unknown
         bidx_unknown = np.apply_along_axis(np.any, 1, np.isnan(
@@ -877,10 +876,18 @@ def main(data_dir, result_dir, pickle_input_data):
         stage_call = np.repeat('Unknown', epoch_num)
         stage_call[~bidx_unknown] =  np.array([STAGE_LABELS[y] for y in pred_3D])
 
+        # Print a brief result
+        print_log(f'2-stage means:\n {means_2D}')
+        print_log(f'2-stage covars:\n {covars_2D}')
+        print_log('\n')
+        print_log(f'3-stage means:\n{means_3D}')
+        print_log(f'3-stage covars:\n{covars_3D}')
+
         print_log(f'[{i+1}] Device ID:{device_id}  REM:{1440*np.sum(stage_call=="REM")/ndata:.2f} '\
                 f'NREM:{1440*np.sum(stage_call=="NREM")/ndata:.2f} '\
                 f'Wake:{1440*np.sum(stage_call=="Wake")/ndata:.2f}')
 
+        # Compose stage table
         extreme_power_ratio = np.zeros(2*epoch_num).reshape(epoch_num, 2)
         extreme_power_ratio[~bidx_unknown, 0] = extrp_ratio_eeg
         extreme_power_ratio[~bidx_unknown, 1] = extrp_ratio_emg
