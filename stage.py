@@ -349,7 +349,7 @@ def plot_hist_on_separation_axis(path2figures, d, means, covars, weights):
     ax.set_xlabel('', fontsize=10)
     ax.set_ylabel('', fontsize=10)
 
-    fig.savefig(os.path.join(path2figures,'histogram_on_separation_axis.png'))
+    _savefig(path2figures,'histogram_on_separation_axis', fig)
 
     return fig
 
@@ -714,7 +714,7 @@ def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, stage_
     axes = [0, 1]
     points = stage_coord[:, np.r_[axes]]
     fig = plot_scatter2D(points, pred2, means2, covars2, colors, XLABEL, YLABEL, diag_line=True)
-    fig.savefig(os.path.join(path2figures,'ScatterPlot2D_LowFreq-HighFreq_Axes_Active-NREM.png'))
+    _savefig(path2figures, 'ScatterPlot2D_LowFreq-HighFreq_Axes_Active-NREM', fig)
 
     points_active = stage_coord_expacti[((c_pred3==0) | (c_pred3==1)), :]
     pred_active = c_pred3[((c_pred3==0) | (c_pred3==1))]
@@ -725,14 +725,14 @@ def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, stage_
     mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0,1]]])
     cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in c_covars[np.r_[0,1]]])
     fig = plot_scatter2D(points_prj, pred_active, mm , cc, colors, XLABEL, ZLABEL)
-    fig.savefig(os.path.join(path2figures, 'ScatterPlot2D_LowFreq-REM_axes.png'))
+    _savefig(path2figures, 'ScatterPlot2D_LowFreq-REM_axes', fig)
 
     axes = [1, 2] # High-freq axis & REM axis
     points_prj = points_active[:, np.r_[axes]]
     mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0,1]]])
     cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in c_covars[np.r_[0,1]]])
     fig = plot_scatter2D(points_prj, pred_active, mm , cc, colors, YLABEL, ZLABEL)
-    fig.savefig(os.path.join(path2figures,'ScatterPlot2D_HighFreq-REM_axes.png'))
+    _savefig(path2figures, 'ScatterPlot2D_HighFreq-REM_axes', fig)
 
     axes = [0, 1] # Low-freq axis & High-freq axis
     points_prj = stage_coord[:, np.r_[axes]]
@@ -740,7 +740,7 @@ def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, stage_
     mm_proj = np.array([m[np.r_[axes]] for m in c_means[np.r_[0,1,2]]])
     cc_proj = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in c_covars[np.r_[0,1,2]]])
     fig = plot_scatter2D(points_prj, c_pred3, mm_proj , cc_proj, colors, XLABEL, YLABEL, diag_line=True)
-    fig.savefig(os.path.join(path2figures,'ScatterPlot2D_LowFreq-HighFreq_axes_Wake_REM_NREM.png'))
+    _savefig(path2figures, 'ScatterPlot2D_LowFreq-HighFreq_axes_Wake_REM_NREM', fig)
 
     colors =  [COLOR_WAKE, COLOR_REM, COLOR_NREM]
     fig = Figure(figsize=(SCATTER_PLOT_FIG_WIDTH, SCATTER_PLOT_FIG_HEIGHT), dpi=FIG_DPI, facecolor='w')
@@ -764,7 +764,18 @@ def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, stage_
         ax.scatter3D(t_points[:,0], max(ax.get_ylim()), t_points[:,2], s=0.001, color='grey')
         ax.scatter3D(max(ax.get_xlim()), t_points[:,1], t_points[:,2], s=0.001, color='grey')
 
-    fig.savefig(os.path.join(path2figures,'ScatterPlot3D.png'))
+    _savefig(path2figures, 'ScatterPlot3D', fig)
+
+
+def _savefig(output_dir, basefilename, fig):
+    # PNG
+    filename = f'{basefilename}.png'
+    fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+                bbox_inches='tight', dpi=100)
+    # PDF
+    filename = f'{basefilename}.pdf'
+    fig.savefig(os.path.join(output_dir, 'pdf', filename), pad_inches=0,
+                bbox_inches='tight', dpi=100)
 
 
 def main(data_dir, result_dir, pickle_input_data):
@@ -914,6 +925,7 @@ def main(data_dir, result_dir, pickle_input_data):
 
         path2figures = os.path.join(result_dir, 'figure', f'{device_id}')
         os.makedirs(path2figures, exist_ok=True)
+        os.makedirs(os.path.join(path2figures, 'pdf'), exist_ok=True)
 
         # draw the bias histogram
         plot_hist_on_separation_axis(path2figures, cwb['proj_data'], cwb['means'], cwb['covars'], cwb['weights'])

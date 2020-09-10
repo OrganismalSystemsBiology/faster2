@@ -424,7 +424,7 @@ def _savefig(output_dir, basefilename, fig):
     filename = f'{basefilename}.jpg'
     fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
                 bbox_inches='tight', dpi=100, quality=85, optimize=True)
-    # EPS
+    # PDF
     filename = f'{basefilename}.pdf'
     fig.savefig(os.path.join(output_dir, 'pdf', filename), pad_inches=0,
                 bbox_inches='tight', dpi=100)
