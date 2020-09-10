@@ -1475,7 +1475,8 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         stage_call = stage_call[~bidx_unknown_psd]
 
         # bidx_target: bidx for the selected range
-        bidx_selected = np.repeat(False, len(bidx_unknown_psd))
+        epoch_num = len(bidx_unknown_psd)
+        bidx_selected = np.repeat(False, epoch_num)
         bidx_selected[epoch_range] = True
         bidx_target = bidx_selected[~bidx_unknown_psd]
 
@@ -1494,10 +1495,9 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
             [exp_label, mouse_group, mouse_id, device_label, 'Wake'] + psd_mean_wake.tolist()], ignore_index=True)
 
         # make the delta-power timeseries
-        psd_delta_timeseries = np.zeros(epoch_num)
-        psd_delta_timeseries[bidx_unknown_psd] = np.nan
+        psd_delta_timeseries = np.repeat(np.nan, epoch_num)
         psd_delta_timeseries[~bidx_unknown_psd] = np.apply_along_axis(np.mean, 1, conv_psd[:, bidx_delta_freq])
-        len(psd_delta_timeseries)
+        psd_delta_timeseries = psd_delta_timeseries[epoch_range] # extract epochs of the selected range
         psd_delta_timeseries_df = psd_delta_timeseries_df.append(
             [[exp_label, mouse_group, mouse_id, device_label] + psd_delta_timeseries.tolist()], ignore_index=True)
  
@@ -1507,7 +1507,7 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
                     'Mouse ID', 'Device label', 'Stage'] + freq_columns
     psd_mean_df.columns = column_names
 
-    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_num)]
+    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
     column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
     psd_delta_timeseries_df.columns = column_names
 
@@ -1579,7 +1579,8 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         stage_call = stage_call[~bidx_unknown_psd]
 
         # bidx_target: bidx for the selected range
-        bidx_selected = np.repeat(False, len(bidx_unknown_psd))
+        epoch_num = len(bidx_unknown_psd)
+        bidx_selected = np.repeat(False, epoch_num)
         bidx_selected[epoch_range] = True
         bidx_target = bidx_selected[~bidx_unknown_psd]
 
@@ -1598,10 +1599,9 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
             [exp_label, mouse_group, mouse_id, device_label, 'Wake'] + psd_mean_wake.tolist()], ignore_index=True)
 
         # make the delta-power timeseries
-        psd_delta_timeseries = np.zeros(epoch_num)
-        psd_delta_timeseries[bidx_unknown_psd] = np.nan
+        psd_delta_timeseries = np.repeat(np.nan, epoch_num)
         psd_delta_timeseries[~bidx_unknown_psd] = np.apply_along_axis(np.mean, 1, conv_psd[:, bidx_delta_freq])
-        len(psd_delta_timeseries)
+        psd_delta_timeseries = psd_delta_timeseries[epoch_range] # extract epochs of the selected range
         psd_delta_timeseries_df = psd_delta_timeseries_df.append(
             [[exp_label, mouse_group, mouse_id, device_label] + psd_delta_timeseries.tolist()], ignore_index=True)
 
@@ -1610,7 +1610,7 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
                     'Mouse ID', 'Device label', 'Stage'] + freq_columns
     psd_mean_df.columns = column_names
 
-    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_num)]
+    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
     column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
     psd_delta_timeseries_df.columns = column_names
 
