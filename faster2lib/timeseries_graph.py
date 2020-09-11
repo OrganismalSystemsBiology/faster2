@@ -263,8 +263,8 @@ def plot_timeseries_a_mouse(voltage_data_dir, stage_dir, result_dir, device_id, 
                                  'Outlier ratio EMG-TS': np.zeros(epoch_num)})
 
     (eeg_vm_org, emg_vm_org, _) = stage.read_voltage_matrices(voltage_data_dir, device_id, sample_freq, stage.EPOCH_LEN_SEC, epoch_num, start_datetime)
-    eeg_vm_norm = (eeg_vm_org - np.nanmean(eeg_vm_org))/np.nanstd(eeg_vm_org)
-    emg_vm_norm = (emg_vm_org - np.nanmean(emg_vm_org))/np.nanstd(emg_vm_org)
+    eeg_vm_norm = stage.voltage_normalize(eeg_vm_org)
+    emg_vm_norm = stage.voltage_normalize(emg_vm_org)
 
     tp = Timeseries_plot(eeg_vm_norm, emg_vm_norm, stage_df,
                          device_id, start_datetime, sample_freq)
