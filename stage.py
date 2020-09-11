@@ -790,10 +790,12 @@ def _savefig(output_dir, basefilename, fig):
 
 
 def voltage_normalize(v_mat):
-    bidx_over = v_mat > (np.mean(v_mat)+3*np.std(v_mat))
-    bidx_under = v_mat < (np.mean(v_mat)-3*np.std(v_mat))
+    v_array = v_mat.flatten()
+    v_array = v_array[~np.isnan(v_array)]
+    bidx_over = v_array > (np.mean(v_array)+3*np.std(v_array))
+    bidx_under = v_array < (np.mean(v_array)-3*np.std(v_array))
     bidx_valid = ~(bidx_over | bidx_under)
-    v_mat_norm = (v_mat - np.mean(v_mat[bidx_valid]))/np.std(v_mat[bidx_valid])
+    v_mat_norm = (v_mat - np.mean(v_array[bidx_valid]))/np.std(v_array[bidx_valid])
     
     return v_mat_norm
 
