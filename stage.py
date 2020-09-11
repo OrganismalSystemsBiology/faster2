@@ -789,6 +789,15 @@ def _savefig(output_dir, basefilename, fig):
                 bbox_inches='tight', dpi=100)
 
 
+def voltage_normalize(v_mat):
+    bidx_over = v_mat > (np.mean(v_mat)+3*np.std(v_mat))
+    bidx_under = v_mat < (np.mean(v_mat)-3*np.std(v_mat))
+    bidx_valid = ~(bidx_over | bidx_under)
+    v_mat_norm = (v_mat - np.mean(v_mat[bidx_valid]))/np.std(v_mat[bidx_valid])
+    
+    return v_mat_norm
+
+
 def main(data_dir, result_dir, pickle_input_data):
     """ main """
 
@@ -841,8 +850,8 @@ def main(data_dir, result_dir, pickle_input_data):
 
         # make data comparable among different mice. Not necessary for staging,
         # but convenient for subsequnet analyses.
-        eeg_vm_norm = (eeg_vm - np.mean(eeg_vm))/np.std(eeg_vm)
-        emg_vm_norm = (emg_vm - np.mean(emg_vm))/np.std(emg_vm)
+        eeg_vm_norm = voltage_normalize(eeg_vm)
+        emg_vm_norm = voltage_normalize(emg_vm)
 
         # power-spectrum normalization of EEG and EMG
         spec_norm_eeg = spectrum_normalize(eeg_vm_norm, n_fft, sample_freq)
