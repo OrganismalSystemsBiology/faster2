@@ -575,8 +575,10 @@ def classify_active_and_NREM(stage_coord_2D):
     mm_2D = gmm_2D.means_
     cc_2D = gmm_2D.covariances_
     ww_2D = gmm_2D.weights_
-    if (mm_2D[0,1] < mm_2D[1,1]) or (mm_2D[0,0] > mm_2D[1,0]):
-        # flip the order of clusters if necessary
+
+    # flip the order of clusters if necessary
+    d = mm_2D@np.array([1,-1]).T # project onto the separation axis
+    if (d[0] > d[1]):
         mm_2D = np.array([mm_2D[1],mm_2D[0]])
         cc_2D = np.array([cc_2D[1],cc_2D[0]])
         ww_2D = np.array([ww_2D[1],ww_2D[0]])
