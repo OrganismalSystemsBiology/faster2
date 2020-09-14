@@ -386,8 +386,8 @@ def _set_common_features_stagetime_profile(ax, x_max):
     ax.set_ylim(-10, 70)
 
 
-def _set_common_features_delta_power_timeseries(ax, x_max):
-    ax.set_yticks([0, 0.1, 0.2, 0.3])
+def _set_common_features_delta_power_timeseries(ax, x_max, y_max):
+    ax.set_yticks(np.arange(0, y_max, 0.1))
     ax.set_xticks(np.arange(0, x_max+1, 6))
     ax.grid(dashes=(2, 2))
 
@@ -399,7 +399,7 @@ def _set_common_features_delta_power_timeseries(ax, x_max):
             xy=[24*day, -0.01], width=12, height=0.01, fill=True, color=stage.COLOR_LIGHT)
         ax.add_patch(light_bar_light)
 
-    ax.set_ylim(-0.015, 0.3)
+    ax.set_ylim(-0.015, y_max)
 
 
 def _set_common_features_stagetime_profile_rem(ax, x_max):
@@ -749,20 +749,43 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
             _savefig(output_dir, filename, fig)
 
 
-def draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, output_dir):
+def draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, y_label, output_dir, opt_label=''):
+    mouse_groups = psd_delta_timeseries_df['Mouse group'].values
+    mouse_groups_set = sorted(set(mouse_groups), key=list(
+        mouse_groups).index)  # unique elements with preseved order
+    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]  
+
     hourly_ts_list = []
     for _, ts in psd_delta_timeseries_df.iloc[:,4:].iterrows():
-        ts_mat = ts.to_numpy().reshape(-1, int(3600/stage.EPOCH_LEN_SEC))
-        hourly_ts_list.append(np.apply_along_axis(np.nanmean, 1, ts_mat))
+        ts_mat = ts.to_numpy(dtype=np.float64).reshape(-1, int(3600/stage.EPOCH_LEN_SEC))
+        # The rows with all nan needs to be avoided in np.nanmean
+        idx_all_nan = np.where([np.all(np.isnan(x)) for x in ts_mat])
+        ts_mat[idx_all_nan, :] = 0
+        hourly_ts = np.apply_along_axis(np.nanmean, 1, ts_mat)
+        hourly_ts[idx_all_nan] = np.nan # matplotlib can handle np.nan
+        hourly_ts_list.append(hourly_ts)
+
+    hourly_ts_mat = np.array(hourly_ts_list)
+
+    # this is just for deciding y_max
+    delta_timeseries_stats_list=[]
+    for bidx in bidx_group_list:
+        delta_timeseries_mean = np.apply_along_axis(
+            np.nanmean, 0, hourly_ts_mat[bidx])
+        delta_timeseries_sd = np.apply_along_axis(
+            np.nanstd, 0, hourly_ts_mat[bidx])
+        delta_timeseries_stats_list.append(
+            np.array([delta_timeseries_mean, delta_timeseries_sd]))
+    y_max = np.nanmax(np.array([ts_stats[0] for ts_stats in delta_timeseries_stats_list])) * 1.1
 
     x_max = ts_mat.shape[0]
     x = np.arange(x_max)
     for i, profile in enumerate(hourly_ts_list):
         fig = Figure(figsize=(13, 6))
         ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
-        _set_common_features_delta_power_timeseries(ax1, x_max)
+        _set_common_features_delta_power_timeseries(ax1, x_max, y_max)
 
-        ax1.set_ylabel('Hourly mean delta power [AU]')
+        ax1.set_ylabel(y_label)
         ax1.set_xlabel('Time (hours)')
 
         ax1.plot(x, profile, color=stage.COLOR_NREM)
@@ -770,11 +793,11 @@ def draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, output_dir):
         fig.suptitle(
             f'Stage-time profile: {"  ".join(psd_delta_timeseries_df.iloc[i,0:4].values)}')
 
-        filename = f'delta_power_timeseries_{"_".join(psd_delta_timeseries_df.iloc[i,0:4].values)}'
+        filename = f'{opt_label}delta_power_timeseries_{"_".join(psd_delta_timeseries_df.iloc[i,0:4].values)}'
         _savefig(output_dir, filename, fig)
 
 
-def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, output_dir):
+def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, y_label, output_dir, opt_label=''):
     mouse_groups = psd_delta_timeseries_df['Mouse group'].values
     mouse_groups_set = sorted(set(mouse_groups), key=list(
         mouse_groups).index)  # unique elements with preseved order
@@ -783,20 +806,26 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, output_dir):
     hourly_ts_list = []
     for _, ts in psd_delta_timeseries_df.iloc[:,4:].iterrows():
         ts_mat = ts.to_numpy().reshape(-1, int(3600/stage.EPOCH_LEN_SEC))
-        hourly_ts_list.append(np.apply_along_axis(np.nanmean, 1, ts_mat))
+        # The rows with all nan needs to be avoided in np.nanmean
+        idx_all_nan = np.where([np.all(np.isnan(x)) for x in ts_mat])
+        ts_mat[idx_all_nan, :] = 0
+        hourly_ts = np.apply_along_axis(np.nanmean, 1, ts_mat)
+        hourly_ts[idx_all_nan] = np.nan # matplotlib can handle np.nan
+        hourly_ts_list.append(hourly_ts)
     hourly_ts_mat = np.array(hourly_ts_list)
 
     delta_timeseries_stats_list=[]
     for bidx in bidx_group_list:
         delta_timeseries_mean = np.apply_along_axis(
-            np.mean, 0, hourly_ts_mat[bidx])
+            np.nanmean, 0, hourly_ts_mat[bidx])
         delta_timeseries_sd = np.apply_along_axis(
-            np.std, 0, hourly_ts_mat[bidx])
+            np.nanstd, 0, hourly_ts_mat[bidx])
         delta_timeseries_stats_list.append(
             np.array([delta_timeseries_mean, delta_timeseries_sd]))
 
     # pylint: disable=E1136  # pylint/issues/3139
     x_max = hourly_ts_mat.shape[1]
+    y_max = np.nanmax(np.array([ts_stats[0] for ts_stats in delta_timeseries_stats_list])) * 1.1
     x = np.arange(x_max)
     if len(mouse_groups_set) > 1:
         # contrast to group index = 0
@@ -805,7 +834,7 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, output_dir):
             fig = Figure(figsize=(13, 6))
             ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
 
-            _set_common_features_delta_power_timeseries(ax1, x_max)
+            _set_common_features_delta_power_timeseries(ax1, x_max, y_max)
 
             # Control (always the first group)
             num_c = np.sum(bidx_group_list[0])
@@ -814,7 +843,7 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, output_dir):
             ax1.plot(x, y, color='grey')
             ax1.fill_between(x, y - y_sem,
                             y + y_sem, color='grey', alpha=0.3)
-            ax1.set_ylabel('Hourly mean delta power [AU]')
+            ax1.set_ylabel(y_label)
             ax1.set_xlabel('Time (hours)')
 
             # Treatment
@@ -828,7 +857,7 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, output_dir):
 
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'delta_power_timeseries_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+            filename = f'{opt_label}delta_power_timeseries_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
             _savefig(output_dir, filename, fig)
     else:
         # single group
@@ -837,18 +866,18 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, output_dir):
         fig = Figure(figsize=(13, 6))
         ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
 
-        _set_common_features_delta_power_timeseries(ax1, x_max)
+        _set_common_features_delta_power_timeseries(ax1, x_max, y_max)
 
         y = delta_timeseries_stats_list[g_idx][0, :]
         y_sem = delta_timeseries_stats_list[g_idx][1, :]/np.sqrt(num)
         ax1.plot(x, y, color=stage.COLOR_NREM)
         ax1.fill_between(x, y - y_sem,
                         y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
-        ax1.set_ylabel('Hourly mean delta power [AU]')
+        ax1.set_ylabel(y_label)
         ax1.set_xlabel('Time (hours)')
 
         fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
-        filename = f'delta_power_timeseries_{mouse_groups_set[g_idx]}'
+        filename = f'{opt_label}delta_power_timeseries_{mouse_groups_set[g_idx]}'
         _savefig(output_dir, filename, fig)
 
 
@@ -1435,6 +1464,7 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
 
     psd_mean_df = pd.DataFrame()
     psd_delta_timeseries_df = pd.DataFrame()
+    psd_delta_timeseries_nrem_df = pd.DataFrame()
     for i, r in mouse_info_df.iterrows():
         device_label = r['Device label'].strip()
         stats_report = r['Stats report'].strip().upper()
@@ -1449,7 +1479,7 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         print(f'[{i+1}] reading PSD and stage of: {faster_dir} {device_label}')
 
         # read stage of the mouse
-        stage_call = et.read_stages(os.path.join(
+        stage_call, nan_eeg, outlier_eeg = et.read_stages_with_eeg_diagnosis(os.path.join(
             faster_dir, 'result'), device_label, stage_ext)
 
         # read the normalized EEG PSDs and the associated normalization factors and means
@@ -1471,18 +1501,21 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
             print(f'... in stage file at {idx}')
             break
 
+        # good PSD should have the nan- or outlier-ratios of less than 1%
+        bidx_good_psd = (nan_eeg < 0.01) | (outlier_eeg < 0.01)
+
         # remove unknown-PSD epoch from stage_call
-        stage_call = stage_call[~bidx_unknown_psd]
+        stage_call_known = stage_call[~bidx_unknown_psd]
 
         # bidx_target: bidx for the selected range
         epoch_num = len(bidx_unknown_psd)
         bidx_selected = np.repeat(False, epoch_num)
         bidx_selected[epoch_range] = True
-        bidx_target = bidx_selected[~bidx_unknown_psd]
+        bidx_target = bidx_selected[~bidx_unknown_psd] & bidx_good_psd[~bidx_unknown_psd]
 
-        bidx_rem = (stage_call == 'REM') & bidx_target
-        bidx_nrem = (stage_call == 'NREM') & bidx_target
-        bidx_wake = (stage_call == 'WAKE') & bidx_target
+        bidx_rem = (stage_call_known == 'REM') & bidx_target
+        bidx_nrem = (stage_call_known == 'NREM') & bidx_target
+        bidx_wake = (stage_call_known == 'WAKE') & bidx_target
         psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
         psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
         psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
@@ -1501,6 +1534,12 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         psd_delta_timeseries_df = psd_delta_timeseries_df.append(
             [[exp_label, mouse_group, mouse_id, device_label] + psd_delta_timeseries.tolist()], ignore_index=True)
  
+        # make the NREM delta-power timeseries
+        psd_delta_timeseries_nrem = np.repeat(np.nan, epoch_num)
+        psd_delta_timeseries_nrem[~bidx_unknown_psd & (stage_call=='NREM') & bidx_good_psd] = np.apply_along_axis(np.mean, 1, conv_psd[bidx_nrem, :][:,bidx_delta_freq])
+        psd_delta_timeseries_nrem = psd_delta_timeseries_nrem[epoch_range] # extract epochs of the selected range
+        psd_delta_timeseries_nrem_df = psd_delta_timeseries_nrem_df.append(
+            [[exp_label, mouse_group, mouse_id, device_label] + psd_delta_timeseries_nrem.tolist()], ignore_index=True)
 
     freq_columns = [f'f@{x}' for x in freq_bins.tolist()]
     column_names = ['Experiment label', 'Mouse group',
@@ -1510,8 +1549,9 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
     epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
     column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
     psd_delta_timeseries_df.columns = column_names
+    psd_delta_timeseries_nrem_df.columns = column_names
 
-    return psd_mean_df, psd_delta_timeseries_df
+    return psd_mean_df, psd_delta_timeseries_df, psd_delta_timeseries_nrem_df
 
 
 def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
@@ -1540,6 +1580,7 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
 
     psd_mean_df = pd.DataFrame()
     psd_delta_timeseries_df = pd.DataFrame()
+    psd_delta_timeseries_nrem_df = pd.DataFrame()
     for i, r in mouse_info_df.iterrows():
         device_label = r['Device label'].strip()
         stats_report = r['Stats report'].strip().upper()
@@ -1554,7 +1595,7 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         print(f'[{i+1}] reading PSD and stage of: {faster_dir} {device_label}')
 
         # read stage of the mouse
-        stage_call = et.read_stages(os.path.join(
+        stage_call, nan_eeg, outlier_eeg = et.read_stages_with_eeg_diagnosis(os.path.join(
             faster_dir, 'result'), device_label, stage_ext)
 
         # read the normalized EEG PSDs and the associated normalization factors and means
@@ -1575,18 +1616,21 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
             print(f'... in stage file at {idx}')
             break
 
+        # good PSD should have the nan- or outlier-ratios of less than 1%
+        bidx_good_psd = (nan_eeg < 0.01) | (outlier_eeg < 0.01)
+
         # remove unknown-PSD epoch from stage_call
-        stage_call = stage_call[~bidx_unknown_psd]
+        stage_call_known = stage_call[~bidx_unknown_psd]
 
         # bidx_target: bidx for the selected range
         epoch_num = len(bidx_unknown_psd)
         bidx_selected = np.repeat(False, epoch_num)
         bidx_selected[epoch_range] = True
-        bidx_target = bidx_selected[~bidx_unknown_psd]
+        bidx_target = bidx_selected[~bidx_unknown_psd] & bidx_good_psd[~bidx_unknown_psd]
 
-        bidx_rem = (stage_call == 'REM') & bidx_target
-        bidx_nrem = (stage_call == 'NREM') & bidx_target
-        bidx_wake = (stage_call == 'WAKE') & bidx_target
+        bidx_rem = (stage_call_known == 'REM') & bidx_target
+        bidx_nrem = (stage_call_known == 'NREM') & bidx_target
+        bidx_wake = (stage_call_known == 'WAKE') & bidx_target
         psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
         psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
         psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
@@ -1605,6 +1649,14 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         psd_delta_timeseries_df = psd_delta_timeseries_df.append(
             [[exp_label, mouse_group, mouse_id, device_label] + psd_delta_timeseries.tolist()], ignore_index=True)
 
+        # make the NREM delta-power timeseries
+        psd_delta_timeseries_nrem = np.repeat(np.nan, epoch_num)
+        psd_delta_timeseries_nrem[~bidx_unknown_psd & (stage_call=='NREM') & bidx_good_psd] = np.apply_along_axis(np.mean, 1, conv_psd[bidx_nrem, :][:,bidx_delta_freq])
+        psd_delta_timeseries_nrem = psd_delta_timeseries_nrem[epoch_range] # extract epochs of the selected range
+        psd_delta_timeseries_nrem_df = psd_delta_timeseries_nrem_df.append(
+            [[exp_label, mouse_group, mouse_id, device_label] + psd_delta_timeseries_nrem.tolist()], ignore_index=True)
+
+
     freq_columns = [f'f@{x}' for x in freq_bins.tolist()]
     column_names = ['Experiment label', 'Mouse group',
                     'Mouse ID', 'Device label', 'Stage'] + freq_columns
@@ -1613,8 +1665,9 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
     epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
     column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
     psd_delta_timeseries_df.columns = column_names
+    psd_delta_timeseries_nrem_df.columns = column_names
 
-    return psd_mean_df, psd_delta_timeseries_df
+    return psd_mean_df, psd_delta_timeseries_df, psd_delta_timeseries_nrem_df
 
 
 def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_label=''):
@@ -2050,9 +2103,9 @@ if __name__ == '__main__':
     draw_swtransition_barchart_logodds(stagetime_stats, output_dir)
 
     # prepare Powerspectrum density (PSD) profiles for individual mice
-    psd_profiles_df, psd_delta_timeseries_df = make_psd_profile(
+    psd_profiles_df, psd_delta_timeseries_df, psd_delta_timeseries_nrem_df = make_psd_profile(
         mouse_info_df, sample_freq, epoch_range, stage_ext)
-    log_psd_profiles_df, log_psd_delta_timeseries_df = make_log_psd_profile(
+    log_psd_profiles_df, log_psd_delta_timeseries_df, log_psd_delta_timeseries_nrem_df = make_log_psd_profile(
         mouse_info_df, sample_freq, epoch_range, stage_ext)  # decibel-like
 
     # write a table of PSD
@@ -2083,6 +2136,7 @@ if __name__ == '__main__':
     write_psd_stats(psd_profiles_percentage_df, output_dir, 'percentage-')
 
     # draw delta-power timeseries
-    draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, output_dir)
-    draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, output_dir)
-
+    draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir)
+    draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir)
+    draw_psd_delta_timeseries_individual(psd_delta_timeseries_nrem_df, 'Hourly delta power [AU]', output_dir, 'NREM_')
+    draw_psd_delta_timeseries_grouped(psd_delta_timeseries_nrem_df, 'Hourly delta power [AU]', output_dir, 'NREM_')

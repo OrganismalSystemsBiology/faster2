@@ -179,6 +179,32 @@ def read_stages(stage_folder_path, label, type='auto'):
     return regularized_stages
 
 
+def read_stages_with_eeg_diagnosis(stage_folder_path, label, type='auto'):
+    stage_file_path = os.path.join(stage_folder_path, f'{label}.{type}.stage.csv')
+
+    # read stages
+    stage_file = glob(stage_file_path)
+    if len(stage_file) != 1:
+        if len(stage_file) == 0: 
+            raise LookupError(f'no stage file found:{stage_file_path}')
+        elif len(stage_file)>1:
+            raise LookupError(f'too many stage files found:{stage_file}')
+
+    stage_file = stage_file[0]
+    stages = pd.read_csv(stage_file, engine='python', skiprows=7, header=None)
+    regularized_stages = np.array([st.strip().upper() for st in stages.iloc[:,0].values])
+    nan_eeg = stages.iloc[:, 4].to_numpy() # NaN ratio EEG-TS
+    outlier_eeg = stages.iloc[:, 6].to_numpy() # Outlier ratio EEG-TS
+    
+    bidx = ((regularized_stages == 'NREM') | (regularized_stages == 'REM') | (
+        regularized_stages == 'WAKE') | (regularized_stages == 'UNKNOWN'))
+
+    if len(regularized_stages) != np.sum(bidx):
+        raise ValueError(f'Uninterpretable annotation was found at lines {np.where(~bidx)} in the stage file:{stage_file}')
+    
+    return regularized_stages, nan_eeg, outlier_eeg
+
+
 def patch_nan(y):
     """ patches nan elements by non-nan elements in the top of itself.
     This function leaves nan if more than a half of the given array is
@@ -239,10 +265,3 @@ def encode_lookup(target_path):
         enc = locale.getpreferredencoding()
 
     return enc
-
-
-def print_log(msg):
-    if 'log' in globals():
-        log.debug(msg) 
-    else:
-        print(msg)
