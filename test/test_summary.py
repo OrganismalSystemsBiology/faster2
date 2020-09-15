@@ -309,8 +309,10 @@ class  TestFunctions(unittest.TestCase):
                                                 1511, 1515, 1516, 1517, 1518, 1519, 1523, 1528, 1529, 1531, 1534,
                                                 1536, 1537, 1538, 1539, 1543, 1562, 1563, 1565, 1566, 1567, 1577,
                                                 1624, 1755]), idx) # row numbers in the excel file
-
-        # check 5: loaded conv_psd's shape should be 1799,129 because of one unknown (1800-1)
+        # check 5: 'NOT of bidx_target' is the 'NOT of the good epochs (no staged epoch in the check 4)'
+        np.testing.assert_array_equal(np.where(~psd_info_list[0]['bidx_target'])[0][100:]+8, idx)
+        
+        # check 6: loaded conv_psd's shape should be 1799,129 because of one unknown (1800-1)
         np.testing.assert_equal(ans_conv_psd.shape, (1799, 129))
 
 

@@ -5,6 +5,7 @@ import sys
 import numpy as np
 import pickle
 import argparse
+import copy
 
 import chardet
 
@@ -17,6 +18,7 @@ from scipy import stats
 
 import faster2lib.eeg_tools as et
 import stage
+
 
 DOMAIN_NAMES = ['Slow', 'Delta w/o slow', 'Delta', 'Theta']
 
@@ -1518,7 +1520,7 @@ def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
 
         print(f'    Target epoch range: {epoch_range.start}-{epoch_range.stop} ({epoch_range.stop-epoch_range.start} epochs out of {epoch_num} epochs)\n'\
               f'    Unknown epochs in the range: {np.sum(bidx_unknown & bidx_selected)} ({100*np.sum(bidx_unknown & bidx_selected)/np.sum(bidx_selected):.3f}%)\n'\
-              f'    Outlier&NA epochs in the range: {np.sum(~bidx_good_psd & bidx_selected)} ({100*np.sum(~bidx_good_psd & bidx_selected)/np.sum(bidx_selected):.3f}%)')
+              f'    Outlier or NA epochs in the range: {np.sum(~bidx_good_psd & bidx_selected)} ({100*np.sum(~bidx_good_psd & bidx_selected)/np.sum(bidx_selected):.3f}%)')
 
         bidx_rem = (stage_call == 'REM') & bidx_target
         bidx_nrem = (stage_call == 'NREM') & bidx_target
@@ -1533,9 +1535,66 @@ def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
                         'bidx_nrem':bidx_nrem, 
                         'bidx_wake':bidx_wake, 
                         'bidx_unknown':bidx_unknown, 
+                        'bidx_target': bidx_target,
                         'conv_psd':conv_psd})
         
-        return psd_info_list
+    return psd_info_list
+
+
+def make_psd_delta_timeseries_nrem_df(psd_info_list, sample_freq, epoch_num, epoch_range):
+    # frequency bins
+    # assures frequency bins compatibe among different sampling frequencies
+    n_fft = int(256 * sample_freq/100)
+    # same frequency bins given by signal.welch()
+    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+    bidx_delta_freq = (freq_bins<4) # 11 bins
+
+    # make the NREM delta-power timeseries
+    psd_delta_timeseries_nrem_df = pd.DataFrame()
+    for psd_info in psd_info_list:
+        bidx_unknown = psd_info['bidx_unknown']
+        stage_call = psd_info['stage_call']
+        bidx_target = psd_info['bidx_target']
+        bidx_nrem_known = psd_info['bidx_nrem'][~bidx_unknown]
+        conv_psd = psd_info['conv_psd']
+        psd_delta_timeseries_nrem = np.repeat(np.nan, epoch_num)
+        psd_delta_timeseries_nrem[~bidx_unknown & (stage_call=='NREM') & bidx_target] = np.apply_along_axis(np.mean, 1, conv_psd[bidx_nrem_known, :][:,bidx_delta_freq])
+        psd_delta_timeseries_nrem = psd_delta_timeseries_nrem[epoch_range] # extract epochs of the selected range
+        psd_delta_timeseries_nrem_df = psd_delta_timeseries_nrem_df.append(
+            [[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_delta_timeseries_nrem.tolist()], ignore_index=True)
+
+    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
+    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
+    psd_delta_timeseries_nrem_df.columns = column_names
+
+    return psd_delta_timeseries_nrem_df
+
+
+def make_psd_delta_timeseries_df(psd_info_list, sample_freq, epoch_num, epoch_range):
+    # frequency bins
+    # assures frequency bins compatibe among different sampling frequencies
+    n_fft = int(256 * sample_freq/100)
+    # same frequency bins given by signal.welch()
+    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+    bidx_delta_freq = (freq_bins<4) # 11 bins
+
+    # make the NREM delta-power timeseries
+    psd_delta_timeseries_df = pd.DataFrame()
+    for psd_info in psd_info_list:
+        bidx_unknown = psd_info['bidx_unknown']
+        bidx_target = psd_info['bidx_target']
+        conv_psd = psd_info['conv_psd']
+        psd_delta_timeseries = np.repeat(np.nan, epoch_num)
+        psd_delta_timeseries[~bidx_unknown & bidx_target] = np.apply_along_axis(np.mean, 1, conv_psd[bidx_target, :][:,bidx_delta_freq])
+        psd_delta_timeseries = psd_delta_timeseries[epoch_range] # extract epochs of the selected range
+        psd_delta_timeseries_df = psd_delta_timeseries_df.append(
+            [[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_delta_timeseries.tolist()], ignore_index=True)
+
+    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
+    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
+    psd_delta_timeseries_df.columns = column_names
+
+    return psd_delta_timeseries_df
 
 
 def make_psd_profile(psd_info_list, sample_freq, epoch_range, stage_ext):
@@ -1563,7 +1622,7 @@ def make_psd_profile(psd_info_list, sample_freq, epoch_range, stage_ext):
 
     psd_mean_df = pd.DataFrame()
     for psd_info in psd_info_list:
-        device_label = psd_info['devide_label']
+        device_label = psd_info['device_label']
         mouse_group = psd_info['mouse_group']
         mouse_id = psd_info['mouse_id']
         exp_label = psd_info['exp_label']
@@ -1589,11 +1648,6 @@ def make_psd_profile(psd_info_list, sample_freq, epoch_range, stage_ext):
     column_names = ['Experiment label', 'Mouse group',
                     'Mouse ID', 'Device label', 'Stage'] + freq_columns
     psd_mean_df.columns = column_names
-
-    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
-    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
-    psd_delta_timeseries_df.columns = column_names
-    psd_delta_timeseries_nrem_df.columns = column_names
 
     return psd_mean_df
 
@@ -2031,10 +2085,15 @@ if __name__ == '__main__':
     draw_swtransition_barchart_logodds(stagetime_stats, output_dir)
 
     # prepare Powerspectrum density (PSD) profiles for individual mice
-    psd_profiles_df, psd_delta_timeseries_df, psd_delta_timeseries_nrem_df = make_psd_profile(
-        mouse_info_df, sample_freq, epoch_range, stage_ext)
-    log_psd_profiles_df, log_psd_delta_timeseries_df, log_psd_delta_timeseries_nrem_df = make_log_psd_profile(
-        mouse_info_df, sample_freq, epoch_range, stage_ext)  # decibel-like
+    psd_info_list = make_target_psd_info(mouse_info_df, epoch_range, stage_ext)
+    log_psd_info_list = copy.deepcopy(psd_info_list)  # log version of psd_info
+    for log_psd_info in log_psd_info_list:
+        log_psd_info['conv_psd'] = 10*np.log10(log_psd_info['conv_psd'])
+
+    psd_profiles_df = make_psd_profile(
+        psd_info_list, sample_freq, epoch_range, stage_ext)
+    log_psd_profiles_df = make_psd_profile(
+        log_psd_info_list, sample_freq, epoch_range, stage_ext)
 
     # write a table of PSD
     write_psd_stats(psd_profiles_df, output_dir)
@@ -2044,11 +2103,13 @@ if __name__ == '__main__':
     draw_PSDs_individual(psd_profiles_df, sample_freq,
                          'normalized PSD [AU]', output_dir)
     draw_PSDs_individual(log_psd_profiles_df, sample_freq,
-                         'normalized PSD [AU]', output_dir, 'log-')
+                         'normalized log PSD [AU]', output_dir, 'log-')
+
     draw_PSDs_group(psd_profiles_df, sample_freq,
                     'normalized PSD [AU]', output_dir)
     draw_PSDs_group(log_psd_profiles_df, sample_freq,
-                    'normalized PSD [AU]', output_dir, 'log-')
+                    'normalized log PSD [AU]', output_dir, 'log-')
+
 
     # draw power density plot (percentage of the total power)
     psd_profiles_percentage_df = psd_profiles_df.copy()
@@ -2063,8 +2124,11 @@ if __name__ == '__main__':
     # write a table of PSD percentage
     write_psd_stats(psd_profiles_percentage_df, output_dir, 'percentage-')
 
+    psd_delta_timeseries_nrem_df = make_psd_delta_timeseries_nrem_df(psd_info_list, sample_freq, epoch_num, epoch_range)
+    psd_delta_timeseries_df = make_psd_delta_timeseries_df(psd_info_list, sample_freq, epoch_num, epoch_range)
+
     # draw delta-power timeseries
     draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir)
     draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir)
-    draw_psd_delta_timeseries_individual(psd_delta_timeseries_nrem_df, 'Hourly delta power [AU]', output_dir, 'NREM_')
-    draw_psd_delta_timeseries_grouped(psd_delta_timeseries_nrem_df, 'Hourly delta power [AU]', output_dir, 'NREM_')
+    draw_psd_delta_timeseries_individual(psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [AU]', output_dir, 'NREM_')
+    draw_psd_delta_timeseries_grouped(psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [AU]', output_dir, 'NREM_')
