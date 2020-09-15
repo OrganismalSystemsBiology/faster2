@@ -770,10 +770,15 @@ def draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, y_label, outpu
     # this is just for deciding y_max
     delta_timeseries_stats_list=[]
     for bidx in bidx_group_list:
+        hourly_ts_mat_group = hourly_ts_mat[bidx]
+        idx_all_nan = np.where([np.all(np.isnan(r)) for r in hourly_ts_mat_group.T])
+        hourly_ts_mat_group[:, idx_all_nan] = 0 # this is for np.nanmean and np.nanstd
         delta_timeseries_mean = np.apply_along_axis(
-            np.nanmean, 0, hourly_ts_mat[bidx])
+            np.nanmean, 0, hourly_ts_mat_group)
         delta_timeseries_sd = np.apply_along_axis(
-            np.nanstd, 0, hourly_ts_mat[bidx])
+            np.nanstd, 0, hourly_ts_mat_group)
+        delta_timeseries_mean[idx_all_nan] = np.nan
+        delta_timeseries_sd[idx_all_nan] = np.nan
         delta_timeseries_stats_list.append(
             np.array([delta_timeseries_mean, delta_timeseries_sd]))
     y_max = np.nanmax(np.array([ts_stats[0] for ts_stats in delta_timeseries_stats_list])) * 1.1
@@ -816,10 +821,15 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, y_label, output_d
 
     delta_timeseries_stats_list=[]
     for bidx in bidx_group_list:
+        hourly_ts_mat_group = hourly_ts_mat[bidx]
+        idx_all_nan = np.where([np.all(np.isnan(r)) for r in hourly_ts_mat_group.T])
+        hourly_ts_mat_group[:, idx_all_nan] = 0 # this is for np.nanmean and np.nanstd
         delta_timeseries_mean = np.apply_along_axis(
-            np.nanmean, 0, hourly_ts_mat[bidx])
+            np.nanmean, 0, hourly_ts_mat_group)
         delta_timeseries_sd = np.apply_along_axis(
-            np.nanstd, 0, hourly_ts_mat[bidx])
+            np.nanstd, 0, hourly_ts_mat_group)
+        delta_timeseries_mean[idx_all_nan] = np.nan
+        delta_timeseries_sd[idx_all_nan] = np.nan
         delta_timeseries_stats_list.append(
             np.array([delta_timeseries_mean, delta_timeseries_sd]))
 
@@ -1437,12 +1447,8 @@ def conv_PSD_from_snorm_PSD(spec_norm):
     return psd_mat
 
 
-def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
-    """makes summary log PSD statics of each mouse:
-            psd_mean_df: mean log (decibel like) PSD profiles of each stage for each mice.
-            psd_delta_timeseries_df: timeserieses of delta power for each mice
-            This function is same with make_psd_profile() except the log transformation. 
-
+def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
+    """makes PSD information sets for subsequent static analysis for each mouse:
     Arguments:
         mouse_info_df {pd.DataFram} -- an dataframe given by mouse_info_collected()
         sample_freq {int} -- sampling frequency
@@ -1450,21 +1456,21 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         stage_ext {str} -- a file sub-extention (e.g. 'faster2' for *.faster2.csv)
 
     Returns:
-        psd_mean_df {pd.DataFrame} --  Experiment label, Mouse group, Mouse ID, 
-            Device label, Stage, [freq_bins...]
+        psd_info_list [dict] --  A list of dict:
+            'exp_label', 'mouse_group':mouse group, 'mouse_id':mouse id,
+            'device_label', 'stage_call', 'bidx_rem', 'bidx_nrem','bidx_wake':bidx_wake, 
+            'bidx_unknown', 'conv_psd':conv_psd'
+    NOTE:
+        len(conv_psd) <= (len(stage_call)=len(bidx_rem)=len(other bidx), because the
+        unknown-stages' epochs do not have PSD. Therefore users should trim down the index
+        arrays with bidx_unknown to extract elements from conv_psd:
+        
+        > bidx_rem_known = psd_info['bidx_rem'][~bidx_unknown]
+        > psd_mean_rem  = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem_known, :])
+    """    
 
-    """
-
-    # frequency bins
-    # assures frequency bins compatibe among different sampling frequencies
-    n_fft = int(256 * sample_freq/100)
-    # same frequency bins given by signal.welch()
-    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
-    bidx_delta_freq = (freq_bins<4) # 11 bins
-
-    psd_mean_df = pd.DataFrame()
-    psd_delta_timeseries_df = pd.DataFrame()
-    psd_delta_timeseries_nrem_df = pd.DataFrame()
+    # target PSDs are from known-stage's, within-the-epoch-range, and good epochs
+    psd_info_list = []
     for i, r in mouse_info_df.iterrows():
         device_label = r['Device label'].strip()
         stats_report = r['Stats report'].strip().upper()
@@ -1474,166 +1480,103 @@ def make_log_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
         faster_dir = r['FASTER_DIR']
 
         if stats_report == 'NO':
-            print(f'[{i+1}] skipping: {faster_dir} {device_label}')
+            print(f'[{i+1}] Skipping: {faster_dir} {device_label}')
             continue
-        print(f'[{i+1}] reading PSD and stage of: {faster_dir} {device_label}')
+        print(f'[{i+1}] Reading PSD and stage of: {faster_dir} {device_label}')
 
         # read stage of the mouse
         stage_call, nan_eeg, outlier_eeg = et.read_stages_with_eeg_diagnosis(os.path.join(
             faster_dir, 'result'), device_label, stage_ext)
-
+        epoch_num = len(stage_call)
+        
         # read the normalized EEG PSDs and the associated normalization factors and means
+        # ==NOTE==  The unknown-stages' epochs do not have PSD (i.e. len(psd) <= epoch_num )
         pkl_path_eeg = os.path.join(
             faster_dir, 'result', 'PSD', f'{device_label}_EEG_PSD.pkl')
         with open(pkl_path_eeg, 'rb') as pkl:
             snorm_psd = pickle.load(pkl)
 
-        # convert the spectrum normalized PSD to the log PSD
-        # this is the only difference to make_psd_profile()
-        conv_psd = 10*np.log10(conv_PSD_from_snorm_PSD(snorm_psd))
-
-        # Break at the error: the unknown PSD is not recoverable
-        bidx_unknown_psd = snorm_psd['bidx_unknown']
-        if not np.all(stage_call[bidx_unknown_psd] == 'UNKNOWN'):
-            print('[Error] "unknown" is not recoverable')
-            idx = list(np.where(bidx_unknown_psd)[
-                       0][stage_call[bidx_unknown_psd] != 'UNKNOWN'])
-            print(f'... in stage file at {idx}')
-            break
-
-        # good PSD should have the nan- or outlier-ratios of less than 1%
-        bidx_good_psd = (nan_eeg < 0.01) | (outlier_eeg < 0.01)
-
-        # remove unknown-PSD epoch from stage_call
-        stage_call_known = stage_call[~bidx_unknown_psd]
-
-        # bidx_target: bidx for the selected range
-        epoch_num = len(bidx_unknown_psd)
-        bidx_selected = np.repeat(False, epoch_num)
-        bidx_selected[epoch_range] = True
-        bidx_target = bidx_selected[~bidx_unknown_psd] & bidx_good_psd[~bidx_unknown_psd]
-
-        bidx_rem = (stage_call_known == 'REM') & bidx_target
-        bidx_nrem = (stage_call_known == 'NREM') & bidx_target
-        bidx_wake = (stage_call_known == 'WAKE') & bidx_target
-        psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
-        psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
-        psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
-
-        psd_mean_df = psd_mean_df.append([
-            [exp_label, mouse_group, mouse_id, device_label, 'REM'] + psd_mean_rem.tolist()], ignore_index=True)
-        psd_mean_df = psd_mean_df.append([
-            [exp_label, mouse_group, mouse_id, device_label, 'NREM'] + psd_mean_nrem.tolist()], ignore_index=True)
-        psd_mean_df = psd_mean_df.append([
-            [exp_label, mouse_group, mouse_id, device_label, 'Wake'] + psd_mean_wake.tolist()], ignore_index=True)
-
-        # make the delta-power timeseries
-        psd_delta_timeseries = np.repeat(np.nan, epoch_num)
-        psd_delta_timeseries[~bidx_unknown_psd] = np.apply_along_axis(np.mean, 1, conv_psd[:, bidx_delta_freq])
-        psd_delta_timeseries = psd_delta_timeseries[epoch_range] # extract epochs of the selected range
-        psd_delta_timeseries_df = psd_delta_timeseries_df.append(
-            [[exp_label, mouse_group, mouse_id, device_label] + psd_delta_timeseries.tolist()], ignore_index=True)
- 
-        # make the NREM delta-power timeseries
-        psd_delta_timeseries_nrem = np.repeat(np.nan, epoch_num)
-        psd_delta_timeseries_nrem[~bidx_unknown_psd & (stage_call=='NREM') & bidx_good_psd] = np.apply_along_axis(np.mean, 1, conv_psd[bidx_nrem, :][:,bidx_delta_freq])
-        psd_delta_timeseries_nrem = psd_delta_timeseries_nrem[epoch_range] # extract epochs of the selected range
-        psd_delta_timeseries_nrem_df = psd_delta_timeseries_nrem_df.append(
-            [[exp_label, mouse_group, mouse_id, device_label] + psd_delta_timeseries_nrem.tolist()], ignore_index=True)
-
-    freq_columns = [f'f@{x}' for x in freq_bins.tolist()]
-    column_names = ['Experiment label', 'Mouse group',
-                    'Mouse ID', 'Device label', 'Stage'] + freq_columns
-    psd_mean_df.columns = column_names
-
-    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
-    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
-    psd_delta_timeseries_df.columns = column_names
-    psd_delta_timeseries_nrem_df.columns = column_names
-
-    return psd_mean_df, psd_delta_timeseries_df, psd_delta_timeseries_nrem_df
-
-
-def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
-    """makes summary PSD statics of each mouse:
-            psd_mean_df: mean PSD profiles of each stage for each mice
-            psd_delta_timeseries_df: timeserieses of delta power for each mice
-
-    Arguments:
-        mouse_info_df {pd.DataFram} -- an dataframe given by mouse_info_collected()
-        sample_freq {int} -- sampling frequency
-        epoch_range {slice} -- a range of target epochs
-        stage_ext {str} -- a file sub-extention (e.g. 'faster2' for *.faster2.csv)
-
-    Returns:
-        psd_mean_df {pd.DataFrame} --  Experiment label, Mouse group, Mouse ID, 
-            Device label, Stage, [freq_bins...]
-
-    """
-
-    # frequency bins
-    # assures frequency bins compatibe among different sampling frequencies
-    n_fft = int(256 * sample_freq/100)
-    # same frequency bins given by signal.welch()
-    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
-    bidx_delta_freq = (freq_bins<4) # 11 bins
-
-    psd_mean_df = pd.DataFrame()
-    psd_delta_timeseries_df = pd.DataFrame()
-    psd_delta_timeseries_nrem_df = pd.DataFrame()
-    for i, r in mouse_info_df.iterrows():
-        device_label = r['Device label'].strip()
-        stats_report = r['Stats report'].strip().upper()
-        mouse_group = r['Mouse group'].strip()
-        mouse_id = r['Mouse ID'].strip()
-        exp_label = r['Experiment label'].strip()
-        faster_dir = r['FASTER_DIR']
-
-        if stats_report == 'NO':
-            print(f'[{i+1}] skipping: {faster_dir} {device_label}')
-            continue
-        print(f'[{i+1}] reading PSD and stage of: {faster_dir} {device_label}')
-
-        # read stage of the mouse
-        stage_call, nan_eeg, outlier_eeg = et.read_stages_with_eeg_diagnosis(os.path.join(
-            faster_dir, 'result'), device_label, stage_ext)
-
-        # read the normalized EEG PSDs and the associated normalization factors and means
-        pkl_path_eeg = os.path.join(
-            faster_dir, 'result', 'PSD', f'{device_label}_EEG_PSD.pkl')
-        with open(pkl_path_eeg, 'rb') as pkl:
-            snorm_psd = pickle.load(pkl)
-
-         # convert the spectrum normalized PSD to the conventional PSD
+        # convert the spectrum normalized PSD to the conventional PSD
         conv_psd = conv_PSD_from_snorm_PSD(snorm_psd)
 
-        # Break at the error: the unknown PSD is not recoverable
-        bidx_unknown_psd = snorm_psd['bidx_unknown']
-        if not np.all(stage_call[bidx_unknown_psd] == 'UNKNOWN'):
-            print('[Error] "unknown" is not recoverable')
-            idx = list(np.where(bidx_unknown_psd)[
-                       0][stage_call[bidx_unknown_psd] != 'UNKNOWN'])
+        # Break at the error: the unknown stage's PSD is not recoverable (even a manual annotator may want ...)
+        bidx_unknown = snorm_psd['bidx_unknown']
+        if not np.all(stage_call[bidx_unknown] == 'UNKNOWN'):
+            print('[Error] "unknown" epoch is not recoverable. Check the consistency between the PSD and the stage files.')
+            idx = list(np.where(bidx_unknown)[
+                    0][stage_call[bidx_unknown] != 'UNKNOWN'])
             print(f'... in stage file at {idx}')
             break
 
         # good PSD should have the nan- or outlier-ratios of less than 1%
-        bidx_good_psd = (nan_eeg < 0.01) | (outlier_eeg < 0.01)
-
-        # remove unknown-PSD epoch from stage_call
-        stage_call_known = stage_call[~bidx_unknown_psd]
-
+        bidx_good_psd = (nan_eeg < 0.01) & (outlier_eeg < 0.01)
+        
         # bidx_target: bidx for the selected range
-        epoch_num = len(bidx_unknown_psd)
         bidx_selected = np.repeat(False, epoch_num)
         bidx_selected[epoch_range] = True
-        bidx_target = bidx_selected[~bidx_unknown_psd] & bidx_good_psd[~bidx_unknown_psd]
+        bidx_target = bidx_selected & bidx_good_psd
 
-        bidx_rem = (stage_call_known == 'REM') & bidx_target
-        bidx_nrem = (stage_call_known == 'NREM') & bidx_target
-        bidx_wake = (stage_call_known == 'WAKE') & bidx_target
-        psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
-        psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
-        psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
+        print(f'    Target epoch range: {epoch_range.start}-{epoch_range.stop} ({epoch_range.stop-epoch_range.start} epochs out of {epoch_num} epochs)\n'\
+              f'    Unknown epochs in the range: {np.sum(bidx_unknown & bidx_selected)} ({100*np.sum(bidx_unknown & bidx_selected)/np.sum(bidx_selected):.3f}%)\n'\
+              f'    Outlier&NA epochs in the range: {np.sum(~bidx_good_psd & bidx_selected)} ({100*np.sum(~bidx_good_psd & bidx_selected)/np.sum(bidx_selected):.3f}%)')
+
+        bidx_rem = (stage_call == 'REM') & bidx_target
+        bidx_nrem = (stage_call == 'NREM') & bidx_target
+        bidx_wake = (stage_call == 'WAKE') & bidx_target 
+        
+        psd_info_list.append({'exp_label':exp_label,
+                        'mouse_group':mouse_group,
+                        'mouse_id':mouse_id,
+                        'device_label':device_label,
+                        'stage_call':stage_call,
+                        'bidx_rem':bidx_rem, 
+                        'bidx_nrem':bidx_nrem, 
+                        'bidx_wake':bidx_wake, 
+                        'bidx_unknown':bidx_unknown, 
+                        'conv_psd':conv_psd})
+        
+        return psd_info_list
+
+
+def make_psd_profile(psd_info_list, sample_freq, epoch_range, stage_ext):
+    """makes summary PSD statics of each mouse:
+            psd_mean_df: mean log (decibel like) PSD profiles of each stage for each mice.
+            psd_delta_timeseries_df: timeserieses of delta power for each mice
+
+    Arguments:
+        psd_info_list {[np.array]} -- a list of psd_info given by make_target_psd_info()
+        sample_freq {int} -- sampling frequency
+        epoch_range {slice} -- a range of target epochs
+        stage_ext {str} -- a file sub-extention (e.g. 'faster2' for *.faster2.csv)
+
+    Returns:
+        psd_mean_df {pd.DataFrame} --  Experiment label, Mouse group, Mouse ID, 
+            Device label, Stage, [freq_bins...]
+
+    """
+
+    # frequency bins
+    # assures frequency bins compatibe among different sampling frequencies
+    n_fft = int(256 * sample_freq/100)
+    # same frequency bins given by signal.welch()
+    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+
+    psd_mean_df = pd.DataFrame()
+    for psd_info in psd_info_list:
+        device_label = psd_info['devide_label']
+        mouse_group = psd_info['mouse_group']
+        mouse_id = psd_info['mouse_id']
+        exp_label = psd_info['exp_label']
+        conv_psd = psd_info['conv_psd']
+
+        bidx_unknown = psd_info['bidx_unknown']
+        bidx_rem_known = psd_info['bidx_rem'][~bidx_unknown]
+        bidx_nrem_known = psd_info['bidx_nrem'][~bidx_unknown]
+        bidx_wake_known = psd_info['bidx_wake'][~bidx_unknown]
+ 
+        psd_mean_rem  = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem_known, :])
+        psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem_known, :])
+        psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake_known, :])
 
         psd_mean_df = psd_mean_df.append([
             [exp_label, mouse_group, mouse_id, device_label, 'REM'] + psd_mean_rem.tolist()], ignore_index=True)
@@ -1641,21 +1584,6 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
             [exp_label, mouse_group, mouse_id, device_label, 'NREM'] + psd_mean_nrem.tolist()], ignore_index=True)
         psd_mean_df = psd_mean_df.append([
             [exp_label, mouse_group, mouse_id, device_label, 'Wake'] + psd_mean_wake.tolist()], ignore_index=True)
-
-        # make the delta-power timeseries
-        psd_delta_timeseries = np.repeat(np.nan, epoch_num)
-        psd_delta_timeseries[~bidx_unknown_psd] = np.apply_along_axis(np.mean, 1, conv_psd[:, bidx_delta_freq])
-        psd_delta_timeseries = psd_delta_timeseries[epoch_range] # extract epochs of the selected range
-        psd_delta_timeseries_df = psd_delta_timeseries_df.append(
-            [[exp_label, mouse_group, mouse_id, device_label] + psd_delta_timeseries.tolist()], ignore_index=True)
-
-        # make the NREM delta-power timeseries
-        psd_delta_timeseries_nrem = np.repeat(np.nan, epoch_num)
-        psd_delta_timeseries_nrem[~bidx_unknown_psd & (stage_call=='NREM') & bidx_good_psd] = np.apply_along_axis(np.mean, 1, conv_psd[bidx_nrem, :][:,bidx_delta_freq])
-        psd_delta_timeseries_nrem = psd_delta_timeseries_nrem[epoch_range] # extract epochs of the selected range
-        psd_delta_timeseries_nrem_df = psd_delta_timeseries_nrem_df.append(
-            [[exp_label, mouse_group, mouse_id, device_label] + psd_delta_timeseries_nrem.tolist()], ignore_index=True)
-
 
     freq_columns = [f'f@{x}' for x in freq_bins.tolist()]
     column_names = ['Experiment label', 'Mouse group',
@@ -1667,7 +1595,7 @@ def make_psd_profile(mouse_info_df, sample_freq, epoch_range, stage_ext):
     psd_delta_timeseries_df.columns = column_names
     psd_delta_timeseries_nrem_df.columns = column_names
 
-    return psd_mean_df, psd_delta_timeseries_df, psd_delta_timeseries_nrem_df
+    return psd_mean_df
 
 
 def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_label=''):

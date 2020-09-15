@@ -265,68 +265,116 @@ class  TestFunctions(unittest.TestCase):
 
         np.testing.assert_array_almost_equal(exp, ans)
        
- 
-    def test_make_psd_profile(self):
-        # conventional PSD from voltage matrix
-        conv_psd = np.apply_along_axis(lambda y: stage.psd(y, self.n_fft, self.sample_freq), 1, self.eeg_vm_org)
 
-        bidx_unknown = (self.stage_call == 'UNKNOWN')
-        bidx_rem = (self.stage_call == 'REM') & (~bidx_unknown)
-        bidx_nrem = (self.stage_call == 'NREM') & (~bidx_unknown)
-        bidx_wake = (self.stage_call == 'WAKE') & (~bidx_unknown)
-        exp_psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
-        exp_psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
-        exp_psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
-
+    def test_make_target_psd_info(self):
         # a small mouse_info_df
-        mif = pd.DataFrame({'Device label':['ID33572'], 
+        mif = pd.DataFrame({'Device label':['190815.M3no4'], 
                     'Stats report':['Yes'], 
-                    'Mouse group':['T287D'], 
-                    'Mouse ID':'AAV0837_1',
-                    'Experiment label': ['FASTER2_20200206_EEG_2019-023'], 
-                    'FASTER_DIR':['../test/data/FASTER2_20200206_EEG_2019-023/']})
+                    'Mouse group':['M3'], 
+                    'Mouse ID':'M3.3',
+                    'Experiment label': ['FASTER2_UT_20180814_M3Dq'], 
+                    'FASTER_DIR':['../test/data/FASTER2_UT_20180814_M3Dq/']})
 
         # TEST
-        df = ps.make_psd_profile(mif, 100, slice(0,1800,None), 'faster2_1800')
-        ans_psd_mean_rem = df.iloc[0][5:].tolist()
-        ans_psd_mean_nrem = df.iloc[1][5:].tolist()
-        ans_psd_mean_wake = df.iloc[2][5:].tolist()
+        psd_info_list = ps.make_target_psd_info(mif, slice(100,1800,None), 'faster2_1800')
+        psd_info = psd_info_list[0]
+        ans_conv_psd = psd_info['conv_psd']
 
-        np.testing.assert_array_almost_equal(exp_psd_mean_rem, ans_psd_mean_rem)
-        np.testing.assert_array_almost_equal(exp_psd_mean_nrem, ans_psd_mean_nrem)
-        np.testing.assert_array_almost_equal(exp_psd_mean_wake, ans_psd_mean_wake)
+        # check 1: The length of stage_call is full length (not the targeted length) i.e. 1800
+        np.testing.assert_equal(len(psd_info_list[0]['stage_call']), 1800)
+        
+        # check 2: Unknown epoch is only at index:186
+        np.testing.assert_array_equal(np.where(psd_info_list[0]['bidx_unknown']), np.array([[186]]))
+        
+        # check 3: Because epoch_range is specified, index 0:100 should be all false in bidx_[rem, nrem, wake]
+        stage_mat = np.array([psd_info_list[0]['bidx_rem'], psd_info_list[0]['bidx_nrem'], psd_info_list[0]['bidx_wake']])
+        true_if_any_stage_found = np.apply_along_axis(lambda y: np.any(y), 0, stage_mat)
+        np.testing.assert_equal(np.any(true_if_any_stage_found[0:100]), False)
+        
+        # check 4: Within the range (index:100-1800), if the all of bidx_[rem, nrem, wake] of an epoch are false, then the epoch is not a good epoch
+        idx = np.where(~true_if_any_stage_found[100:])[0] + 100 + 8
+        np.testing.assert_array_equal(np.array([158,  159,  162,  164,  174,  175,  176,  177,  178,  179,  180,
+                                                181,  182,  183,  184,  185,  186,  187,  188,  189,  190,  191,
+                                                192,  193,  194,  195,  196,  197,  198,  199,  203,  204,  205,
+                                                206,  208,  210,  212,  218,  219,  221,  222,  223,  224,  229,
+                                                230,  231,  232,  233,  234,  235,  238,  239,  240,  245,  246,
+                                                289,  290,  293,  314,  335,  346,  347,  350,  362,  363,  364,
+                                                371,  383,  389,  397,  401,  402,  403,  404,  412,  428,  470,
+                                                475,  480,  647,  754,  757,  762,  776,  795,  833,  835,  838,
+                                                839,  862,  866,  868,  871,  872,  890,  898,  900,  952,  959,
+                                                960,  969,  970,  976,  993, 1018, 1020, 1021, 1034, 1035, 1040,
+                                                1041, 1042, 1043, 1053, 1054, 1056, 1070, 1076, 1112, 1115, 1121,
+                                                1122, 1123, 1143, 1213, 1377, 1378, 1379, 1380, 1390, 1394, 1415,
+                                                1416, 1417, 1457, 1458, 1463, 1499, 1500, 1501, 1502, 1508, 1509,
+                                                1511, 1515, 1516, 1517, 1518, 1519, 1523, 1528, 1529, 1531, 1534,
+                                                1536, 1537, 1538, 1539, 1543, 1562, 1563, 1565, 1566, 1567, 1577,
+                                                1624, 1755]), idx) # row numbers in the excel file
+
+        # check 5: loaded conv_psd's shape should be 1799,129 because of one unknown (1800-1)
+        np.testing.assert_equal(ans_conv_psd.shape, (1799, 129))
 
 
-    def test_make_log_psd_profile(self):
-        # conventional PSD from voltage matrix
-        conv_psd = np.apply_along_axis(lambda y: stage.psd(y, self.n_fft, self.sample_freq), 1, self.eeg_vm_org)
-        conv_psd = 10*np.log10(conv_psd)
+    # def test_make_psd_profile(self):
+    #     # conventional PSD from voltage matrix
+    #     conv_psd = np.apply_along_axis(lambda y: stage.psd(y, self.n_fft, self.sample_freq), 1, self.eeg_vm_org)
 
-        bidx_unknown = (self.stage_call == 'UNKNOWN')
-        bidx_rem = (self.stage_call == 'REM') & (~bidx_unknown)
-        bidx_nrem = (self.stage_call == 'NREM') & (~bidx_unknown)
-        bidx_wake = (self.stage_call == 'WAKE') & (~bidx_unknown)
-        exp_psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
-        exp_psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
-        exp_psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
+    #     bidx_unknown = (self.stage_call == 'UNKNOWN')
+    #     bidx_rem = (self.stage_call == 'REM') & (~bidx_unknown)
+    #     bidx_nrem = (self.stage_call == 'NREM') & (~bidx_unknown)
+    #     bidx_wake = (self.stage_call == 'WAKE') & (~bidx_unknown)
+    #     exp_psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
+    #     exp_psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
+    #     exp_psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
 
-        # a small mouse_info_df
-        mif = pd.DataFrame({'Device label':['ID33572'], 
-                    'Stats report':['Yes'], 
-                    'Mouse group':['T287D'], 
-                    'Mouse ID':'AAV0837_1',
-                    'Experiment label': ['FASTER2_20200206_EEG_2019-023'], 
-                    'FASTER_DIR':['../test/data/FASTER2_20200206_EEG_2019-023/']})
+    #     # a small mouse_info_df
+    #     mif = pd.DataFrame({'Device label':['ID33572'], 
+    #                 'Stats report':['Yes'], 
+    #                 'Mouse group':['T287D'], 
+    #                 'Mouse ID':'AAV0837_1',
+    #                 'Experiment label': ['FASTER2_20200206_EEG_2019-023'], 
+    #                 'FASTER_DIR':['../test/data/FASTER2_20200206_EEG_2019-023/']})
 
-        # TEST
-        df = ps.make_log_psd_profile(mif, 100, slice(0,1800,None), 'faster2_1800')
-        ans_psd_mean_rem = df.iloc[0][5:].tolist()
-        ans_psd_mean_nrem = df.iloc[1][5:].tolist()
-        ans_psd_mean_wake = df.iloc[2][5:].tolist()
+    #     # TEST
+    #     df = ps.make_psd_profile(mif, 100, slice(0,1800,None), 'faster2_1800')
+    #     ans_psd_mean_rem = df.iloc[0][5:].tolist()
+    #     ans_psd_mean_nrem = df.iloc[1][5:].tolist()
+    #     ans_psd_mean_wake = df.iloc[2][5:].tolist()
 
-        np.testing.assert_array_almost_equal(exp_psd_mean_rem, ans_psd_mean_rem)
-        np.testing.assert_array_almost_equal(exp_psd_mean_nrem, ans_psd_mean_nrem)
-        np.testing.assert_array_almost_equal(exp_psd_mean_wake, ans_psd_mean_wake)
+    #     np.testing.assert_array_almost_equal(exp_psd_mean_rem, ans_psd_mean_rem)
+    #     np.testing.assert_array_almost_equal(exp_psd_mean_nrem, ans_psd_mean_nrem)
+    #     np.testing.assert_array_almost_equal(exp_psd_mean_wake, ans_psd_mean_wake)
+
+
+    # def test_make_log_psd_profile(self):
+    #     # conventional PSD from voltage matrix
+    #     conv_psd = np.apply_along_axis(lambda y: stage.psd(y, self.n_fft, self.sample_freq), 1, self.eeg_vm_org)
+    #     conv_psd = 10*np.log10(conv_psd)
+
+    #     bidx_unknown = (self.stage_call == 'UNKNOWN')
+    #     bidx_rem = (self.stage_call == 'REM') & (~bidx_unknown)
+    #     bidx_nrem = (self.stage_call == 'NREM') & (~bidx_unknown)
+    #     bidx_wake = (self.stage_call == 'WAKE') & (~bidx_unknown)
+    #     exp_psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
+    #     exp_psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
+    #     exp_psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
+
+    #     # a small mouse_info_df
+    #     mif = pd.DataFrame({'Device label':['ID33572'], 
+    #                 'Stats report':['Yes'], 
+    #                 'Mouse group':['T287D'], 
+    #                 'Mouse ID':'AAV0837_1',
+    #                 'Experiment label': ['FASTER2_20200206_EEG_2019-023'], 
+    #                 'FASTER_DIR':['../test/data/FASTER2_20200206_EEG_2019-023/']})
+
+    #     # TEST
+    #     df = ps.make_log_psd_profile(mif, 100, slice(0,1800,None), 'faster2_1800')
+    #     ans_psd_mean_rem = df.iloc[0][5:].tolist()
+    #     ans_psd_mean_nrem = df.iloc[1][5:].tolist()
+    #     ans_psd_mean_wake = df.iloc[2][5:].tolist()
+
+    #     np.testing.assert_array_almost_equal(exp_psd_mean_rem, ans_psd_mean_rem)
+    #     np.testing.assert_array_almost_equal(exp_psd_mean_nrem, ans_psd_mean_nrem)
+    #     np.testing.assert_array_almost_equal(exp_psd_mean_wake, ans_psd_mean_wake)
 
 
     def test_make_psd_domain(self):
