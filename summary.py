@@ -389,7 +389,7 @@ def _set_common_features_stagetime_profile(ax, x_max):
 
 
 def _set_common_features_delta_power_timeseries(ax, x_max, y_max):
-    ax.set_yticks(np.arange(0, y_max, 0.1))
+    ax.set_yticks(np.arange(0, y_max, np.power(10, np.ceil(np.log10(y_max))-1)))
     ax.set_xticks(np.arange(0, x_max+1, 6))
     ax.grid(dashes=(2, 2))
 
@@ -1541,7 +1541,7 @@ def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
     return psd_info_list
 
 
-def make_psd_delta_timeseries_nrem_df(psd_info_list, sample_freq, epoch_num, epoch_range):
+def make_psd_delta_timeseries_nrem_df(psd_info_list, sample_freq, epoch_num, epoch_range, summary_func=np.mean):
     # frequency bins
     # assures frequency bins compatibe among different sampling frequencies
     n_fft = int(256 * sample_freq/100)
@@ -1558,7 +1558,7 @@ def make_psd_delta_timeseries_nrem_df(psd_info_list, sample_freq, epoch_num, epo
         bidx_nrem_known = psd_info['bidx_nrem'][~bidx_unknown]
         conv_psd = psd_info['conv_psd']
         psd_delta_timeseries_nrem = np.repeat(np.nan, epoch_num)
-        psd_delta_timeseries_nrem[~bidx_unknown & (stage_call=='NREM') & bidx_target] = np.apply_along_axis(np.mean, 1, conv_psd[bidx_nrem_known, :][:,bidx_delta_freq])
+        psd_delta_timeseries_nrem[~bidx_unknown & (stage_call=='NREM') & bidx_target] = np.apply_along_axis(summary_func, 1, conv_psd[bidx_nrem_known, :][:,bidx_delta_freq])
         psd_delta_timeseries_nrem = psd_delta_timeseries_nrem[epoch_range] # extract epochs of the selected range
         psd_delta_timeseries_nrem_df = psd_delta_timeseries_nrem_df.append(
             [[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_delta_timeseries_nrem.tolist()], ignore_index=True)
@@ -1570,7 +1570,7 @@ def make_psd_delta_timeseries_nrem_df(psd_info_list, sample_freq, epoch_num, epo
     return psd_delta_timeseries_nrem_df
 
 
-def make_psd_delta_timeseries_df(psd_info_list, sample_freq, epoch_num, epoch_range):
+def make_psd_delta_timeseries_df(psd_info_list, sample_freq, epoch_num, epoch_range, summary_func=np.mean):
     # frequency bins
     # assures frequency bins compatibe among different sampling frequencies
     n_fft = int(256 * sample_freq/100)
@@ -1585,7 +1585,7 @@ def make_psd_delta_timeseries_df(psd_info_list, sample_freq, epoch_num, epoch_ra
         bidx_target = psd_info['bidx_target']
         conv_psd = psd_info['conv_psd']
         psd_delta_timeseries = np.repeat(np.nan, epoch_num)
-        psd_delta_timeseries[~bidx_unknown & bidx_target] = np.apply_along_axis(np.mean, 1, conv_psd[bidx_target, :][:,bidx_delta_freq])
+        psd_delta_timeseries[~bidx_unknown & bidx_target] = np.apply_along_axis(summary_func, 1, conv_psd[bidx_target, :][:,bidx_delta_freq])
         psd_delta_timeseries = psd_delta_timeseries[epoch_range] # extract epochs of the selected range
         psd_delta_timeseries_df = psd_delta_timeseries_df.append(
             [[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_delta_timeseries.tolist()], ignore_index=True)
@@ -1599,8 +1599,7 @@ def make_psd_delta_timeseries_df(psd_info_list, sample_freq, epoch_num, epoch_ra
 
 def make_psd_profile(psd_info_list, sample_freq, epoch_range, stage_ext):
     """makes summary PSD statics of each mouse:
-            psd_mean_df: mean log (decibel like) PSD profiles of each stage for each mice.
-            psd_delta_timeseries_df: timeserieses of delta power for each mice
+            psd_mean_df: summary (default: mean) of PSD profiles for each stage for each mice.
 
     Arguments:
         psd_info_list {[np.array]} -- a list of psd_info given by make_target_psd_info()
@@ -1609,7 +1608,7 @@ def make_psd_profile(psd_info_list, sample_freq, epoch_range, stage_ext):
         stage_ext {str} -- a file sub-extention (e.g. 'faster2' for *.faster2.csv)
 
     Returns:
-        psd_mean_df {pd.DataFrame} --  Experiment label, Mouse group, Mouse ID, 
+        psd_summary_df {pd.DataFrame} --  Experiment label, Mouse group, Mouse ID, 
             Device label, Stage, [freq_bins...]
 
     """
@@ -1620,7 +1619,7 @@ def make_psd_profile(psd_info_list, sample_freq, epoch_range, stage_ext):
     # same frequency bins given by signal.welch()
     freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
 
-    psd_mean_df = pd.DataFrame()
+    psd_summary_df = pd.DataFrame()
     for psd_info in psd_info_list:
         device_label = psd_info['device_label']
         mouse_group = psd_info['mouse_group']
@@ -1633,23 +1632,23 @@ def make_psd_profile(psd_info_list, sample_freq, epoch_range, stage_ext):
         bidx_nrem_known = psd_info['bidx_nrem'][~bidx_unknown]
         bidx_wake_known = psd_info['bidx_wake'][~bidx_unknown]
  
-        psd_mean_rem  = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem_known, :])
-        psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem_known, :])
-        psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake_known, :])
+        psd_summary_rem  = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem_known, :])
+        psd_summary_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem_known, :])
+        psd_summary_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake_known, :])
 
-        psd_mean_df = psd_mean_df.append([
-            [exp_label, mouse_group, mouse_id, device_label, 'REM'] + psd_mean_rem.tolist()], ignore_index=True)
-        psd_mean_df = psd_mean_df.append([
-            [exp_label, mouse_group, mouse_id, device_label, 'NREM'] + psd_mean_nrem.tolist()], ignore_index=True)
-        psd_mean_df = psd_mean_df.append([
-            [exp_label, mouse_group, mouse_id, device_label, 'Wake'] + psd_mean_wake.tolist()], ignore_index=True)
+        psd_summary_df = psd_summary_df.append([
+            [exp_label, mouse_group, mouse_id, device_label, 'REM'] + psd_summary_rem.tolist()], ignore_index=True)
+        psd_summary_df = psd_summary_df.append([
+            [exp_label, mouse_group, mouse_id, device_label, 'NREM'] + psd_summary_nrem.tolist()], ignore_index=True)
+        psd_summary_df = psd_summary_df.append([
+            [exp_label, mouse_group, mouse_id, device_label, 'Wake'] + psd_summary_wake.tolist()], ignore_index=True)
 
     freq_columns = [f'f@{x}' for x in freq_bins.tolist()]
     column_names = ['Experiment label', 'Mouse group',
                     'Mouse ID', 'Device label', 'Stage'] + freq_columns
-    psd_mean_df.columns = column_names
+    psd_summary_df.columns = column_names
 
-    return psd_mean_df
+    return psd_summary_df
 
 
 def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_label=''):
@@ -1858,11 +1857,12 @@ def write_sleep_stats(stagetime_stats, output_dir):
         output_dir, 'stage-time_table.csv'), index=False)
 
 
-def make_psd_domain(psd_profiles_df):
+def make_psd_domain(psd_profiles_df, summary_func=np.mean):
     """ makes PSD power averaged within frequency domains of each stage for each mice
 
     Arguments:
         psd_profiles_df {pd.DataFrame} -- a dataframe given by make_psd_profile()
+        summary_func {function} -- a function for summarizing PSD
 
     Returns:
         [pd.DataFrame] -- Experiment label, Mouse group, Mouse ID, 
@@ -1890,10 +1890,10 @@ def make_psd_domain(psd_profiles_df):
         powers_delta = powers[bidx_delta_freq]
         powers_theta = powers[bidx_theta_freq]
 
-        slow_p = np.mean(powers_slow)
-        delta_wo_slow_p = np.mean(powers_delta_wo_slow)
-        delta_p = np.mean(powers_delta)
-        theta_p = np.mean(powers_theta)
+        slow_p = summary_func(powers_slow)
+        delta_wo_slow_p = summary_func(powers_delta_wo_slow)
+        delta_p = summary_func(powers_delta)
+        theta_p = summary_func(powers_theta)
         domain_powers = pd.Series(
             [slow_p, delta_wo_slow_p, delta_p, theta_p], index=DOMAIN_NAMES)
 
@@ -1977,14 +1977,14 @@ def make_psd_stats(psd_domain_df):
     return psd_stats_df
 
 
-def write_psd_stats(psd_profiles_df, output_dir, opt_label=''):
+def write_psd_stats(psd_profiles_df, output_dir, opt_label='', summary_func=np.mean):
     """ writes three PSD tables:
         1. psd_profile.csv: mean PSD profile of each stage for each mice
         2. psd_freq_domain_table.csv: PSD power averaged within frequency domains of each stage for each mice 
         3. psd_stats_table.csv: statistical tests for each frequency domains between groups 
     """
 
-    psd_domain_df = make_psd_domain(psd_profiles_df)
+    psd_domain_df = make_psd_domain(psd_profiles_df, summary_func)
     psd_stats_df = make_psd_stats(psd_domain_df)
 
     # write tabels
@@ -2085,50 +2085,61 @@ if __name__ == '__main__':
     draw_swtransition_barchart_logodds(stagetime_stats, output_dir)
 
     # prepare Powerspectrum density (PSD) profiles for individual mice
+    # list of {simple exp info, target info, psd (epoch_num, 129)} for each mouse
     psd_info_list = make_target_psd_info(mouse_info_df, epoch_range, stage_ext)
-    log_psd_info_list = copy.deepcopy(psd_info_list)  # log version of psd_info
+ 
+   # log version of psd_info
+    log_psd_info_list = copy.deepcopy(psd_info_list)
     for log_psd_info in log_psd_info_list:
         log_psd_info['conv_psd'] = 10*np.log10(log_psd_info['conv_psd'])
+
+    # percentage version of psd_info
+    psd_percentage_info_list = copy.deepcopy(psd_info_list)
+    for psd_percentage_info in psd_percentage_info_list:
+        conv_psd = psd_percentage_info['conv_psd']
+        psd_percentage_mat = np.zeros(conv_psd.shape)
+        for i, p in enumerate(conv_psd): # row wise
+            psd_percentage_mat[i,:] = 100*p / np.sum(p)
+        psd_percentage_info['conv_psd'] = psd_percentage_mat
 
     psd_profiles_df = make_psd_profile(
         psd_info_list, sample_freq, epoch_range, stage_ext)
     log_psd_profiles_df = make_psd_profile(
         log_psd_info_list, sample_freq, epoch_range, stage_ext)
+    percentage_psd_profiles_df = make_psd_profile(
+        psd_percentage_info_list, sample_freq, epoch_range, stage_ext)
 
     # write a table of PSD
     write_psd_stats(psd_profiles_df, output_dir)
     write_psd_stats(log_psd_profiles_df, output_dir, 'log-')
+    write_psd_stats(percentage_psd_profiles_df, output_dir, 'percentage-', np.sum)
 
     # draw power density plot
     draw_PSDs_individual(psd_profiles_df, sample_freq,
                          'normalized PSD [AU]', output_dir)
     draw_PSDs_individual(log_psd_profiles_df, sample_freq,
                          'normalized log PSD [AU]', output_dir, 'log-')
+    draw_PSDs_individual(percentage_psd_profiles_df, sample_freq,
+                         'normalized log PSD [AU]', output_dir, 'percentage-')
 
     draw_PSDs_group(psd_profiles_df, sample_freq,
                     'normalized PSD [AU]', output_dir)
     draw_PSDs_group(log_psd_profiles_df, sample_freq,
                     'normalized log PSD [AU]', output_dir, 'log-')
-
-
-    # draw power density plot (percentage of the total power)
-    psd_profiles_percentage_df = psd_profiles_df.copy()
-    total_powers = psd_profiles_df.iloc[:, 5:].apply(np.sum, axis=1)
-    psd_profiles_percentage_df.iloc[:, 5:] = 100 * \
-        (psd_profiles_df.iloc[:, 5:].T/total_powers).T
-    draw_PSDs_individual(psd_profiles_percentage_df, sample_freq,
-                         'PSD percentage [%]', output_dir, 'percentage-')
-    draw_PSDs_group(psd_profiles_percentage_df, sample_freq,
-                    'PSD percentage [%]', output_dir, 'percentage-')
-
-    # write a table of PSD percentage
-    write_psd_stats(psd_profiles_percentage_df, output_dir, 'percentage-')
+    draw_PSDs_group(percentage_psd_profiles_df, sample_freq,
+                    'normalized percentage PSD [%]', output_dir, 'percentage-')
 
     psd_delta_timeseries_nrem_df = make_psd_delta_timeseries_nrem_df(psd_info_list, sample_freq, epoch_num, epoch_range)
     psd_delta_timeseries_df = make_psd_delta_timeseries_df(psd_info_list, sample_freq, epoch_num, epoch_range)
+    percentage_psd_delta_timeseries_nrem_df = make_psd_delta_timeseries_nrem_df(psd_percentage_info_list, sample_freq, epoch_num, epoch_range, np.sum)
+    percentage_psd_delta_timeseries_df = make_psd_delta_timeseries_df(psd_percentage_info_list, sample_freq, epoch_num, epoch_range, np.sum)
 
     # draw delta-power timeseries
     draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir)
     draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir)
+    draw_psd_delta_timeseries_individual(percentage_psd_delta_timeseries_df, 'Hourly delta power [%]', output_dir, 'percentage_')
+    draw_psd_delta_timeseries_grouped(percentage_psd_delta_timeseries_df, 'Hourly delta power [%]', output_dir, 'percentage_')
     draw_psd_delta_timeseries_individual(psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [AU]', output_dir, 'NREM_')
     draw_psd_delta_timeseries_grouped(psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [AU]', output_dir, 'NREM_')
+    draw_psd_delta_timeseries_individual(percentage_psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [%]', output_dir, 'NREM_percentage_')
+    draw_psd_delta_timeseries_grouped(percentage_psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [%]', output_dir, 'NREM_percentage_')
