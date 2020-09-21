@@ -51,7 +51,7 @@ def print_log(msg):
     if 'log' in globals():
         log.debug(msg)
     else:
-        print_log(msg)
+        print(msg)
 
 
 def collect_mouse_info_df(faster_dir_list):
