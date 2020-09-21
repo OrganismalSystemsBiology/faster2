@@ -825,7 +825,7 @@ def main(data_dir, result_dir, pickle_input_data):
         print_log(f'#######################################')
         print_log(f'#### [{i+1}] Device_id: {device_id}')
         print_log(f'Reading voltages')
-        print_log(f'Epoch num:{epoch_num} recorded at sampling frequency {sample_freq}')
+        print_log(f'Epoch num:{epoch_num} Sampling frequency: {sample_freq} [Hz]')
         (eeg_vm_org, emg_vm_org, not_yet_pickled) = read_voltage_matrices(
             data_dir, device_id, sample_freq, EPOCH_LEN_SEC, epoch_num, start_datetime)
 
