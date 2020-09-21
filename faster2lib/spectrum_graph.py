@@ -2,6 +2,7 @@
 import os
 import sys
 import numpy as np
+import pandas as pd
 import pickle
 from scipy import linalg
 
@@ -10,6 +11,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 import stage
+import faster2lib.eeg_tools as et
 
 
 def log_psd_inv(y, normalizing_fac, normalizing_mean):
@@ -19,7 +21,7 @@ def log_psd_inv(y, normalizing_fac, normalizing_mean):
 
 
 class SpectrumAnalysisPlots:
-    def __init__(self, spec_norm_eeg, spec_norm_emg, cluster_params, device_id, sample_freq):
+    def __init__(self, spec_norm_eeg, spec_norm_emg, cluster_params, device_id, sample_freq, epoch_num):
         """This class handles drawing a set of epoch's powerspectrum of a mouse.
 
         Args:
@@ -32,25 +34,32 @@ class SpectrumAnalysisPlots:
             device_id (str): a string of device ID
             sample_freq (int): sampling frequency
         """
-        self.eeg_norm_mat = spec_norm_eeg['psd']
+
+        self.bidx_unknown = spec_norm_eeg['bidx_unknown']
         nf = spec_norm_eeg['norm_fac']
         nm = spec_norm_eeg['mean']
+
+        self.eeg_norm_mat = np.repeat(np.nan, epoch_num*len(nf)).reshape([epoch_num, len(nf)])
+        self.eeg_norm_mat[~self.bidx_unknown] = spec_norm_eeg['psd']
         self.eeg_conv_mat = np.vectorize(
             log_psd_inv)(self.eeg_norm_mat, nf, nm)
-        self.eeg_conv_mean = np.apply_along_axis(np.mean, 0, self.eeg_conv_mat)
-        self.eeg_conv_std = np.apply_along_axis(np.std, 0, self.eeg_conv_mat)
-        self.eeg_norm_mean = np.apply_along_axis(np.mean, 0, self.eeg_norm_mat)
-        self.eeg_norm_std = np.apply_along_axis(np.std, 0, self.eeg_norm_mat)
 
-        self.emg_norm_mat = spec_norm_emg['psd']
+        self.eeg_conv_mean = np.apply_along_axis(np.nanmean, 0, self.eeg_conv_mat)
+        self.eeg_conv_std = np.apply_along_axis(np.nanstd, 0, self.eeg_conv_mat)
+        self.eeg_norm_mean = np.apply_along_axis(np.nanmean, 0, self.eeg_norm_mat)
+        self.eeg_norm_std = np.apply_along_axis(np.nanstd, 0, self.eeg_norm_mat)
+
         nf = spec_norm_emg['norm_fac']
         nm = spec_norm_emg['mean']
+        self.emg_norm_mat = np.repeat(np.nan, epoch_num*len(nf)).reshape([epoch_num, len(nf)])
+        self.emg_norm_mat[~self.bidx_unknown] = spec_norm_emg['psd']
         self.emg_conv_mat = np.vectorize(
             log_psd_inv)(self.emg_norm_mat, nf, nm)
-        self.emg_conv_mean = np.apply_along_axis(np.mean, 0, self.emg_conv_mat)
-        self.emg_conv_std = np.apply_along_axis(np.std, 0, self.emg_conv_mat)
-        self.emg_norm_mean = np.apply_along_axis(np.mean, 0, self.emg_norm_mat)
-        self.emg_norm_std = np.apply_along_axis(np.std, 0, self.emg_norm_mat)
+
+        self.emg_conv_mean = np.apply_along_axis(np.nanmean, 0, self.emg_conv_mat)
+        self.emg_conv_std = np.apply_along_axis(np.nanstd, 0, self.emg_conv_mat)
+        self.emg_norm_mean = np.apply_along_axis(np.nanmean, 0, self.emg_norm_mat)
+        self.emg_norm_std = np.apply_along_axis(np.nanstd, 0, self.emg_norm_mat)
 
         self.device_id = device_id
         self.sample_freq = sample_freq
@@ -65,7 +74,7 @@ class SpectrumAnalysisPlots:
         self.line_delta = None
         self.line_theta = None
         self.line_tdr = None
-
+      
         # assures frequency bins compatibe among different sampleling frequencies
         n_fft = int(256 * sample_freq/100)
         # same frequency bins given by signal.welch()
@@ -76,22 +85,34 @@ class SpectrumAnalysisPlots:
         bidx_delta_freq = (freq_bins < 4)  # 11 bins
         bidx_muscle_freq = (freq_bins > 30)  # 52 bins
 
+        n_active_freq = np.sum(bidx_active_freq)
+        n_sleep_freq = np.sum(bidx_sleep_freq)
+        n_theta_freq = np.sum(bidx_theta_freq)
+        n_delta_freq = np.sum(bidx_delta_freq)
+        n_muscle_freq = np.sum(bidx_muscle_freq)
+
         # normalized power
         self.npower_sleep = np.apply_along_axis(
-            np.sum, 1, self.eeg_norm_mat[:, bidx_sleep_freq])
+            np.sum, 1, self.eeg_norm_mat[:, bidx_sleep_freq])/np.sqrt(n_sleep_freq)
         self.npower_active = np.apply_along_axis(
-            np.sum, 1, self.eeg_norm_mat[:, bidx_active_freq])
+            np.sum, 1, self.eeg_norm_mat[:, bidx_active_freq])/np.sqrt(n_active_freq)
         self.npower_muscle = np.apply_along_axis(
-            np.sum, 1, self.emg_norm_mat[:, bidx_muscle_freq])
+            np.sum, 1, self.emg_norm_mat[:, bidx_muscle_freq])/np.sqrt(n_muscle_freq)
         self.npower_theta = np.apply_along_axis(
-            np.sum, 1, self.eeg_norm_mat[:, bidx_theta_freq])
+            np.sum, 1, self.eeg_norm_mat[:, bidx_theta_freq])/np.sqrt(n_theta_freq)
         self.npower_delta = np.apply_along_axis(
-            np.sum, 1, self.eeg_norm_mat[:, bidx_delta_freq])
+            np.sum, 1, self.eeg_norm_mat[:, bidx_delta_freq])/np.sqrt(n_delta_freq)
         # conventional power
+        self.cpower_total = np.apply_along_axis(
+            np.sum, 1, self.eeg_conv_mat)
         self.cpower_theta = np.apply_along_axis(
             np.sum, 1, self.eeg_conv_mat[:, bidx_theta_freq])
         self.cpower_delta = np.apply_along_axis(
             np.sum, 1, self.eeg_conv_mat[:, bidx_delta_freq])
+        # conventional percentage power
+        self.cppower_theta = 100*self.cpower_theta/self.cpower_total
+        self.cppower_delta = 100*self.cpower_delta/self.cpower_total
+        self.ratio_theta_delta = self.cppower_theta/self.cppower_delta
 
         # initialize Figure
         self.fig = plt.figure(
@@ -99,29 +120,34 @@ class SpectrumAnalysisPlots:
         self.axes = self._prepare_axes(self.fig)
 
         # set features of ax: specturms
+        # EEG conv PSD
         self.axes[0].set_ylim(0, 0.4)
         self.axes[0].set_xticks([0, 5, 10, 20, 30, 40, 50])
+        # EEG norm PSD
         self.axes[2].set_ylim(-4, 4)
         self.axes[2].set_xticks([0, 5, 10, 20, 30, 40, 50])
+        # EMG conv PSD
         self.axes[1].set_ylim(0, 0.15)
         self.axes[1].set_xticks([0, 5, 10, 20, 30, 40, 50])
+        # EMG norm PSD
         self.axes[3].set_ylim(-4, 4)
         self.axes[3].set_xticks([0, 5, 10, 20, 30, 40, 50])
 
         # set feature of ax: clustermap low-high plane
-        self.axes[4].set_xlim(-150, 150)
-        self.axes[4].set_ylim(-150, 150)
+        self.axes[4].set_xlim(-20, 20)
+        self.axes[4].set_ylim(-20, 20)
         self.axes[4].set_yticklabels([])
         self.axes[4].set_xticklabels([])
 
         # set feature of ax: clustermap low-REM plane
-        self.axes[5].set_xlim(-150, 150)
-        self.axes[5].set_ylim(-150, 150)
+        self.axes[5].set_xlim(-20, 20)
+        self.axes[5].set_ylim(-20, 20)
         self.axes[5].set_yticklabels([])
         self.axes[5].set_xticklabels([])
 
         # set feature of ax: power timeseries
-        self.axes[6].set_ylim(0, 4)
+        self.axes[6].set_ylim(0, 100)
+        self.axes[7].set_ylim(0, np.nanmean(self.ratio_theta_delta)+5*np.nanstd(self.ratio_theta_delta))
 
         # initialize plots
         (self.line_eeg_spec_conv, self.line_emg_spec_conv, self.line_eeg_spec_norm, self.line_emg_spec_norm) = self._initialize_spectrumplots(freq_bins, self.eeg_conv_mean, self.eeg_conv_std, self.emg_conv_mean, self.emg_conv_std,
@@ -131,7 +157,7 @@ class SpectrumAnalysisPlots:
             cluster_params, self.axes[4], self.axes[5])
 
         (self.line_delta, self.line_theta,
-         self.line_tdr) = self._initialize_power_timeseries(self.axes[6])
+         self.line_tdr) = self._initialize_power_timeseries(self.axes[6], self.axes[7])
 
         self.fig.canvas.draw()
 
@@ -199,8 +225,8 @@ class SpectrumAnalysisPlots:
         means = np.array([m[np.r_[axes]] for m in c_means[np.r_[0, 1]]])
         covars = np.array([c[np.r_[axes]][:, np.r_[axes]]
                            for c in c_covars[np.r_[0, 1]]])
-        colors = [stage.COLOR_REM, stage.COLOR_WAKE]
-        labels = ['REM', 'WAKE']
+        colors = [stage.COLOR_WAKE, stage.COLOR_REM]
+        labels = ['WAKE','REM']
         for (mean, covar, color, label) in zip(means, covars, colors, labels):
             w, v = linalg.eigh(covar)
             w = 4. * np.sqrt(w)  # 95% confidence (2SD) area
@@ -221,25 +247,29 @@ class SpectrumAnalysisPlots:
         return (point_HLplane, point_LRplane)
 
 
-    def _initialize_power_timeseries(self, ax):
+    def _initialize_power_timeseries(self, ax1, ax2):
         #set initial values in
         x_pos = np.arange(-45, 45)
         x_labels = [-40, -30, -20, -10, 0, 10, 20, 30, 40]
-        ax.set_xticks(x_pos, minor=True)
-        ax.set_xticks(x_labels)
-        ax.set_xticklabels(x_labels)
+        ax1.set_xticks(x_pos, minor=True)
+        ax1.set_xticks(x_labels)
+        ax1.set_xticklabels(x_labels)
         # delta
-        line_delta, = ax.plot(x_pos, np.zeros(
+        line_delta, = ax1.plot(x_pos, np.zeros(
             90), color='C0', alpha=0.6, label=r'$\delta$')
         # theta
-        line_theta, = ax.plot(x_pos, np.zeros(
+        line_theta, = ax1.plot(x_pos, np.zeros(
             90), color='C1', alpha=0.6, label=r'$\theta$')
+        ax1.set_ylabel('power (%)')
+        ax1.legend(bbox_to_anchor=(0, 1), loc='upper left',
+                  borderaxespad=0, fontsize=8)
+        ax1.axvline(x=0)
+
         # ratio of theta/delta
-        line_tdr, = ax.plot(x_pos, np.zeros(
+        line_tdr, = ax2.plot(x_pos, np.zeros(
             90), color=stage.COLOR_REM, linewidth=2, label=r'$\theta/\delta$')
-        ax.axvline(x=0)
-        ax.set_ylabel('power')
-        ax.legend(bbox_to_anchor=(1, 1), loc='upper right',
+        ax2.set_ylabel(r'$\theta/\delta$')
+        ax2.legend(bbox_to_anchor=(1, 1), loc='upper right',
                   borderaxespad=0, fontsize=8)
 
         return(line_delta, line_theta, line_tdr)
@@ -267,8 +297,9 @@ class SpectrumAnalysisPlots:
         ax5 = fig.add_subplot(gs[0:6, 2], xmargin=0, ymargin=0)
         ax6 = fig.add_subplot(gs[0:6, 3], xmargin=0, ymargin=0)
         ax7 = fig.add_subplot(gs[6:8, :], xmargin=0, ymargin=0)
+        ax8 = ax7.twinx()
 
-        return([ax1, ax2, ax3, ax4, ax5, ax6, ax7])
+        return([ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8])
 
 
     def plot_specs_an_epoch(self, epoch_idx):
@@ -293,8 +324,8 @@ class SpectrumAnalysisPlots:
         e_range = slice(max(e - 45, 0), min(e + 45, self.epoch_num))
         pad_l = max(0, 45 - e)
         pad_r = max(0, e + 45 - self.epoch_num)
-        d = self.cpower_delta[e_range]
-        t = self.cpower_theta[e_range]
+        d = self.cppower_delta[e_range]
+        t = self.cppower_theta[e_range]
         self.line_delta.set_ydata(np.pad(d, [pad_l, pad_r]))
         self.line_theta.set_ydata(np.pad(t, [pad_l, pad_r]))
         self.line_tdr.set_ydata(np.pad(t/d, [pad_l, pad_r]))
@@ -317,7 +348,7 @@ class SpectrumAnalysisPlots:
         pilImg.save(filename, quality=85)
 
 
-def plot_specs_a_mouse(psd_data_dir, cluster_param_dir, result_dir, device_label, sample_freq):
+def plot_specs_a_mouse(psd_data_dir, cluster_param_dir, result_dir, device_label, sample_freq, epoch_num):
     """ wraps the process to draw a set of spectrums of a mouse over epochs. 
     This function is convenient to run a drawing process in multiprocessing.
     
@@ -328,7 +359,10 @@ def plot_specs_a_mouse(psd_data_dir, cluster_param_dir, result_dir, device_label
         device_id (str): device id to be plotted
         sample_freq (str): sampling frequency
     """
-    # read the normalized EEG PSDs and the associated normalization factors and means
+
+    print(f'Reading PSD... {device_label}')
+
+   # read the normalized EEG PSDs and the associated normalization factors and means
     pkl_path_eeg = os.path.join(psd_data_dir, f'{device_label}_EEG_PSD.pkl')
     with open(pkl_path_eeg, 'rb') as pkl:
         spec_norm_eeg = pickle.load(pkl)
@@ -342,7 +376,7 @@ def plot_specs_a_mouse(psd_data_dir, cluster_param_dir, result_dir, device_label
     with open(pkl_path_clust, 'rb') as pkl:
         cluster_params = pickle.load(pkl)
 
-    sap = SpectrumAnalysisPlots(spec_norm_eeg, spec_norm_emg, cluster_params, device_label, sample_freq)
+    sap = SpectrumAnalysisPlots(spec_norm_eeg, spec_norm_emg, cluster_params, device_label, sample_freq, epoch_num)
 
     root_plot_dir = os.path.join(result_dir, 'figure', 'spectrum', device_label)
     os.makedirs(root_plot_dir, exist_ok=True)

@@ -22,7 +22,6 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 
 
 FASTER2_NAME = 'FASTER2'
-LOG_FILE_NAME = 'stage.log'
 EPOCH_LEN_SEC = 8
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
@@ -37,11 +36,6 @@ COLOR_REM  = 'olivedrab' # #6B8E23
 COLOR_LIGHT = 'gold' # #FFD700
 COLOR_DARK = 'dimgray' # #696969
 COLOR_DARKLIGHT = 'lightgray' # light hours in DD condition
-DEFAULT_START_PROBA = np.array([0.1, 0.45, 0.45])
-DEFAULT_MEAN_STAGE_COORDS = np.array([[-20, 10, 100], [-20, 20, -50], [20, -20, 0]])
-DEFAULT_TRANSMAT = np.array([[8.73223739e-01, 6.53422888e-02, 6.14339721e-02],
-                             [7.40251368e-04, 9.68070346e-01, 3.11894024e-02],
-                             [1.00730294e-02, 2.49010231e-02, 9.65025948e-01]])
 
 
 def initialize_logger(log_file):

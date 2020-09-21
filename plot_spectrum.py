@@ -40,7 +40,7 @@ if __name__ == '__main__':
         # draw timeseries plots mouse by mouse
         for i, r in mouse_info_df.iterrows():
             device_id = r[0]
-            sg.plot_specs_a_mouse(psd_data_dir, cluster_params_dir, result_dir, device_id, sample_freq)
+            sg.plot_specs_a_mouse(psd_data_dir, cluster_params_dir, result_dir, device_id, sample_freq, epoch_num)
     else:
         # draw timesereis plots in parallel
         w = args.workers
@@ -54,7 +54,7 @@ if __name__ == '__main__':
         for device_ids in device_ids_mat:
             # prepare w processes
             pss = [multiprocessing.Process(target=sg.plot_specs_a_mouse, args=(
-                psd_data_dir, cluster_params_dir, result_dir, device_ids[i], sample_freq)) for i in range(len(device_ids)) if device_ids[i] != None]
+                psd_data_dir, cluster_params_dir, result_dir, device_ids[i], sample_freq, epoch_num)) for i in range(len(device_ids)) if device_ids[i] != None]
             # start them
             for ps in pss:
                 ps.start()
