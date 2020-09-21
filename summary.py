@@ -19,8 +19,39 @@ from scipy import stats
 import faster2lib.eeg_tools as et
 import stage
 
+from datetime import datetime
+import logging
+from logging import getLogger, StreamHandler, FileHandler, Formatter
+
 
 DOMAIN_NAMES = ['Slow', 'Delta w/o slow', 'Delta', 'Theta']
+
+
+
+def initialize_logger(log_file):
+    logger = getLogger(stage.FASTER2_NAME)
+    logger.setLevel(logging.DEBUG)
+
+    file_handler = FileHandler(log_file)
+    stream_handler = StreamHandler()
+
+    file_handler.setLevel(logging.DEBUG)
+    stream_handler.setLevel(logging.NOTSET)
+    handler_formatter = Formatter('%(message)s')
+    file_handler.setFormatter(handler_formatter)
+    stream_handler.setFormatter(handler_formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+
+    return(logger)
+
+
+def print_log(msg):
+    if 'log' in globals():
+        log.debug(msg)
+    else:
+        print_log(msg)
 
 
 def collect_mouse_info_df(faster_dir_list):
@@ -96,11 +127,11 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
         exp_label = r['Experiment label'].strip()
         faster_dir = r['FASTER_DIR']
         if stats_report == 'NO':
-            print(f'[{i+1}] skipping stage: {faster_dir} {device_label}')
+            print_log(f'[{i+1}] skipping stage: {faster_dir} {device_label}')
             continue
 
         # read a stage file
-        print(f'[{i+1}] reading stage: {faster_dir} {device_label} {stage_ext}')
+        print_log(f'[{i+1}] reading stage: {faster_dir} {device_label} {stage_ext}')
         stage_call = et.read_stages(os.path.join(
             faster_dir, 'result'), device_label, stage_ext)
         stage_call = stage_call[epoch_range]
@@ -894,12 +925,12 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, y_label, output_d
 
 
 def x_shifts(values, y_min, y_max, width):
-    #    print(y_min, y_max)
+    #    print_log(y_min, y_max)
     counts, _ = np.histogram(values, range=(
         np.min([y_min, np.min(values)]), np.max([y_max, np.max(values)])), bins=30)
     sorted_values = sorted(values)
     shifts = []
-#    print(counts)
+#    print_log(counts)
     non_zero_counts = counts[counts > 0]
     for c in non_zero_counts:
         if c == 1:
@@ -910,8 +941,8 @@ def x_shifts(values, y_min, y_max, width):
                 10  # [-1, 1, -2, 2, ...] * width/10
             shifts.extend(s)
 
-#     print(shifts)
-#     print(sorted_values)
+#     print_log(shifts)
+#     print_log(sorted_values)
     return [np.array(shifts), sorted_values]
 
 
@@ -1482,9 +1513,9 @@ def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
         faster_dir = r['FASTER_DIR']
 
         if stats_report == 'NO':
-            print(f'[{i+1}] Skipping: {faster_dir} {device_label}')
+            print_log(f'[{i+1}] Skipping: {faster_dir} {device_label}')
             continue
-        print(f'[{i+1}] Reading PSD and stage of: {faster_dir} {device_label}')
+        print_log(f'[{i+1}] Reading PSD and stage of: {faster_dir} {device_label}')
 
         # read stage of the mouse
         stage_call, nan_eeg, outlier_eeg = et.read_stages_with_eeg_diagnosis(os.path.join(
@@ -1504,13 +1535,13 @@ def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
         # Break at the error: the unknown stage's PSD is not recoverable (even a manual annotator may want ...)
         bidx_unknown = snorm_psd['bidx_unknown']
         if not np.all(stage_call[bidx_unknown] == 'UNKNOWN'):
-            print('[Error] "unknown" epoch is not recoverable. Check the consistency between the PSD and the stage files.')
+            print_log('[Error] "unknown" epoch is not recoverable. Check the consistency between the PSD and the stage files.')
             idx = list(np.where(bidx_unknown)[
                     0][stage_call[bidx_unknown] != 'UNKNOWN'])
-            print(f'... in stage file at {idx}')
+            print_log(f'... in stage file at {idx}')
             break
 
-        # good PSD should have the nan- or outlier-ratios of less than 1%
+        # good PSD should have the nan- and outlier-ratios of less than 1%
         bidx_good_psd = (nan_eeg < 0.01) & (outlier_eeg < 0.01)
         
         # bidx_target: bidx for the selected range
@@ -1518,7 +1549,7 @@ def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
         bidx_selected[epoch_range] = True
         bidx_target = bidx_selected & bidx_good_psd
 
-        print(f'    Target epoch range: {epoch_range.start}-{epoch_range.stop} ({epoch_range.stop-epoch_range.start} epochs out of {epoch_num} epochs)\n'\
+        print_log(f'    Target epoch range: {epoch_range.start}-{epoch_range.stop} ({epoch_range.stop-epoch_range.start} epochs out of {epoch_num} epochs)\n'\
               f'    Unknown epochs in the range: {np.sum(bidx_unknown & bidx_selected)} ({100*np.sum(bidx_unknown & bidx_selected)/np.sum(bidx_selected):.3f}%)\n'\
               f'    Outlier or NA epochs in the range: {np.sum(~bidx_good_psd & bidx_selected)} ({100*np.sum(~bidx_good_psd & bidx_selected)/np.sum(bidx_selected):.3f}%)')
 
@@ -1583,9 +1614,10 @@ def make_psd_delta_timeseries_df(psd_info_list, sample_freq, epoch_num, epoch_ra
     for psd_info in psd_info_list:
         bidx_unknown = psd_info['bidx_unknown']
         bidx_target = psd_info['bidx_target']
+        bidx_target_known = bidx_target[~bidx_unknown]
         conv_psd = psd_info['conv_psd']
         psd_delta_timeseries = np.repeat(np.nan, epoch_num)
-        psd_delta_timeseries[~bidx_unknown & bidx_target] = np.apply_along_axis(summary_func, 1, conv_psd[bidx_target, :][:,bidx_delta_freq])
+        psd_delta_timeseries[~bidx_unknown & bidx_target] = np.apply_along_axis(summary_func, 1, conv_psd[bidx_target_known, :][:,bidx_delta_freq])
         psd_delta_timeseries = psd_delta_timeseries[epoch_range] # extract epochs of the selected range
         psd_delta_timeseries_df = psd_delta_timeseries_df.append(
             [[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_delta_timeseries.tolist()], ignore_index=True)
@@ -2050,6 +2082,10 @@ if __name__ == '__main__':
         output_dir = os.path.join(faster_dir_list[0], 'summary' + path_ext)
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(os.path.join(output_dir, 'pdf'), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, 'log'), exist_ok=True)
+
+    dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    log = initialize_logger(os.path.join(output_dir, 'log', f'summary.{dt_str}.log'))
 
     # prepare stagetime statistics
     stagetime_stats = make_summary_stats(mouse_info_df, epoch_range, stage_ext)
@@ -2088,33 +2124,37 @@ if __name__ == '__main__':
     # list of {simple exp info, target info, psd (epoch_num, 129)} for each mouse
     psd_info_list = make_target_psd_info(mouse_info_df, epoch_range, stage_ext)
  
-   # log version of psd_info
+    # log version of psd_info
+    print_log('Making the log version of the PSD information')
     log_psd_info_list = copy.deepcopy(psd_info_list)
     for log_psd_info in log_psd_info_list:
         log_psd_info['conv_psd'] = 10*np.log10(log_psd_info['conv_psd'])
 
     # percentage version of psd_info
-    psd_percentage_info_list = copy.deepcopy(psd_info_list)
-    for psd_percentage_info in psd_percentage_info_list:
-        conv_psd = psd_percentage_info['conv_psd']
-        psd_percentage_mat = np.zeros(conv_psd.shape)
+    print_log('Making the percentage version of the PSD information')
+    percentage_psd_info_list = copy.deepcopy(psd_info_list)
+    for percentage_psd_info in percentage_psd_info_list:
+        conv_psd = percentage_psd_info['conv_psd']
+        percentage_psd_mat = np.zeros(conv_psd.shape)
         for i, p in enumerate(conv_psd): # row wise
-            psd_percentage_mat[i,:] = 100*p / np.sum(p)
-        psd_percentage_info['conv_psd'] = psd_percentage_mat
+            percentage_psd_mat[i,:] = 100*p / np.sum(p)
+        percentage_psd_info['conv_psd'] = percentage_psd_mat
 
+    # PSD profiles
     psd_profiles_df = make_psd_profile(
         psd_info_list, sample_freq, epoch_range, stage_ext)
     log_psd_profiles_df = make_psd_profile(
         log_psd_info_list, sample_freq, epoch_range, stage_ext)
     percentage_psd_profiles_df = make_psd_profile(
-        psd_percentage_info_list, sample_freq, epoch_range, stage_ext)
+        percentage_psd_info_list, sample_freq, epoch_range, stage_ext)
 
     # write a table of PSD
     write_psd_stats(psd_profiles_df, output_dir)
     write_psd_stats(log_psd_profiles_df, output_dir, 'log-')
     write_psd_stats(percentage_psd_profiles_df, output_dir, 'percentage-', np.sum)
 
-    # draw power density plot
+    # draw PSDs
+    print_log('Drawing the PSDs')
     draw_PSDs_individual(psd_profiles_df, sample_freq,
                          'normalized PSD [AU]', output_dir)
     draw_PSDs_individual(log_psd_profiles_df, sample_freq,
@@ -2129,12 +2169,17 @@ if __name__ == '__main__':
     draw_PSDs_group(percentage_psd_profiles_df, sample_freq,
                     'normalized percentage PSD [%]', output_dir, 'percentage-')
 
-    psd_delta_timeseries_nrem_df = make_psd_delta_timeseries_nrem_df(psd_info_list, sample_freq, epoch_num, epoch_range)
+    print_log('Making the delta-power timeseries')
     psd_delta_timeseries_df = make_psd_delta_timeseries_df(psd_info_list, sample_freq, epoch_num, epoch_range)
-    percentage_psd_delta_timeseries_nrem_df = make_psd_delta_timeseries_nrem_df(psd_percentage_info_list, sample_freq, epoch_num, epoch_range, np.sum)
-    percentage_psd_delta_timeseries_df = make_psd_delta_timeseries_df(psd_percentage_info_list, sample_freq, epoch_num, epoch_range, np.sum)
+    print_log('Making the delta-power timeseries in NREM')
+    psd_delta_timeseries_nrem_df = make_psd_delta_timeseries_nrem_df(psd_info_list, sample_freq, epoch_num, epoch_range)
+    print_log('Making the delta-power timeseries (percentage)')
+    percentage_psd_delta_timeseries_df = make_psd_delta_timeseries_df(percentage_psd_info_list, sample_freq, epoch_num, epoch_range, np.sum)
+    print_log('Making the delta-power timeseries in NREM (percentage)')
+    percentage_psd_delta_timeseries_nrem_df = make_psd_delta_timeseries_nrem_df(percentage_psd_info_list, sample_freq, epoch_num, epoch_range, np.sum)
 
     # draw delta-power timeseries
+    print_log('Drawing the delta-power timeseries')
     draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir)
     draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir)
     draw_psd_delta_timeseries_individual(percentage_psd_delta_timeseries_df, 'Hourly delta power [%]', output_dir, 'percentage_')
