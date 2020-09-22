@@ -120,6 +120,7 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
     transmat_list = []
     swtrans_list = []
     swtrans_profile_list = []
+    swtrans_circadian_profile_list = []
 
     for i, r in mouse_info_df.iterrows():
         device_label = r['Device label'].strip()
@@ -161,6 +162,9 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
         # sw transition profile
         swtrans_profile_list.append(swtrans_profile(stage_call))
 
+        # sw transition profile
+        swtrans_circadian_profile_list.append(swtrans_circadian_profile(stage_call))
+
     stagetime_df.columns = ['Experiment label', 'Mouse group', 'Mouse ID',
                             'Device label', 'REM', 'NREM', 'Wake', 'Unknown', 'Stats report', 'Note']
 
@@ -170,6 +174,7 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
             'transmat': transmat_list,
             'swtrans': swtrans_list,
             'swtrans_profile': swtrans_profile_list,
+            'swtrans_circadian': swtrans_circadian_profile_list,
             'epoch_num': epoch_num})
 
 
@@ -253,6 +258,31 @@ def stagetime_circadian_profile(stage_call):
 
     return np.array([[rem_mean, nrem_mean, wake_mean], [rem_sd, nrem_sd, wake_sd]])
 
+
+def swtrans_circadian_profile(stage_call):
+    """hourly sleep-wake transitions (Psw and Pws) over a day (circadian profile)
+
+    Arguments:
+        stage_call {np.array} -- an array of stage calls (e.g. ['WAKE', 
+        'NREM', ...])
+
+    Returns:
+        [np.array(2,2,24)] -- 1st axis [mean, sd] 
+                            x 2nd axis [Psw, Pws]
+                            x 3rd axis [24 hours]
+    """
+    # 60 min(3600 sec) bin
+    sw = swtrans_profile(stage_call) # 1st axis [Psw, Pws] x 2nd axis [recordec hours e.g. 72 hours]
+
+    psw_mat = sw[0].reshape(-1, 24)
+    pws_mat = sw[1].reshape(-1, 24)
+ 
+    psw_mean = np.apply_along_axis(np.nanmean, 0, psw_mat)
+    psw_sd = np.apply_along_axis(np.nanstd,  0, psw_mat)
+    pws_mean = np.apply_along_axis(np.nanmean, 0, pws_mat)
+    pws_sd = np.apply_along_axis(np.nanstd,  0, pws_mat)
+
+    return np.array([[psw_mean, pws_mean], [psw_sd, pws_sd]])
 
 def transmat_from_stages(stages):
     """transition probability matrix among each stage
@@ -648,7 +678,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
 
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'stage-time_profile_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+            filename = f'stage-time_profile_G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
             _savefig(output_dir, filename, fig)
     else:
         # single group
@@ -692,7 +722,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
         ax3.set_xlabel('Time (hours)')
 
         fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
-        filename = f'stage-time_profile_{mouse_groups_set[g_idx]}'
+        filename = f'stage-time_profile_G_{mouse_groups_set[g_idx]}'
         _savefig(output_dir, filename, fig)
 
 
@@ -718,7 +748,7 @@ def draw_swtrans_profile_individual(stagetime_stats, output_dir):
 
         fig.suptitle(
             f'Sleep-wake transition (Psw Pws) profile:\n{"  ".join(stagetime_df.iloc[i,0:4].values)}')
-        filename = f'sleep-wake-transition_profile_{"_".join(stagetime_df.iloc[i,0:4].values)}'
+        filename = f'sleep-wake-transition_profile_I_{"_".join(stagetime_df.iloc[i,0:4].values)}'
         _savefig(output_dir, filename, fig)
 
 
@@ -792,7 +822,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
 
             fig.suptitle(
                 f'Sleep-wake transition (Psw Pws) profile:\n{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'sleep-wake-transition_profile_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+            filename = f'sleep-wake-transition_profile_G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
             _savefig(output_dir, filename, fig)
     else:
         # single group
@@ -824,7 +854,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
         ax2.set_xlabel('Time (hours)')
 
         fig.suptitle(f'Sleep-wake transition (Psw Pws) profile:\n{mouse_groups_set[g_idx]} (n={num})')
-        filename = f'sleep-wake-transition_profile_{mouse_groups_set[g_idx]}'
+        filename = f'sleep-wake-transition_profile_G_{mouse_groups_set[g_idx]}'
         _savefig(output_dir, filename, fig)
 
 
@@ -875,7 +905,7 @@ def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir):
 
         fig.suptitle(
             f'Circadian stage-time profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
-        filename = f'stage-time_circadian_profile_{"_".join(stagetime_df.iloc[i,0:4].values)}'
+        filename = f'stage-time_circadian_profile_I_{"_".join(stagetime_df.iloc[i,0:4].values)}'
         _savefig(output_dir, filename, fig)
 
 
@@ -976,8 +1006,204 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
 
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'stage-time_circadian_profile_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+            filename = f'stage-time_circadian_profile_G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
             _savefig(output_dir, filename, fig)
+    else:
+        # single group
+        g_idx = 0
+
+        num = np.sum(bidx_group_list[g_idx])
+        fig = Figure(figsize=(13, 4))
+        fig.subplots_adjust(wspace=0.3)
+        ax1 = fig.add_subplot(131, xmargin=0, ymargin=0)
+        ax2 = fig.add_subplot(132, xmargin=0, ymargin=0)
+        ax3 = fig.add_subplot(133, xmargin=0, ymargin=0)
+
+
+        _set_common_features_stagetime_profile_rem(ax1, x_max)
+        _set_common_features_stagetime_profile(ax2, x_max)
+        _set_common_features_stagetime_profile(ax3, x_max)
+
+        # REM
+        y = stagetime_circadian_profile_stats_list[g_idx][0, 0, :]
+        y_sem = stagetime_circadian_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
+        ax1.plot(x, y, color=stage.COLOR_REM)
+        ax1.fill_between(x, y - y_sem,
+                            y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+        ax1.set_ylabel('Hourly REM\n duration (min)')
+
+        # NREM
+        y = stagetime_circadian_profile_stats_list[g_idx][0, 1, :]
+        y_sem = stagetime_circadian_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
+        ax2.plot(x, y, color=stage.COLOR_NREM)
+        ax2.fill_between(x, y - y_sem,
+                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+        ax2.set_ylabel('Hourly NREM\n duration (min)')
+
+        # Wake
+        y = stagetime_circadian_profile_stats_list[g_idx][0, 2, :]
+        y_sem = stagetime_circadian_profile_stats_list[g_idx][1, 2, :]/np.sqrt(num)
+        ax3.plot(x, y, color=stage.COLOR_WAKE)
+        ax3.fill_between(x, y - y_sem/np.sqrt(num),
+                            y + y_sem/np.sqrt(num), color=stage.COLOR_WAKE, alpha=0.3)
+        ax3.set_ylabel('Hourly wake\n duration (min)')
+        ax3.set_xlabel('Time (hours)')
+
+        fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
+        filename = f'stage-time_profile_G_{mouse_groups_set[g_idx]}'
+        _savefig(output_dir, filename, fig)
+
+
+def draw_swtrans_circadian_profile_individual(stagetime_stats, output_dir):
+    stagetime_df = stagetime_stats['stagetime']
+    swtrans_circadian_list = stagetime_stats['swtrans_circadian']
+    for i, circadian in enumerate(swtrans_circadian_list):
+        x_max = 24
+        x = np.arange(x_max)
+        fig = Figure(figsize=(13, 4))
+        fig.subplots_adjust(wspace=0.3)
+        ax1 = fig.add_subplot(121, xmargin=0, ymargin=0)
+        ax2 = fig.add_subplot(122, xmargin=0, ymargin=0)
+
+        _set_common_features_swtrans_profile(ax1, x_max)
+        _set_common_features_swtrans_profile(ax2, x_max)
+        ax1.set_xlabel('Time (hours)')
+        ax2.set_xlabel('Time (hours)')
+        ax1.set_ylabel('Hourly Psw')
+        ax2.set_ylabel('Hourly Pws')
+
+        num = epoch_num*stage.EPOCH_LEN_SEC/3600/24
+
+        # Psw
+        y = circadian[0, 0, :]
+        y_sem = circadian[1, 0, :]/np.sqrt(num)
+        ax1.plot(x, y, color=stage.COLOR_NREM)
+        ax1.fill_between(x, y - y_sem,
+                         y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+
+        # Pws
+        y = circadian[0, 1, :]
+        y_sem = circadian[1, 1, :]/np.sqrt(num)
+        ax2.plot(x, y, color=stage.COLOR_WAKE)
+        ax2.fill_between(x, y - y_sem,
+                         y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+        fig.suptitle(
+            f'Circadian sleep-wake-transition profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
+        filename = f'sleep-wake-transition_circadian_profile_I_{"_".join(stagetime_df.iloc[i,0:4].values)}'
+        _savefig(output_dir, filename, fig)
+
+def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
+    stagetime_df = stagetime_stats['stagetime']
+    swtrans_circadian_profile_list = stagetime_stats['swtrans_circadian']
+
+    mouse_groups = stagetime_df['Mouse group'].values
+    mouse_groups_set = sorted(set(mouse_groups), key=list(
+        mouse_groups).index)  # unique elements with preseved order
+
+    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]
+
+    # make stats of stagetime circadian profile: mean and sd over each group
+    # mouse x [mean of REM, NREM, Wake] x 24 hours
+    swtrans_circadian_profile_mat = np.array(
+        [ms[0] for ms in swtrans_circadian_profile_list])
+    swtrans_circadian_profile_stats_list = []
+    for bidx in bidx_group_list:
+        swtrans_circadian_profile_mean = np.apply_along_axis(
+            np.nanmean, 0, swtrans_circadian_profile_mat[bidx])
+        swtrans_circadian_profile_sd = np.apply_along_axis(
+            np.nanstd, 0, swtrans_circadian_profile_mat[bidx])
+        swtrans_circadian_profile_stats_list.append(
+            np.array([swtrans_circadian_profile_mean, swtrans_circadian_profile_sd]))
+
+    x_max = 24
+    x = np.arange(x_max)
+    if len(mouse_groups_set) > 1:
+        for g_idx in range(1, len(mouse_groups_set)):
+            fig = Figure(figsize=(13, 4))
+            fig.subplots_adjust(wspace=0.3)
+            ax1 = fig.add_subplot(121, xmargin=0, ymargin=0)
+            ax2 = fig.add_subplot(122, xmargin=0, ymargin=0)
+
+            _set_common_features_swtrans_profile(ax1, x_max)
+            _set_common_features_swtrans_profile(ax2, x_max)
+            ax1.set_xlabel('Time (hours)')
+            ax2.set_xlabel('Time (hours)')
+            ax1.set_ylabel('Hourly Psw')
+            ax2.set_ylabel('Hourly Pws')
+
+            # Control (always the first group)
+            num_c = np.sum(bidx_group_list[0])
+            # Psw
+            y = swtrans_circadian_profile_stats_list[0][0, 0, :]
+            y_sem = swtrans_circadian_profile_stats_list[0][1, 0, :]/np.sqrt(
+                num_c)
+            ax1.plot(x, y, color='grey')
+            ax1.fill_between(x, y - y_sem,
+                             y + y_sem, color='grey', alpha=0.3)
+
+            # Pws
+            y = swtrans_circadian_profile_stats_list[0][0, 1, :]
+            y_sem = swtrans_circadian_profile_stats_list[0][1, 1, :]/np.sqrt(
+                num_c)
+            ax2.plot(x, y, color='grey')
+            ax2.fill_between(x, y - y_sem,
+                             y + y_sem, color='grey', alpha=0.3)
+
+            # Treatment
+            num = np.sum(bidx_group_list[g_idx])
+            # Psw
+            y = swtrans_circadian_profile_stats_list[g_idx][0, 0, :]
+            y_sem = swtrans_circadian_profile_stats_list[g_idx][1, 0, :]/np.sqrt(
+                num)
+            ax1.plot(x, y, color=stage.COLOR_NREM)
+            ax1.fill_between(x, y - y_sem,
+                             y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+
+            # Pws
+            y = swtrans_circadian_profile_stats_list[g_idx][0, 1, :]
+            y_sem = swtrans_circadian_profile_stats_list[g_idx][1, 1, :]/np.sqrt(
+                num)
+            ax2.plot(x, y, color=stage.COLOR_WAKE)
+            ax2.fill_between(x, y - y_sem,
+                             y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+
+            fig.suptitle(
+                f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
+            filename = f'sleep-wake-transition_circadian_profile_G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+            _savefig(output_dir, filename, fig)
+    else:
+        # single group
+        g_idx = 0
+
+        num = np.sum(bidx_group_list[g_idx])
+        fig = Figure(figsize=(13, 4))
+        fig.subplots_adjust(wspace=0.3)
+        ax1 = fig.add_subplot(121, xmargin=0, ymargin=0)
+        ax2 = fig.add_subplot(122, xmargin=0, ymargin=0)
+
+        _set_common_features_swtrans_profile(ax1, x_max)
+        _set_common_features_swtrans_profile(ax2, x_max)
+
+        # Psw
+        y = swtrans_circadian_profile_stats_list[g_idx][0, 0, :]
+        y_sem = swtrans_circadian_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
+        ax1.plot(x, y, color=stage.COLOR_NREM)
+        ax1.fill_between(x, y - y_sem,
+                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+        ax1.set_ylabel('Hourly Psw')
+
+        # Pws
+        y = swtrans_circadian_profile_stats_list[g_idx][0, 1, :]
+        y_sem = swtrans_circadian_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
+        ax2.plot(x, y, color=stage.COLOR_NREM)
+        ax2.fill_between(x, y - y_sem,
+                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+        ax2.set_ylabel('Hourly Pws')
+
+
+        fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
+        filename = f'sleep-wake-transition_circadian_profile_G_{mouse_groups_set[g_idx]}'
+        _savefig(output_dir, filename, fig)
 
 
 def draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, y_label, output_dir, opt_label=''):
@@ -1029,7 +1255,7 @@ def draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, y_label, outpu
         fig.suptitle(
             f'Stage-time profile: {"  ".join(psd_delta_timeseries_df.iloc[i,0:4].values)}')
 
-        filename = f'{opt_label}delta_power_timeseries_{"_".join(psd_delta_timeseries_df.iloc[i,0:4].values)}'
+        filename = f'delta_power_timeseries_{opt_label}{"_".join(psd_delta_timeseries_df.iloc[i,0:4].values)}'
         _savefig(output_dir, filename, fig)
 
 
@@ -1097,7 +1323,7 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, y_label, output_d
 
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'{opt_label}delta_power_timeseries_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+            filename = f'delta_power_timeseries_{opt_label}{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
             _savefig(output_dir, filename, fig)
     else:
         # single group
@@ -1936,7 +2162,7 @@ def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_
         mouse_tag_list = [str(x) for x in df.iloc[0, 0:4]]
         fig.suptitle(
             f'Powerspectrum density: {"  ".join(mouse_tag_list)}')
-        filename = f'{opt_label}PSD_{"_".join(mouse_tag_list)}'
+        filename = f'PSD_{opt_label}I_{"_".join(mouse_tag_list)}'
         _savefig(output_dir, filename, fig)
 
 
@@ -1970,7 +2196,82 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
     psd_sem_wake_c = np.apply_along_axis(
         np.std, 0, psd_mean_mat_wake_c)/np.sqrt(num_c)
 
-    for g_idx in range(1, len(mouse_group_set)):
+    x = freq_bins
+    if len(mouse_group_set)>1:
+        for g_idx in range(1, len(mouse_group_set)):
+            fig = Figure(figsize=(16, 4))
+            fig.subplots_adjust(wspace=0.25)
+            ax1 = fig.add_subplot(131)
+            ax2 = fig.add_subplot(132)
+            ax3 = fig.add_subplot(133)
+            ax1.set_xlabel('freq. [Hz]')
+            ax1.set_ylabel(f'REM\n{y_label}')
+            ax2.set_xlabel('freq. [Hz]')
+            ax2.set_ylabel(f'NREM\n{y_label}')
+            ax3.set_xlabel('freq. [Hz]')
+            ax3.set_ylabel(f'Wake\n{y_label}')
+
+            # _t of Treatment
+            df = psd_profiles_df[psd_profiles_df['Mouse group']
+                                == mouse_group_set[g_idx]]
+            psd_mean_mat_rem_t = df[df['Stage'] == 'REM'].iloc[:, 5:].values
+            psd_mean_mat_nrem_t = df[df['Stage'] == 'NREM'].iloc[:, 5:].values
+            psd_mean_mat_wake_t = df[df['Stage'] == 'Wake'].iloc[:, 5:].values
+            num_t = psd_mean_mat_wake_t.shape[0]
+
+            psd_mean_rem_t = np.apply_along_axis(np.mean, 0, psd_mean_mat_rem_t)
+            psd_sem_rem_t = np.apply_along_axis(
+                np.std, 0, psd_mean_mat_rem_t)/np.sqrt(num_t)
+            psd_mean_nrem_t = np.apply_along_axis(np.mean, 0, psd_mean_mat_nrem_t)
+            psd_sem_nrem_t = np.apply_along_axis(
+                np.std, 0, psd_mean_mat_nrem_t)/np.sqrt(num_t)
+            psd_mean_wake_t = np.apply_along_axis(np.mean, 0, psd_mean_mat_wake_t)
+            psd_sem_wake_t = np.apply_along_axis(
+                np.std, 0, psd_mean_mat_wake_t)/np.sqrt(num_t)
+
+            y = psd_mean_rem_c
+            y_sem = psd_sem_rem_c
+            ax1.plot(x, y, color='grey')
+            ax1.fill_between(x, y - y_sem,
+                            y + y_sem, color='grey', alpha=0.3)
+
+            y = psd_mean_rem_t
+            y_sem = psd_sem_rem_t
+            ax1.plot(x, y, color=stage.COLOR_REM)
+            ax1.fill_between(x, y - y_sem,
+                            y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+
+            y = psd_mean_nrem_c
+            y_sem = psd_sem_nrem_c
+            ax2.plot(x, y, color='grey')
+            ax2.fill_between(x, y - y_sem,
+                            y + y_sem, color='grey', alpha=0.3)
+
+            y = psd_mean_nrem_t
+            y_sem = psd_sem_nrem_t
+            ax2.plot(x, y, color=stage.COLOR_NREM)
+            ax2.fill_between(x, y - y_sem,
+                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+
+            y = psd_mean_wake_c
+            y_sem = psd_sem_wake_c
+            ax3.plot(x, y, color='grey')
+            ax3.fill_between(x, y - y_sem,
+                            y + y_sem, color='grey', alpha=0.3)
+
+            y = psd_mean_wake_t
+            y_sem = psd_sem_wake_t
+            ax3.plot(x, y, color=stage.COLOR_WAKE)
+            ax3.fill_between(x, y - y_sem,
+                            y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+
+            fig.suptitle(
+                f'Powerspectrum density: {mouse_group_set[0]} (n={num_c}) v.s. {mouse_group_set[g_idx]} (n={num_t})')
+            filename = f'PSD_{opt_label}G_{mouse_group_set[0]}_vs_{mouse_group_set[g_idx]}'
+            _savefig(output_dir, filename, fig)
+    else:
+        # single group
+        g_idx = 0
         fig = Figure(figsize=(16, 4))
         fig.subplots_adjust(wspace=0.25)
         ax1 = fig.add_subplot(131)
@@ -1985,7 +2286,7 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
 
         # _t of Treatment
         df = psd_profiles_df[psd_profiles_df['Mouse group']
-                             == mouse_group_set[g_idx]]
+                            == mouse_group_set[g_idx]]
         psd_mean_mat_rem_t = df[df['Stage'] == 'REM'].iloc[:, 5:].values
         psd_mean_mat_nrem_t = df[df['Stage'] == 'NREM'].iloc[:, 5:].values
         psd_mean_mat_wake_t = df[df['Stage'] == 'Wake'].iloc[:, 5:].values
@@ -2001,46 +2302,27 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
         psd_sem_wake_t = np.apply_along_axis(
             np.std, 0, psd_mean_mat_wake_t)/np.sqrt(num_t)
 
-        x = freq_bins
-        y = psd_mean_rem_c
-        y_sem = psd_sem_rem_c
-        ax1.plot(x, y, color='grey')
-        ax1.fill_between(x, y - y_sem,
-                         y + y_sem, color='grey', alpha=0.3)
-
         y = psd_mean_rem_t
         y_sem = psd_sem_rem_t
         ax1.plot(x, y, color=stage.COLOR_REM)
         ax1.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_REM, alpha=0.3)
-
-        y = psd_mean_nrem_c
-        y_sem = psd_sem_nrem_c
-        ax2.plot(x, y, color='grey')
-        ax2.fill_between(x, y - y_sem,
-                         y + y_sem, color='grey', alpha=0.3)
+                        y + y_sem, color=stage.COLOR_REM, alpha=0.3)
 
         y = psd_mean_nrem_t
         y_sem = psd_sem_nrem_t
         ax2.plot(x, y, color=stage.COLOR_NREM)
         ax2.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
-
-        y = psd_mean_wake_c
-        y_sem = psd_sem_wake_c
-        ax3.plot(x, y, color='grey')
-        ax3.fill_between(x, y - y_sem,
-                         y + y_sem, color='grey', alpha=0.3)
+                        y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
 
         y = psd_mean_wake_t
         y_sem = psd_sem_wake_t
         ax3.plot(x, y, color=stage.COLOR_WAKE)
         ax3.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                        y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
 
         fig.suptitle(
-            f'Powerspectrum density: {mouse_group_set[0]} (n={num_c}) v.s. {mouse_group_set[g_idx]} (n={num_t})')
-        filename = f'{opt_label}PSD_{mouse_group_set[0]}_vs_{mouse_group_set[g_idx]}'
+            f'Powerspectrum density: {mouse_group_set[g_idx]} (n={num_t})')
+        filename = f'PSD_{opt_label}G_{mouse_group_set[g_idx]}'
         _savefig(output_dir, filename, fig)
 
 
@@ -2235,11 +2517,11 @@ def write_psd_stats(psd_profiles_df, output_dir, opt_label='', summary_func=np.m
 
     # write tabels
     psd_profiles_df.to_csv(os.path.join(
-        output_dir, f'{opt_label}PSD_profile.csv'), index=False)
+        output_dir, f'PSD_{opt_label}profile.csv'), index=False)
     psd_domain_df.to_csv(os.path.join(
-        output_dir, f'{opt_label}PSD_freq_domain_table.csv'), index=False)
+        output_dir, f'PSD_{opt_label}freq_domain_table.csv'), index=False)
     psd_stats_df.to_csv(os.path.join(
-        output_dir, f'{opt_label}PSD_stats_table.csv'), index=False)
+        output_dir, f'PSD_{opt_label}stats_table.csv'), index=False)
 
 
 if __name__ == '__main__':
@@ -2327,6 +2609,12 @@ if __name__ == '__main__':
 
     # draw stagetime profile of grouped mice
     draw_swtrans_profile_grouped(stagetime_stats, output_dir)
+
+    # draw stagetime profile of individual mice
+    draw_swtrans_circadian_profile_individual(stagetime_stats, output_dir)
+
+    # draw stagetime profile of individual mice
+    draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir)
 
     # draw transition barchart (probability)
     draw_transition_barchart_prob(stagetime_stats, output_dir)

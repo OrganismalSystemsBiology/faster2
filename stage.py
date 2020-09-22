@@ -668,6 +668,7 @@ def classification_process(stage_coord):
     # Classify REM and Wake in the active cluster in the 3D space  (Low freq. x High freq. x REM metric)
     bidx_active = (pred_2D == 0)
     stage_coord_active = stage_coord[bidx_active,:]
+    # pylint: disable=unused-variable
     pred_active, pred_active_proba, mm_active, cc_active, ww_active = classify_Wake_and_REM(stage_coord_active)
 
     # If the z values of the both clusters are negative or zero, it means there is no REM cluster
@@ -883,6 +884,7 @@ def main(data_dir, result_dir, pickle_input_data):
 
         # run the classification process
         try:
+            # pylint: disable=unused-variable
             pred_2D, pred_2D_proba, means_2D, covars_2D, stage_coord_nremflat, pred_3D, pred_3D_proba, means_3D, covars_3D = classification_process(
                 stage_coord)
         except ValueError:
