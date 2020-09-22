@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
 
     dt_now = datetime.now()
-    print(f'started plotting spectrums: {dt_now}')
+    print(f'Started plotting spectrums: {dt_now}')
     if args.workers == None:
         # draw timeseries plots mouse by mouse
         for i, r in mouse_info_df.iterrows():
@@ -63,4 +63,4 @@ if __name__ == '__main__':
                 ps.join()
     
     elapsed_time = (datetime.now() - dt_now)
-    print(f'ended plotting: {dt_now},  ellapsed {elapsed_time.total_seconds()/60} minuites')
+    print(f'Ended plotting: {dt_now},  ellapsed {elapsed_time.total_seconds()/60} minuites')
