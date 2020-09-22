@@ -131,11 +131,11 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
         exp_label = r['Experiment label'].strip()
         faster_dir = r['FASTER_DIR']
         if stats_report == 'NO':
-            print_log(f'[{i+1}] skipping stage: {faster_dir} {device_label}')
+            print_log(f'[{i+1}] Skipping stage: {faster_dir} {device_label}')
             continue
 
         # read a stage file
-        print_log(f'[{i+1}] reading stage: {faster_dir} {device_label} {stage_ext}')
+        print_log(f'[{i+1}] Reading stage: {faster_dir} {device_label} {stage_ext}')
         stage_call = et.read_stages(os.path.join(
             faster_dir, 'result'), device_label, stage_ext)
         stage_call = stage_call[epoch_range]
@@ -586,7 +586,7 @@ def draw_stagetime_profile_individual(stagetime_stats, output_dir):
 
         fig.suptitle(
             f'Stage-time profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
-        filename = f'stage-time_profile_{"_".join(stagetime_df.iloc[i,0:4].values)}'
+        filename = f'stage-time_profile_I_{"_".join(stagetime_df.iloc[i,0:4].values)}'
         _savefig(output_dir, filename, fig)
 
 
@@ -785,6 +785,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
 
             _set_common_features_swtrans_profile(ax1, x_max)
             _set_common_features_swtrans_profile(ax2, x_max)
+            ax2.set_xlabel('Time (hours)')
 
             # Control (always the first group)
             num_c = np.sum(bidx_group_list[0])
@@ -837,6 +838,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
 
         _set_common_features_swtrans_profile(ax1, x_max)
         _set_common_features_swtrans_profile(ax2, x_max)
+        ax2.set_xlabel('Time (hours)')
  
         # Psw
         y = swtrans_profile_stats_list[g_idx][0, 0, :]
@@ -1255,7 +1257,7 @@ def draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, y_label, outpu
         fig.suptitle(
             f'Stage-time profile: {"  ".join(psd_delta_timeseries_df.iloc[i,0:4].values)}')
 
-        filename = f'delta_power_timeseries_{opt_label}{"_".join(psd_delta_timeseries_df.iloc[i,0:4].values)}'
+        filename = f'delta_power_timeseries_I_{opt_label}{"_".join(psd_delta_timeseries_df.iloc[i,0:4].values)}'
         _savefig(output_dir, filename, fig)
 
 
@@ -1323,7 +1325,7 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, y_label, output_d
 
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'delta_power_timeseries_{opt_label}{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+            filename = f'delta_power_timeseries_G_{opt_label}{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
             _savefig(output_dir, filename, fig)
     else:
         # single group
@@ -1343,7 +1345,7 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, y_label, output_d
         ax1.set_xlabel('Time (hours)')
 
         fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
-        filename = f'{opt_label}delta_power_timeseries_{mouse_groups_set[g_idx]}'
+        filename = f'{opt_label}delta_power_timeseries_G_{mouse_groups_set[g_idx]}'
         _savefig(output_dir, filename, fig)
 
 
