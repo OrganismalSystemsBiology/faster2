@@ -2387,6 +2387,59 @@ def write_sleep_stats(stagetime_stats, output_dir):
         output_dir, 'stage-time_table.csv'), index=False)
 
 
+def write_swtrans_stats(stagetime_stats, output_dir):
+    stagetime_df = stagetime_stats['stagetime']
+    mouse_groups = stagetime_df['Mouse group'].values
+    mouse_groups_set = sorted(set(mouse_groups), key=list(
+        mouse_groups).index)  # unique elements with preseved order
+
+    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]
+
+    # mouse_group, stage_type, num, mean, SD, pvalue, star, method
+    swtrans_stats_df = pd.DataFrame()
+    
+    # mouse_group's index:0 is always control
+    mg = mouse_groups_set[0]
+    bidx = bidx_group_list[0]
+    num = np.sum(bidx)
+    swtrans_mat = np.array(stagetime_stats['swtrans'])
+    psw_values_c = swtrans_mat[bidx, 0]
+    pws_values_c = swtrans_mat[bidx, 1]
+ 
+    row1 = [mg, 'Psw',  num, np.mean(psw_values_c),  np.std(
+        psw_values_c),  np.nan, None, None]
+    row2 = [mg, 'Pws', num, np.mean(pws_values_c), np.std(
+        pws_values_c), np.nan, None, None]
+
+    swtrans_stats_df = swtrans_stats_df.append([row1, row2])
+    for i, bidx in enumerate(bidx_group_list[1:]):
+        idx = i+1
+        mg = mouse_groups_set[idx]
+        bidx = bidx_group_list[idx]
+        num = np.sum(bidx)
+        psw_values_t = swtrans_mat[bidx, 0]
+        pws_values_t = swtrans_mat[bidx, 1]
+
+        t_psw = test_two_sample(psw_values_c,  psw_values_t)  # test for Psw
+        t_pws = test_two_sample(pws_values_c,  pws_values_t)  # test for Pws
+        row1 = [mg, 'Psw',  num, np.mean(psw_values_t),  np.std(
+            psw_values_t),  t_psw['p_value'], t_psw['stars'], t_psw['method']]
+        row2 = [mg, 'Pws', num, np.mean(pws_values_t), np.std(
+            pws_values_t), t_pws['p_value'], t_pws['stars'], t_pws['method']]
+
+        swtrans_stats_df = swtrans_stats_df.append([row1, row2])
+
+    swtrans_stats_df.columns = ['Mouse group', 'trans type',
+                              'N', 'Mean', 'SD', 'Pvalue', 'Stars', 'Method']
+
+    swtrans_df = pd.DataFrame(swtrans_mat, columns=['Psw', 'Pws'])
+
+    swtrans_stats_df.to_csv(os.path.join(
+        output_dir, 'sleep-wake-transition_stats_table.csv'), index=False)
+    swtrans_df.to_csv(os.path.join(
+        output_dir, 'sleep-wake-transition_table.csv'), index=False)
+
+
 def make_psd_domain(psd_profiles_df, summary_func=np.mean):
     """ makes PSD power averaged within frequency domains of each stage for each mice
 
@@ -2590,6 +2643,9 @@ if __name__ == '__main__':
 
     # write a table of stats
     write_sleep_stats(stagetime_stats, output_dir)
+
+    # write tables of sleep-wake transition
+    write_swtrans_stats(stagetime_stats, output_dir)
 
     # draw stagetime profile of individual mice
     draw_stagetime_profile_individual(stagetime_stats, output_dir)
