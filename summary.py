@@ -1510,8 +1510,8 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
     # control group (always index: 0)
     num_c = np.sum(bidx_group_list[0])
     rr_vals_c = transmat_mat[bidx_group_list[0]][:, 0, 0]
-    nn_vals_c = transmat_mat[bidx_group_list[0]][:, 1, 1]
-    ww_vals_c = transmat_mat[bidx_group_list[0]][:, 2, 2]
+    ww_vals_c = transmat_mat[bidx_group_list[0]][:, 1, 1]
+    nn_vals_c = transmat_mat[bidx_group_list[0]][:, 2, 2]
     rw_vals_c = transmat_mat[bidx_group_list[0]][:, 0, 1]
     rn_vals_c = transmat_mat[bidx_group_list[0]][:, 0, 2]
     wr_vals_c = transmat_mat[bidx_group_list[0]][:, 1, 0]
@@ -1545,8 +1545,8 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
         for g_idx in range(1, num_groups):
             num_t = np.sum(bidx_group_list[g_idx])
             rr_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 0, 0]
-            nn_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 1, 1]
-            ww_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 2, 2]
+            ww_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 1, 1]
+            nn_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 2, 2]
             x_pos = 0 + g_idx*w/2
             ax1.bar(x_pos,
                     height=np.mean(rr_vals_t),
@@ -1588,16 +1588,16 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
             rn_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 0, 2]
             x_pos = 0 + g_idx*w/2
             ax2.bar(x_pos,
-                    height=np.mean(rw_vals_t),
-                    yerr=np.std(rw_vals_t)/num_t,
-                    align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-            scatter_datapoints(ax2, w, x_pos, rw_vals_t)
-            x_pos = 2 + g_idx*w/2
-            ax2.bar(x_pos,
                     height=np.mean(rn_vals_t),
                     yerr=np.std(rn_vals_t)/num_t,
                     align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
             scatter_datapoints(ax2, w, x_pos, rn_vals_t)
+            x_pos = 2 + g_idx*w/2
+            ax2.bar(x_pos,
+                    height=np.mean(rw_vals_t),
+                    yerr=np.std(rw_vals_t)/num_t,
+                    align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
+            scatter_datapoints(ax2, w, x_pos, rw_vals_t)
 
         # Trnsitions from NREM
         # control
@@ -1745,7 +1745,7 @@ def draw_transition_barchart_prob(stagetime_stats, output_dir):
     axes[2].set_ylabel('prob. to transit from NREM')
     axes[3].set_ylabel('prob. to transit from Wake')
     fig.suptitle('transition probability')
-    filename = f'transition probability_barchart_{"_".join(mouse_groups_set)}'
+    filename = f'transition_probability_barchart_{"_".join(mouse_groups_set)}'
     _savefig(output_dir, filename, fig)
 
 
@@ -1772,7 +1772,7 @@ def draw_transition_barchart_logodds(stagetime_stats, output_dir):
     axes[2].set_ylabel('log odds to transit from NREM')
     axes[3].set_ylabel('log odds to transit from Wake')
     fig.suptitle('transition probability (log odds)')
-    filename = f'transition probability_barchart_logodds_{"_".join(mouse_groups_set)}'
+    filename = f'transition_probability_barchart_logodds_{"_".join(mouse_groups_set)}'
     _savefig(output_dir, filename, fig)
 
 
@@ -1861,7 +1861,7 @@ def draw_swtransition_barchart_prob(stagetime_stats, output_dir):
     axes = fig.axes
     axes[0].set_ylabel('prob. to transit\n between sleep and wake')
     fig.suptitle('sleep/wake trantision probability')
-    filename = f'sleep-wake transition probability_barchart_{"_".join(mouse_groups_set)}'
+    filename = f'sleep-wake_transition probability_barchart_{"_".join(mouse_groups_set)}'
     _savefig(output_dir, filename, fig)
 
 
@@ -1877,7 +1877,7 @@ def draw_swtransition_barchart_logodds(stagetime_stats, output_dir):
     axes = fig.axes
     axes[0].set_ylabel('log odds to transit\n between sleep and wake')
     fig.suptitle('sleep/wake trantision probability (log odds)')
-    filename = f'sleep-wake transition probability_barchart_logodds_{"_".join(mouse_groups_set)}'
+    filename = f'sleep-wake_transition probability_barchart_logodds_{"_".join(mouse_groups_set)}'
     _savefig(output_dir, filename, fig)
 
 
@@ -2387,6 +2387,93 @@ def write_sleep_stats(stagetime_stats, output_dir):
         output_dir, 'stage-time_table.csv'), index=False)
 
 
+def write_stagetrans_stats(stagetime_stats, output_dir):
+    stagetime_df = stagetime_stats['stagetime']
+    mouse_groups = stagetime_df['Mouse group'].values
+    mouse_groups_set = sorted(set(mouse_groups), key=list(
+        mouse_groups).index)  # unique elements with preseved order
+
+    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]
+
+    # mouse_group, trans_type, num, mean, SD, pvalue, star, method
+    transmat_mat = np.array(stagetime_stats['transmat'])
+    stagetrans_stats_df = pd.DataFrame()
+
+    # mouse_group's index:0 is always control
+    mg = mouse_groups_set[0]
+    bidx = bidx_group_list[0]
+    num = np.sum(bidx)
+    rr_vals_c = transmat_mat[bidx][:, 0, 0]
+    ww_vals_c = transmat_mat[bidx][:, 1, 1]
+    nn_vals_c = transmat_mat[bidx][:, 2, 2]
+    rw_vals_c = transmat_mat[bidx][:, 0, 1]
+    rn_vals_c = transmat_mat[bidx][:, 0, 2]
+    wr_vals_c = transmat_mat[bidx][:, 1, 0]
+    wn_vals_c = transmat_mat[bidx][:, 1, 2]
+    nr_vals_c = transmat_mat[bidx][:, 2, 0]
+    nw_vals_c = transmat_mat[bidx][:, 2, 1]
+    row1 = [mg, 'RR', num, np.mean(rr_vals_c), np.std(rr_vals_c), np.nan, None, None]
+    row2 = [mg, 'NN', num, np.mean(nn_vals_c), np.std(nn_vals_c), np.nan, None, None]
+    row3 = [mg, 'WW', num, np.mean(ww_vals_c), np.std(ww_vals_c), np.nan, None, None]
+    row4 = [mg, 'RN', num, np.mean(rn_vals_c), np.std(rn_vals_c), np.nan, None, None]
+    row5 = [mg, 'RW', num, np.mean(rw_vals_c), np.std(rw_vals_c), np.nan, None, None]
+    row6 = [mg, 'NR', num, np.mean(nr_vals_c), np.std(nr_vals_c), np.nan, None, None]
+    row7 = [mg, 'NW', num, np.mean(nw_vals_c), np.std(nw_vals_c), np.nan, None, None]
+    row8 = [mg, 'WR', num, np.mean(wr_vals_c), np.std(wr_vals_c), np.nan, None, None]
+    row9 = [mg, 'WN', num, np.mean(wn_vals_c), np.std(wn_vals_c), np.nan, None, None]
+
+
+    stagetrans_stats_df = stagetrans_stats_df.append([row1, row2, row3, row4, row5, row6, row7, row8, row9])
+    for i, bidx in enumerate(bidx_group_list[1:]):
+        idx = i+1
+        mg = mouse_groups_set[idx]
+        bidx = bidx_group_list[idx]
+        num = np.sum(bidx)
+        rr_vals_t = transmat_mat[bidx][:, 0, 0]
+        ww_vals_t = transmat_mat[bidx][:, 1, 1]
+        nn_vals_t = transmat_mat[bidx][:, 2, 2]
+        rw_vals_t = transmat_mat[bidx][:, 0, 1]
+        rn_vals_t = transmat_mat[bidx][:, 0, 2]
+        wr_vals_t = transmat_mat[bidx][:, 1, 0]
+        wn_vals_t = transmat_mat[bidx][:, 1, 2]
+        nr_vals_t = transmat_mat[bidx][:, 2, 0]
+        nw_vals_t = transmat_mat[bidx][:, 2, 1]
+
+        trr = test_two_sample(rr_vals_c, rr_vals_t)   
+        tnn = test_two_sample(nn_vals_c, nn_vals_t)  
+        tww = test_two_sample(ww_vals_c, ww_vals_t)  
+        trw = test_two_sample(rw_vals_c, rw_vals_t)  
+        trn = test_two_sample(rn_vals_c, rn_vals_t)  
+        twr = test_two_sample(wr_vals_c, wr_vals_t)  
+        twn = test_two_sample(wn_vals_c, wn_vals_t)  
+        tnr = test_two_sample(nr_vals_c, nr_vals_t)  
+        tnw = test_two_sample(nw_vals_c, nw_vals_t)  
+
+        row1 = [mg, 'RR', num, np.mean(rr_vals_t), np.std(rr_vals_t), trr['p_value'], trr['stars'], trr['method']]
+        row2 = [mg, 'NN', num, np.mean(nn_vals_t), np.std(nn_vals_t), tnn['p_value'], tnn['stars'], tnn['method']]
+        row3 = [mg, 'WW', num, np.mean(ww_vals_t), np.std(ww_vals_t), tww['p_value'], tww['stars'], tww['method']]
+        row4 = [mg, 'RN', num, np.mean(rn_vals_t), np.std(rn_vals_t), trn['p_value'], trn['stars'], trn['method']]
+        row5 = [mg, 'RW', num, np.mean(rw_vals_t), np.std(rw_vals_t), trw['p_value'], trw['stars'], trw['method']]
+        row6 = [mg, 'NR', num, np.mean(nr_vals_t), np.std(nr_vals_t), tnr['p_value'], tnr['stars'], tnr['method']]
+        row7 = [mg, 'NW', num, np.mean(nw_vals_t), np.std(nw_vals_t), tnw['p_value'], tnw['stars'], tnw['method']]
+        row8 = [mg, 'WR', num, np.mean(wr_vals_t), np.std(wr_vals_t), twr['p_value'], twr['stars'], twr['method']]
+        row9 = [mg, 'WN', num, np.mean(wn_vals_t), np.std(wn_vals_t), twn['p_value'], twn['stars'], twn['method']]
+
+        stagetrans_stats_df = stagetrans_stats_df.append([row1, row2, row3, row4, row5, row6, row7, row8, row9])
+
+    stagetrans_stats_df.columns = ['Mouse group', 'Trans type',
+                              'N', 'Mean', 'SD', 'Pvalue', 'Stars', 'Method']
+
+    stagetrans_df = pd.DataFrame(transmat_mat.reshape(-1, 9), columns=['Prr', 'Prw', 'Prn', 'Pwr', 'Pww', 'Pwn', 'Pnr', 'Pnw', 'Pnn'])
+    mouse_info_df = stagetime_stats['stagetime'].iloc[:,0:4]
+    stagetrans_df = pd.concat([mouse_info_df, stagetrans_df], axis = 1)
+
+    stagetrans_stats_df.to_csv(os.path.join(
+        output_dir, 'transition_probability_stats_table.csv'), index=False)
+    stagetrans_df.to_csv(os.path.join(
+        output_dir, 'transition_probability_table.csv'), index=False)
+
+
 def write_swtrans_stats(stagetime_stats, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     mouse_groups = stagetime_df['Mouse group'].values
@@ -2433,11 +2520,13 @@ def write_swtrans_stats(stagetime_stats, output_dir):
                               'N', 'Mean', 'SD', 'Pvalue', 'Stars', 'Method']
 
     swtrans_df = pd.DataFrame(swtrans_mat, columns=['Psw', 'Pws'])
+    mouse_info_df = stagetime_stats['stagetime'].iloc[:,0:4]
+    swtrans_df = pd.concat([mouse_info_df, swtrans_df], axis = 1)
 
     swtrans_stats_df.to_csv(os.path.join(
-        output_dir, 'sleep-wake-transition_stats_table.csv'), index=False)
+        output_dir, 'sleep-wake-transition_probability_stats_table.csv'), index=False)
     swtrans_df.to_csv(os.path.join(
-        output_dir, 'sleep-wake-transition_table.csv'), index=False)
+        output_dir, 'sleep-wake-transition_probability_table.csv'), index=False)
 
 
 def make_psd_domain(psd_profiles_df, summary_func=np.mean):
@@ -2641,11 +2730,14 @@ if __name__ == '__main__':
     # prepare stagetime statistics
     stagetime_stats = make_summary_stats(mouse_info_df, epoch_range, stage_ext)
 
-    # write a table of stats
+    # write tables of sleeptime stats 
     write_sleep_stats(stagetime_stats, output_dir)
 
-    # write tables of sleep-wake transition
+    # write tables of sleep-wake transition stats
     write_swtrans_stats(stagetime_stats, output_dir)
+
+    # write tables of stage transition stats
+    write_stagetrans_stats(stagetime_stats, output_dir)
 
     # draw stagetime profile of individual mice
     draw_stagetime_profile_individual(stagetime_stats, output_dir)
