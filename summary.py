@@ -23,6 +23,8 @@ from datetime import datetime
 import logging
 from logging import getLogger, StreamHandler, FileHandler, Formatter
 
+import warnings
+
 
 DOMAIN_NAMES = ['Slow', 'Delta w/o slow', 'Delta', 'Theta']
 
@@ -139,14 +141,14 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
         stage_call = et.read_stages(os.path.join(
             faster_dir, 'result'), device_label, stage_ext)
         stage_call = stage_call[epoch_range]
-        epoch_num = len(stage_call)
+        epoch_num_in_range = len(stage_call)
 
         # stagetime in a day
         rem, nrem, wake, unknown = stagetime_in_a_day(stage_call)
         stagetime_df = stagetime_df.append(
             [[exp_label, mouse_group, mouse_id, device_label, rem, nrem, wake, unknown, stats_report, note]], ignore_index=True)
 
-        # stage time profile
+        # stagetime profile
         stagetime_profile_list.append(stagetime_profile(stage_call))
 
         # stage circadian profile
@@ -175,7 +177,7 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
             'swtrans': swtrans_list,
             'swtrans_profile': swtrans_profile_list,
             'swtrans_circadian': swtrans_circadian_profile_list,
-            'epoch_num': epoch_num})
+            'epoch_num_in_range': epoch_num_in_range})
 
 
 def stagetime_in_a_day(stage_call):
@@ -276,11 +278,14 @@ def swtrans_circadian_profile(stage_call):
 
     psw_mat = sw[0].reshape(-1, 24)
     pws_mat = sw[1].reshape(-1, 24)
- 
-    psw_mean = np.apply_along_axis(np.nanmean, 0, psw_mat)
-    psw_sd = np.apply_along_axis(np.nanstd,  0, psw_mat)
-    pws_mean = np.apply_along_axis(np.nanmean, 0, pws_mat)
-    pws_sd = np.apply_along_axis(np.nanstd,  0, pws_mat)
+    
+    # "RuntimeWarning: Mean of empty slice" may occure here and safely ignorable
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        psw_mean = np.apply_along_axis(np.nanmean, 0, psw_mat)
+        psw_sd = np.apply_along_axis(np.nanstd,  0, psw_mat)
+        pws_mean = np.apply_along_axis(np.nanmean, 0, pws_mat)
+        pws_sd = np.apply_along_axis(np.nanstd,  0, pws_mat)
 
     return np.array([[psw_mean, pws_mean], [psw_sd, pws_sd]])
 
@@ -563,7 +568,7 @@ def _savefig(output_dir, basefilename, fig):
 def draw_stagetime_profile_individual(stagetime_stats, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     stagetime_profile_list = stagetime_stats['stagetime_profile']
-    epoch_num = stagetime_stats['epoch_num']
+    epoch_num = stagetime_stats['epoch_num_in_range']
     x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
     x = np.arange(x_max)
     for i, profile in enumerate(stagetime_profile_list):
@@ -610,7 +615,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
             np.std, 0, stagetime_profile_mat[bidx])
         stagetime_profile_stats_list.append(
             np.array([stagetime_profile_mean, stagetime_profile_sd]))
-    epoch_num = stagetime_stats['epoch_num']
+    epoch_num = stagetime_stats['epoch_num_in_range']
     x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
     x = np.arange(x_max)
     if len(mouse_groups_set) > 1:
@@ -729,7 +734,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
 def draw_swtrans_profile_individual(stagetime_stats, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     swtrans_profile_list = stagetime_stats['swtrans_profile']
-    epoch_num = stagetime_stats['epoch_num']
+    epoch_num = stagetime_stats['epoch_num_in_range']
     x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
     x = np.arange(x_max)
     for i, profile in enumerate(swtrans_profile_list):
@@ -772,7 +777,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
             np.nanstd, 0, swtrans_profile_mat[bidx])
         swtrans_profile_stats_list.append(
             np.array([swtrans_profile_mean, swtrans_profile_sd]))
-    epoch_num = stagetime_stats['epoch_num']
+    epoch_num = stagetime_stats['epoch_num_in_range']
     x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
     x = np.arange(x_max)
     if len(mouse_groups_set) > 1:
@@ -1761,7 +1766,7 @@ def draw_transition_barchart_logodds(stagetime_stats, output_dir):
     mouse_groups = stagetime_df['Mouse group'].values
     mouse_groups_set = sorted(set(mouse_groups), key=list(
         mouse_groups).index)  # unique elements with preseved order
-    epoch_num = stagetime_stats['epoch_num']
+    epoch_num = stagetime_stats['epoch_num_in_range']
     transmat_mat = np.array(stagetime_stats['transmat'])
     transmat_mat = np.vectorize(_odd)(transmat_mat, epoch_num)
 
@@ -1960,8 +1965,15 @@ def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
         print_log(f'[{i+1}] Reading PSD and stage of: {faster_dir} {device_label}')
 
         # read stage of the mouse
-        stage_call, nan_eeg, outlier_eeg = et.read_stages_with_eeg_diagnosis(os.path.join(
-            faster_dir, 'result'), device_label, stage_ext)
+        try:
+            stage_call, nan_eeg, outlier_eeg = et.read_stages_with_eeg_diagnosis(os.path.join(
+                faster_dir, 'result'), device_label, stage_ext)
+        except IndexError:
+            print_log('NA and outlier information is not available in the stage file')
+            stage_call = et.read_stages(os.path.join(
+                faster_dir, 'result'), device_label, stage_ext)
+            nan_eeg = np.repeat(0, len(stage_call))
+            outlier_eeg = np.repeat(0, len(stage_call))
         epoch_num = len(stage_call)
         
         # read the normalized EEG PSDs and the associated normalization factors and means
