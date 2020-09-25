@@ -1927,7 +1927,7 @@ def conv_PSD_from_snorm_PSD(spec_norm):
     return psd_mat
 
 
-def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
+def make_target_psd_info(mouse_info_df, epoch_range, sample_freq, stage_ext):
     """makes PSD information sets for subsequent static analysis for each mouse:
     Arguments:
         mouse_info_df {pd.DataFram} -- a dataframe given by mouse_info_collected()
@@ -1962,7 +1962,7 @@ def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
         if stats_report == 'NO':
             print_log(f'[{i+1}] Skipping: {faster_dir} {device_label}')
             continue
-        print_log(f'[{i+1}] Reading PSD and stage of: {faster_dir} {device_label}')
+        print_log(f'[{i+1}] Reading stage of: {faster_dir} {device_label}')
 
         # read stage of the mouse
         try:
@@ -1976,21 +1976,24 @@ def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
             nan_eeg = np.repeat(0, len(stage_call))
             outlier_eeg = np.repeat(0, len(stage_call))
         epoch_num = len(stage_call)
-        
-        # read the normalized EEG PSDs and the associated normalization factors and means
-        # ==NOTE==  The unknown-stages' epochs do not have PSD (i.e. len(psd) <= epoch_num )
-        pkl_path_eeg = os.path.join(
-            faster_dir, 'result', 'PSD', f'{device_label}_EEG_PSD.pkl')
-        with open(pkl_path_eeg, 'rb') as pkl:
-            snorm_psd = pickle.load(pkl)
 
-        # convert the spectrum normalized PSD to the conventional PSD
-        conv_psd = conv_PSD_from_snorm_PSD(snorm_psd)
+        # Read the voltage (EMG is also necessary for marking unknown epochs)
+        # pylint: disable=unused-variable
+        (eeg_vm_org, emg_vm_org, not_yet_pickled) = stage.read_voltage_matrices(
+            os.path.join(faster_dir, 'data'), device_label, sample_freq, stage.EPOCH_LEN_SEC, epoch_num)     
 
-        # Break at the error: the unknown stage's PSD is not recoverable (even a manual annotator may want ...)
-        bidx_unknown = snorm_psd['bidx_unknown']
+        print_log('Preprocessing and calculating PSD')
+        # recover nans in the voltage if possible
+        np.apply_along_axis(et.patch_nan, 1, eeg_vm_org)
+        np.apply_along_axis(et.patch_nan, 1, emg_vm_org)
+
+        # exclude unrecoverable epochs as unknown (note: this process involves the EMG)
+        bidx_unknown = np.apply_along_axis(np.any, 1, np.isnan(
+            eeg_vm_org)) | np.apply_along_axis(np.any, 1, np.isnan(emg_vm_org))
+
+        # Break at the error: the unknown epoch is not recoverable (even a manual annotator may want ...)
         if not np.all(stage_call[bidx_unknown] == 'UNKNOWN'):
-            print_log('[Error] Unknown stages are inconsistent between PSD and stage files.'\
+            print_log('[Error] Unknown stages are inconsistent between the PSD and stage files.'\
                       'Note unknown stages are not recoverable by manual annotation. Check the consistency between the PSD and the stage files.')
             idx = list(np.where(bidx_unknown)[
                     0][stage_call[bidx_unknown] != 'UNKNOWN'])
@@ -2003,7 +2006,7 @@ def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
         # bidx_target: bidx for the good epochs in the selected range
         bidx_selected = np.repeat(False, epoch_num)
         bidx_selected[epoch_range] = True
-        bidx_target = bidx_selected & bidx_good_psd
+        bidx_target = bidx_selected & bidx_good_psd & ~bidx_unknown
 
         print_log(f'    Target epoch range: {epoch_range.start}-{epoch_range.stop} ({epoch_range.stop-epoch_range.start} epochs out of {epoch_num} epochs)\n'\
               f'    Unknown epochs in the range: {np.sum(bidx_unknown & bidx_selected)} ({100*np.sum(bidx_unknown & bidx_selected)/np.sum(bidx_selected):.3f}%)\n'\
@@ -2012,7 +2015,25 @@ def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
         bidx_rem = (stage_call == 'REM') & bidx_target
         bidx_nrem = (stage_call == 'NREM') & bidx_target
         bidx_wake = (stage_call == 'WAKE') & bidx_target 
-        
+
+        # normalize the EEG voltage matrix with balanced number of Wake & NREM epochs
+        epoch_num_nrem = np.sum(bidx_nrem)
+        epoch_num_wake = np.sum(bidx_wake)
+        epoch_num_balanced = np.min([epoch_num_nrem, epoch_num_wake])
+        idx_nrem = np.where(bidx_nrem)[0]
+        idx_wake = np.where(bidx_wake)[0]
+        np.random.shuffle(idx_nrem)
+        np.random.shuffle(idx_wake)
+        idx_nrem = idx_nrem[:epoch_num_balanced]
+        idx_wake = idx_wake[:epoch_num_balanced]
+        vs = eeg_vm_org[np.hstack([idx_nrem, idx_wake]),:]
+        eeg_vm_norm = (eeg_vm_org - np.nanmean(vs))/(np.nanstd(vs))
+        print_log(f'    Number of epochs sampled for normalization: {epoch_num_balanced} each from NREM ({epoch_num_nrem} epochs) and Wake ({epoch_num_wake} epochs)')
+        # calculate EEG's PSD
+        n_fft = int(256 * sample_freq/100) # assures frequency bins compatibe among different sampleling frequencies
+        conv_psd = np.apply_along_axis(lambda y: stage.psd(y, n_fft, sample_freq), 1, eeg_vm_norm)
+        conv_psd = conv_psd[~bidx_unknown] # because conv_psd is supposed not to have unkown epochs in the sebsequent code
+
         psd_info_list.append({'exp_label':exp_label,
                         'mouse_group':mouse_group,
                         'mouse_id':mouse_id,
@@ -2178,7 +2199,7 @@ def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_
         mouse_tag_list = [str(x) for x in df.iloc[0, 0:4]]
         fig.suptitle(
             f'Powerspectrum density: {"  ".join(mouse_tag_list)}')
-        filename = f'PSD_{opt_label}I_{"_".join(mouse_tag_list)}'
+        filename = f'PSD_{opt_label}profile_I_{"_".join(mouse_tag_list)}'
         _savefig(output_dir, filename, fig)
 
 
@@ -2283,7 +2304,7 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
 
             fig.suptitle(
                 f'Powerspectrum density: {mouse_group_set[0]} (n={num_c}) v.s. {mouse_group_set[g_idx]} (n={num_t})')
-            filename = f'PSD_{opt_label}G_{mouse_group_set[0]}_vs_{mouse_group_set[g_idx]}'
+            filename = f'PSD_{opt_label}profile_G_{mouse_group_set[0]}_vs_{mouse_group_set[g_idx]}'
             _savefig(output_dir, filename, fig)
     else:
         # single group
@@ -2677,9 +2698,9 @@ def write_psd_stats(psd_profiles_df, output_dir, opt_label='', summary_func=np.m
     psd_profiles_df.to_csv(os.path.join(
         output_dir, f'PSD_{opt_label}profile.csv'), index=False)
     psd_domain_df.to_csv(os.path.join(
-        output_dir, f'PSD_{opt_label}freq_domain_table.csv'), index=False)
+        output_dir, f'PSD_{opt_label}profile_freq_domain_table.csv'), index=False)
     psd_stats_df.to_csv(os.path.join(
-        output_dir, f'PSD_{opt_label}stats_table.csv'), index=False)
+        output_dir, f'PSD_{opt_label}profile_stats_table.csv'), index=False)
 
 
 if __name__ == '__main__':
@@ -2793,7 +2814,7 @@ if __name__ == '__main__':
 
     # prepare Powerspectrum density (PSD) profiles for individual mice
     # list of {simple exp info, target info, psd (epoch_num, 129)} for each mouse
-    psd_info_list = make_target_psd_info(mouse_info_df, epoch_range, stage_ext)
+    psd_info_list = make_target_psd_info(mouse_info_df, epoch_range, sample_freq, stage_ext)
  
     # log version of psd_info
     print_log('Making the log version of the PSD information')
