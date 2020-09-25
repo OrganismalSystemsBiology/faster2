@@ -537,6 +537,23 @@ def _set_common_features_delta_power_timeseries(ax, x_max, y_max):
     ax.set_ylim(-0.15*y_tick_interval, y_max)
 
 
+def _set_common_features_domain_power_timeseries(ax, x_max, y_max):
+    y_tick_interval = np.power(10, np.ceil(np.log10(y_max))-1)
+    ax.set_yticks(np.arange(0, y_max, y_tick_interval))
+    ax.set_xticks(np.arange(0, x_max+1, 6))
+    ax.grid(dashes=(2, 2))
+
+    light_bar_base = matplotlib.patches.Rectangle(
+        xy=[0, -0.1*y_tick_interval], width=x_max, height=0.1*y_tick_interval, fill=True, color=stage.COLOR_DARK)
+    ax.add_patch(light_bar_base)
+    for day in range(int(x_max/24)):
+        light_bar_light = matplotlib.patches.Rectangle(
+            xy=[24*day, -0.1*y_tick_interval], width=12, height=0.1*y_tick_interval, fill=True, color=stage.COLOR_LIGHT)
+        ax.add_patch(light_bar_light)
+
+    ax.set_ylim(-0.15*y_tick_interval, y_max)
+
+
 def _set_common_features_stagetime_profile_rem(ax, x_max):
     r = 4  # a scale factor for y-axis
     ax.set_yticks(np.array([0, 20, 40, 60])/r)
@@ -1213,14 +1230,14 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
         _savefig(output_dir, filename, fig)
 
 
-def draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, y_label, output_dir, opt_label=''):
-    mouse_groups = psd_delta_timeseries_df['Mouse group'].values
+def draw_psd_domain_power_timeseries_individual(psd_domain_power_timeseries_df, y_label, output_dir, domain, opt_label=''):
+    mouse_groups = psd_domain_power_timeseries_df['Mouse group'].values
     mouse_groups_set = sorted(set(mouse_groups), key=list(
         mouse_groups).index)  # unique elements with preseved order
     bidx_group_list = [mouse_groups == g for g in mouse_groups_set]  
 
     hourly_ts_list = []
-    for _, ts in psd_delta_timeseries_df.iloc[:,4:].iterrows():
+    for _, ts in psd_domain_power_timeseries_df.iloc[:,4:].iterrows():
         ts_mat = ts.to_numpy(dtype=np.float64).reshape(-1, int(3600/stage.EPOCH_LEN_SEC))
         # The rows with all nan needs to be avoided in np.nanmean
         idx_all_nan = np.where([np.all(np.isnan(x)) for x in ts_mat])
@@ -1232,27 +1249,27 @@ def draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, y_label, outpu
     hourly_ts_mat = np.array(hourly_ts_list)
 
     # this is just for deciding y_max
-    delta_timeseries_stats_list=[]
+    domain_power_timeseries_stats_list=[]
     for bidx in bidx_group_list:
         hourly_ts_mat_group = hourly_ts_mat[bidx]
         idx_all_nan = np.where([np.all(np.isnan(r)) for r in hourly_ts_mat_group.T])
         hourly_ts_mat_group[:, idx_all_nan] = 0 # this is for np.nanmean and np.nanstd
-        delta_timeseries_mean = np.apply_along_axis(
+        domain_power_timeseries_mean = np.apply_along_axis(
             np.nanmean, 0, hourly_ts_mat_group)
-        delta_timeseries_sd = np.apply_along_axis(
+        domain_power_timeseries_sd = np.apply_along_axis(
             np.nanstd, 0, hourly_ts_mat_group)
-        delta_timeseries_mean[idx_all_nan] = np.nan
-        delta_timeseries_sd[idx_all_nan] = np.nan
-        delta_timeseries_stats_list.append(
-            np.array([delta_timeseries_mean, delta_timeseries_sd]))
-    y_max = np.nanmax(np.array([ts_stats[0] for ts_stats in delta_timeseries_stats_list])) * 1.1
+        domain_power_timeseries_mean[idx_all_nan] = np.nan
+        domain_power_timeseries_sd[idx_all_nan] = np.nan
+        domain_power_timeseries_stats_list.append(
+            np.array([domain_power_timeseries_mean, domain_power_timeseries_sd]))
+    y_max = np.nanmax(np.array([ts_stats[0] for ts_stats in domain_power_timeseries_stats_list])) * 1.1
 
     x_max = ts_mat.shape[0]
     x = np.arange(x_max)
     for i, profile in enumerate(hourly_ts_list):
         fig = Figure(figsize=(13, 6))
         ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
-        _set_common_features_delta_power_timeseries(ax1, x_max, y_max)
+        _set_common_features_domain_power_timeseries(ax1, x_max, y_max)
 
         ax1.set_ylabel(y_label)
         ax1.set_xlabel('Time (hours)')
@@ -1260,20 +1277,20 @@ def draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, y_label, outpu
         ax1.plot(x, profile, color=stage.COLOR_NREM)
 
         fig.suptitle(
-            f'Stage-time profile: {"  ".join(psd_delta_timeseries_df.iloc[i,0:4].values)}')
+            f'Stage-time profile: {"  ".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}')
 
-        filename = f'delta_power_timeseries_I_{opt_label}{"_".join(psd_delta_timeseries_df.iloc[i,0:4].values)}'
+        filename = f'power_timeseries_{domain}_I_{opt_label}{"_".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}'
         _savefig(output_dir, filename, fig)
 
 
-def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, y_label, output_dir, opt_label=''):
-    mouse_groups = psd_delta_timeseries_df['Mouse group'].values
+def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, y_label, output_dir, domain, opt_label=''):
+    mouse_groups = psd_domain_power_timeseries_df['Mouse group'].values
     mouse_groups_set = sorted(set(mouse_groups), key=list(
         mouse_groups).index)  # unique elements with preseved order
     bidx_group_list = [mouse_groups == g for g in mouse_groups_set]  
 
     hourly_ts_list = []
-    for _, ts in psd_delta_timeseries_df.iloc[:,4:].iterrows():
+    for _, ts in psd_domain_power_timeseries_df.iloc[:,4:].iterrows():
         ts_mat = ts.to_numpy().reshape(-1, int(3600/stage.EPOCH_LEN_SEC))
         # The rows with all nan needs to be avoided in np.nanmean
         idx_all_nan = np.where([np.all(np.isnan(x)) for x in ts_mat])
@@ -1283,23 +1300,23 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, y_label, output_d
         hourly_ts_list.append(hourly_ts)
     hourly_ts_mat = np.array(hourly_ts_list)
 
-    delta_timeseries_stats_list=[]
+    domain_power_timeseries_stats_list=[]
     for bidx in bidx_group_list:
         hourly_ts_mat_group = hourly_ts_mat[bidx]
         idx_all_nan = np.where([np.all(np.isnan(r)) for r in hourly_ts_mat_group.T])
         hourly_ts_mat_group[:, idx_all_nan] = 0 # this is for np.nanmean and np.nanstd
-        delta_timeseries_mean = np.apply_along_axis(
+        domain_power_timeseries_mean = np.apply_along_axis(
             np.nanmean, 0, hourly_ts_mat_group)
-        delta_timeseries_sd = np.apply_along_axis(
+        domain_power_timeseries_sd = np.apply_along_axis(
             np.nanstd, 0, hourly_ts_mat_group)
-        delta_timeseries_mean[idx_all_nan] = np.nan
-        delta_timeseries_sd[idx_all_nan] = np.nan
-        delta_timeseries_stats_list.append(
-            np.array([delta_timeseries_mean, delta_timeseries_sd]))
+        domain_power_timeseries_mean[idx_all_nan] = np.nan
+        domain_power_timeseries_sd[idx_all_nan] = np.nan
+        domain_power_timeseries_stats_list.append(
+            np.array([domain_power_timeseries_mean, domain_power_timeseries_sd]))
 
     # pylint: disable=E1136  # pylint/issues/3139
     x_max = hourly_ts_mat.shape[1]
-    y_max = np.nanmax(np.array([ts_stats[0] for ts_stats in delta_timeseries_stats_list])) * 1.1
+    y_max = np.nanmax(np.array([ts_stats[0] for ts_stats in domain_power_timeseries_stats_list])) * 1.1
     x = np.arange(x_max)
     if len(mouse_groups_set) > 1:
         # contrast to group index = 0
@@ -1308,12 +1325,12 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, y_label, output_d
             fig = Figure(figsize=(13, 6))
             ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
 
-            _set_common_features_delta_power_timeseries(ax1, x_max, y_max)
+            _set_common_features_domain_power_timeseries(ax1, x_max, y_max)
 
             # Control (always the first group)
             num_c = np.sum(bidx_group_list[0])
-            y = delta_timeseries_stats_list[0][0, :]
-            y_sem = delta_timeseries_stats_list[0][1, :]/np.sqrt(num_c)
+            y = domain_power_timeseries_stats_list[0][0, :]
+            y_sem = domain_power_timeseries_stats_list[0][1, :]/np.sqrt(num_c)
             ax1.plot(x, y, color='grey')
             ax1.fill_between(x, y - y_sem,
                             y + y_sem, color='grey', alpha=0.3)
@@ -1322,15 +1339,15 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, y_label, output_d
 
             # Treatment
             num = np.sum(bidx_group_list[g_idx])
-            y = delta_timeseries_stats_list[g_idx][0, :]
-            y_sem = delta_timeseries_stats_list[g_idx][1, :]/np.sqrt(num)
+            y = domain_power_timeseries_stats_list[g_idx][0, :]
+            y_sem = domain_power_timeseries_stats_list[g_idx][1, :]/np.sqrt(num)
             ax1.plot(x, y, color=stage.COLOR_NREM)
             ax1.fill_between(x, y - y_sem,
                             y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
 
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'delta_power_timeseries_G_{opt_label}{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+            filename = f'power_timeseries_{domain}_G_{opt_label}{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
             _savefig(output_dir, filename, fig)
     else:
         # single group
@@ -1339,10 +1356,10 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, y_label, output_d
         fig = Figure(figsize=(13, 6))
         ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
 
-        _set_common_features_delta_power_timeseries(ax1, x_max, y_max)
+        _set_common_features_domain_power_timeseries(ax1, x_max, y_max)
 
-        y = delta_timeseries_stats_list[g_idx][0, :]
-        y_sem = delta_timeseries_stats_list[g_idx][1, :]/np.sqrt(num)
+        y = domain_power_timeseries_stats_list[g_idx][0, :]
+        y_sem = domain_power_timeseries_stats_list[g_idx][1, :]/np.sqrt(num)
         ax1.plot(x, y, color=stage.COLOR_NREM)
         ax1.fill_between(x, y - y_sem,
                         y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
@@ -1350,7 +1367,7 @@ def draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, y_label, output_d
         ax1.set_xlabel('Time (hours)')
 
         fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
-        filename = f'{opt_label}delta_power_timeseries_G_{mouse_groups_set[g_idx]}'
+        filename = f'power_timeseries_{domain}_G_{opt_label}{mouse_groups_set[g_idx]}'
         _savefig(output_dir, filename, fig)
 
 
@@ -2047,6 +2064,28 @@ def make_target_psd_info(mouse_info_df, epoch_range, sample_freq, stage_ext):
                         'conv_psd':conv_psd})
         
     return psd_info_list
+
+def make_psd_total_timeseries_wake_df(psd_info_list, sample_freq, epoch_num, epoch_range, summary_func=np.mean):
+    # make the Wake total-power timeseries
+    psd_total_timeseries_wake_df = pd.DataFrame()
+    for psd_info in psd_info_list:
+        bidx_unknown = psd_info['bidx_unknown']
+        stage_call = psd_info['stage_call']
+        bidx_target = psd_info['bidx_target']
+        bidx_wake_known = psd_info['bidx_wake'][~bidx_unknown]
+        conv_psd = psd_info['conv_psd']
+        psd_total_timeseries_wake = np.repeat(np.nan, epoch_num)
+        psd_total_timeseries_wake[~bidx_unknown & (stage_call=='WAKE') & bidx_target] = np.apply_along_axis(summary_func, 1, conv_psd[bidx_wake_known, :][:,:])
+        psd_total_timeseries_wake = psd_total_timeseries_wake[epoch_range] # extract epochs of the selected range
+        psd_total_timeseries_wake_df = psd_total_timeseries_wake_df.append(
+            [[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_total_timeseries_wake.tolist()], ignore_index=True)
+
+    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
+    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
+    psd_total_timeseries_wake_df.columns = column_names
+
+    return psd_total_timeseries_wake_df
+
 
 
 def make_psd_delta_timeseries_nrem_df(psd_info_list, sample_freq, epoch_num, epoch_range, summary_func=np.mean):
@@ -2869,14 +2908,24 @@ if __name__ == '__main__':
     percentage_psd_delta_timeseries_df = make_psd_delta_timeseries_df(percentage_psd_info_list, sample_freq, epoch_num, epoch_range, np.sum)
     print_log('Making the delta-power timeseries in NREM (percentage)')
     percentage_psd_delta_timeseries_nrem_df = make_psd_delta_timeseries_nrem_df(percentage_psd_info_list, sample_freq, epoch_num, epoch_range, np.sum)
+    print_log('Making the total-power timeseries in Wake')
+    psd_total_timeseries_wake_df = make_psd_total_timeseries_wake_df(psd_info_list, sample_freq, epoch_num, epoch_range)
 
     # draw delta-power timeseries
     print_log('Drawing the delta-power timeseries')
-    draw_psd_delta_timeseries_individual(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir)
-    draw_psd_delta_timeseries_grouped(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir)
-    draw_psd_delta_timeseries_individual(percentage_psd_delta_timeseries_df, 'Hourly delta power [%]', output_dir, 'percentage_')
-    draw_psd_delta_timeseries_grouped(percentage_psd_delta_timeseries_df, 'Hourly delta power [%]', output_dir, 'percentage_')
-    draw_psd_delta_timeseries_individual(psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [AU]', output_dir, 'NREM_')
-    draw_psd_delta_timeseries_grouped(psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [AU]', output_dir, 'NREM_')
-    draw_psd_delta_timeseries_individual(percentage_psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [%]', output_dir, 'NREM_percentage_')
-    draw_psd_delta_timeseries_grouped(percentage_psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [%]', output_dir, 'NREM_percentage_')
+    # delta in all epoch
+    draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir, 'delta')
+    draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir, 'delta')
+    # delta percentage in all epoch
+    draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_df, 'Hourly delta power [%]', output_dir, 'delta_percentage')
+    draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_df, 'Hourly delta power [%]', output_dir, 'delta_percentage')
+    # delta in NREM 
+    draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [AU]', output_dir, 'delta', 'NREM_')
+    draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [AU]', output_dir, 'delta', 'NREM_')
+    # delta percentage in NREM
+    draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [%]', output_dir, 'delta_percentage', 'NREM_')
+    draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [%]', output_dir, 'delta_percentage', 'NREM_')
+    # total in Wake
+    draw_psd_domain_power_timeseries_individual(psd_total_timeseries_wake_df, 'Hourly Wake total power [AU]', output_dir, 'total', 'Wake_')
+    draw_psd_domain_power_timeseries_grouped(psd_total_timeseries_wake_df, 'Hourly Wake total power [AU]', output_dir, 'total', 'Wake_')
+
