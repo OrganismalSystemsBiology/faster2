@@ -1930,7 +1930,7 @@ def conv_PSD_from_snorm_PSD(spec_norm):
 def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
     """makes PSD information sets for subsequent static analysis for each mouse:
     Arguments:
-        mouse_info_df {pd.DataFram} -- an dataframe given by mouse_info_collected()
+        mouse_info_df {pd.DataFram} -- a dataframe given by mouse_info_collected()
         sample_freq {int} -- sampling frequency
         epoch_range {slice} -- a range of target epochs
         stage_ext {str} -- a file sub-extention (e.g. 'faster2' for *.faster2.csv)
@@ -1969,6 +1969,7 @@ def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
             stage_call, nan_eeg, outlier_eeg = et.read_stages_with_eeg_diagnosis(os.path.join(
                 faster_dir, 'result'), device_label, stage_ext)
         except IndexError:
+            # Manually annotated stage files may not have diagnostic info
             print_log('NA and outlier information is not available in the stage file')
             stage_call = et.read_stages(os.path.join(
                 faster_dir, 'result'), device_label, stage_ext)
@@ -1989,7 +1990,8 @@ def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
         # Break at the error: the unknown stage's PSD is not recoverable (even a manual annotator may want ...)
         bidx_unknown = snorm_psd['bidx_unknown']
         if not np.all(stage_call[bidx_unknown] == 'UNKNOWN'):
-            print_log('[Error] "unknown" epoch is not recoverable. Check the consistency between the PSD and the stage files.')
+            print_log('[Error] Unknown stages are inconsistent between PSD and stage files.'\
+                      'Note unknown stages are not recoverable by manual annotation. Check the consistency between the PSD and the stage files.')
             idx = list(np.where(bidx_unknown)[
                     0][stage_call[bidx_unknown] != 'UNKNOWN'])
             print_log(f'... in stage file at {idx}')
@@ -1998,7 +2000,7 @@ def make_target_psd_info(mouse_info_df, epoch_range, stage_ext):
         # good PSD should have the nan- and outlier-ratios of less than 1%
         bidx_good_psd = (nan_eeg < 0.01) & (outlier_eeg < 0.01)
         
-        # bidx_target: bidx for the selected range
+        # bidx_target: bidx for the good epochs in the selected range
         bidx_selected = np.repeat(False, epoch_num)
         bidx_selected[epoch_range] = True
         bidx_target = bidx_selected & bidx_good_psd
@@ -2777,10 +2779,10 @@ if __name__ == '__main__':
     # draw stagetime profile of individual mice
     draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir)
 
-    # draw transition barchart (probability)
+    # draw stage transition barchart (probability)
     draw_transition_barchart_prob(stagetime_stats, output_dir)
 
-    # draw transition barchart (log odds)
+    # draw stage transition barchart (log odds)
     draw_transition_barchart_logodds(stagetime_stats, output_dir)
 
     # draw sleep/wake transition probability
