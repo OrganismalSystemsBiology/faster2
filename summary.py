@@ -1347,7 +1347,7 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, y_l
 
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'power_timeseries_{domain}_{opt_label}G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+            filename = f'power-timeseries_{domain}_{opt_label}G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
             _savefig(output_dir, filename, fig)
     else:
         # single group
@@ -1367,7 +1367,7 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, y_l
         ax1.set_xlabel('Time (hours)')
 
         fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
-        filename = f'power_timeseries_{domain}_G_{opt_label}{mouse_groups_set[g_idx]}'
+        filename = f'power-timeseries_{domain}_G_{opt_label}{mouse_groups_set[g_idx]}'
         _savefig(output_dir, filename, fig)
 
 
