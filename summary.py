@@ -1279,7 +1279,7 @@ def draw_psd_domain_power_timeseries_individual(psd_domain_power_timeseries_df, 
         fig.suptitle(
             f'Stage-time profile: {"  ".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}')
 
-        filename = f'power_timeseries_{domain}_I_{opt_label}{"_".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}'
+        filename = f'power_timeseries_{domain}_{opt_label}I_{"_".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}'
         _savefig(output_dir, filename, fig)
 
 
@@ -1347,7 +1347,7 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, y_l
 
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'power_timeseries_{domain}_G_{opt_label}{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+            filename = f'power_timeseries_{domain}_{opt_label}G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
             _savefig(output_dir, filename, fig)
     else:
         # single group
