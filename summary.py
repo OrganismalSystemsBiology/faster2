@@ -1279,7 +1279,7 @@ def draw_psd_domain_power_timeseries_individual(psd_domain_power_timeseries_df, 
         fig.suptitle(
             f'Stage-time profile: {"  ".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}')
 
-        filename = f'power_timeseries_{domain}_{opt_label}I_{"_".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}'
+        filename = f'power-timeseries_{domain}_{opt_label}I_{"_".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}'
         _savefig(output_dir, filename, fig)
 
 
