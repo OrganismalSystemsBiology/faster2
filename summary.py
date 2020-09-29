@@ -1767,7 +1767,7 @@ def draw_transition_barchart_prob(stagetime_stats, output_dir):
     axes[2].set_ylabel('prob. to transit from NREM')
     axes[3].set_ylabel('prob. to transit from Wake')
     fig.suptitle('transition probability')
-    filename = f'transition_probability_barchart_{"_".join(mouse_groups_set)}'
+    filename = f'stage-transition_probability_barchart_{"_".join(mouse_groups_set)}'
     _savefig(output_dir, filename, fig)
 
 
@@ -1794,7 +1794,7 @@ def draw_transition_barchart_logodds(stagetime_stats, output_dir):
     axes[2].set_ylabel('log odds to transit from NREM')
     axes[3].set_ylabel('log odds to transit from Wake')
     fig.suptitle('transition probability (log odds)')
-    filename = f'transition_probability_barchart_logodds_{"_".join(mouse_groups_set)}'
+    filename = f'stage-transition_probability_barchart_logodds_{"_".join(mouse_groups_set)}'
     _savefig(output_dir, filename, fig)
 
 
@@ -2086,6 +2086,34 @@ def make_psd_total_timeseries_wake_df(psd_info_list, sample_freq, epoch_num, epo
 
     return psd_total_timeseries_wake_df
 
+
+def make_psd_delta_timeseries_wake_df(psd_info_list, sample_freq, epoch_num, epoch_range, summary_func=np.mean):
+    # frequency bins
+    # assures frequency bins compatibe among different sampling frequencies
+    n_fft = int(256 * sample_freq/100)
+    # same frequency bins given by signal.welch()
+    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+    bidx_delta_freq = (freq_bins<4) # 11 bins
+
+    # make the Wake total-power timeseries
+    psd_delta_timeseries_wake_df = pd.DataFrame()
+    for psd_info in psd_info_list:
+        bidx_unknown = psd_info['bidx_unknown']
+        stage_call = psd_info['stage_call']
+        bidx_target = psd_info['bidx_target']
+        bidx_wake_known = psd_info['bidx_wake'][~bidx_unknown]
+        conv_psd = psd_info['conv_psd']
+        psd_delta_timeseries_wake = np.repeat(np.nan, epoch_num)
+        psd_delta_timeseries_wake[~bidx_unknown & (stage_call=='WAKE') & bidx_target] = np.apply_along_axis(summary_func, 1, conv_psd[bidx_wake_known, :][:,bidx_delta_freq])
+        psd_delta_timeseries_wake = psd_delta_timeseries_wake[epoch_range] # extract epochs of the selected range
+        psd_delta_timeseries_wake_df = psd_delta_timeseries_wake_df.append(
+            [[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_delta_timeseries_wake.tolist()], ignore_index=True)
+
+    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
+    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
+    psd_delta_timeseries_wake_df.columns = column_names
+
+    return psd_delta_timeseries_wake_df
 
 
 def make_psd_delta_timeseries_nrem_df(psd_info_list, sample_freq, epoch_num, epoch_range, summary_func=np.mean):
@@ -2543,9 +2571,9 @@ def write_stagetrans_stats(stagetime_stats, output_dir):
     stagetrans_df = pd.concat([mouse_info_df, stagetrans_df], axis = 1)
 
     stagetrans_stats_df.to_csv(os.path.join(
-        output_dir, 'transition_probability_stats_table.csv'), index=False)
+        output_dir, 'stage-transition_probability_stats_table.csv'), index=False)
     stagetrans_df.to_csv(os.path.join(
-        output_dir, 'transition_probability_table.csv'), index=False)
+        output_dir, 'stage-transition_probability_table.csv'), index=False)
 
 
 def write_swtrans_stats(stagetime_stats, output_dir):
@@ -2910,6 +2938,11 @@ if __name__ == '__main__':
     percentage_psd_delta_timeseries_nrem_df = make_psd_delta_timeseries_nrem_df(percentage_psd_info_list, sample_freq, epoch_num, epoch_range, np.sum)
     print_log('Making the total-power timeseries in Wake')
     psd_total_timeseries_wake_df = make_psd_total_timeseries_wake_df(psd_info_list, sample_freq, epoch_num, epoch_range)
+    print_log('Making the delta-power timeseries in Wake')
+    psd_delta_timeseries_wake_df = make_psd_delta_timeseries_wake_df(psd_info_list, sample_freq, epoch_num, epoch_range)
+    print_log('Making the delta-power timeseries in Wake (percentage)')
+    percentage_psd_delta_timeseries_wake_df = make_psd_delta_timeseries_wake_df(percentage_psd_info_list, sample_freq, epoch_num, epoch_range, np.sum)
+
 
     # draw delta-power timeseries
     print_log('Drawing the delta-power timeseries')
@@ -2928,4 +2961,9 @@ if __name__ == '__main__':
     # total in Wake
     draw_psd_domain_power_timeseries_individual(psd_total_timeseries_wake_df, 'Hourly Wake total power [AU]', output_dir, 'total', 'Wake_')
     draw_psd_domain_power_timeseries_grouped(psd_total_timeseries_wake_df, 'Hourly Wake total power [AU]', output_dir, 'total', 'Wake_')
-
+    # delta in Wake
+    draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_wake_df, 'Hourly Wake delta power [AU]', output_dir, 'delta', 'Wake_')
+    draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_wake_df, 'Hourly Wake delta power [AU]', output_dir, 'delta', 'Wake_')
+    # delta percentage in Wake
+    draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_wake_df, 'Hourly Wake delta power [AU]', output_dir, 'delta_percentage', 'Wake_')
+    draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_wake_df, 'Hourly Wake delta power [AU]', output_dir, 'delta_percentage', 'Wake_')
