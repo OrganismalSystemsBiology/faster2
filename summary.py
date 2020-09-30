@@ -432,6 +432,10 @@ def test_two_sample(x, y):
             # Forced rejection of distribution normality
             normality_xx_p = 0
             normality_yy_p = 0
+        elif np.var(xx) == 0 or np.var(yy) == 0:
+            # Forced rejection of distribution normality
+            normality_xx_p = 0
+            normality_yy_p = 0
         else:
             normality_xx_p = stats.shapiro(xx)[1]
             normality_yy_p = stats.shapiro(yy)[1]
@@ -479,12 +483,16 @@ def var_test(x, y):
     df2 = len(y) - 1
     v1 = np.var(y, ddof=1)
     v2 = np.var(x, ddof=1)
-    F = v1/v2
-    if F > 1:
-        p_value = stats.f.sf(F, df2, df1)*2  # two-sided
-    else:
-        p_value = (1-stats.f.sf(F, df2, df1))*2  # two-sided
 
+    if v2 > 0:
+        F = v1/v2
+        if F > 1:
+            p_value = stats.f.sf(F, df2, df1)*2  # two-sided
+        else:
+            p_value = (1-stats.f.sf(F, df2, df1))*2  # two-sided
+    else:
+        F = np.nan
+        p_value = np.nan
     return {'F': F, 'df1': df1, 'df2': df2, 'p_value': p_value}
 
 
