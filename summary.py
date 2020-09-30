@@ -796,12 +796,15 @@ def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
     swtrans_profile_mat = np.array(swtrans_profile_list)  # Psw, Pws
     swtrans_profile_stats_list = []
     for bidx in bidx_group_list:
-        swtrans_profile_mean = np.apply_along_axis(
-            np.nanmean, 0, swtrans_profile_mat[bidx])
-        swtrans_profile_sd = np.apply_along_axis(
-            np.nanstd, 0, swtrans_profile_mat[bidx])
-        swtrans_profile_stats_list.append(
-            np.array([swtrans_profile_mean, swtrans_profile_sd]))
+        # "RuntimeWarning: Mean of empty slice" may occure here and safely ignorable
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            swtrans_profile_mean = np.apply_along_axis(
+                np.nanmean, 0, swtrans_profile_mat[bidx])
+            swtrans_profile_sd = np.apply_along_axis(
+                np.nanstd, 0, swtrans_profile_mat[bidx])
+            swtrans_profile_stats_list.append(
+                np.array([swtrans_profile_mean, swtrans_profile_sd]))
     epoch_num = stagetime_stats['epoch_num_in_range']
     x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
     x = np.arange(x_max)
@@ -893,6 +896,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
 def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     stagetime_circadian_list = stagetime_stats['stagetime_circadian']
+    epoch_num = stagetime_stats['epoch_num_in_range']
     for i, circadian in enumerate(stagetime_circadian_list):
         x_max = 24
         x = np.arange(x_max)
@@ -1089,6 +1093,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
 def draw_swtrans_circadian_profile_individual(stagetime_stats, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     swtrans_circadian_list = stagetime_stats['swtrans_circadian']
+    epoch_num = stagetime_stats['epoch_num_in_range']
     for i, circadian in enumerate(swtrans_circadian_list):
         x_max = 24
         x = np.arange(x_max)
@@ -1140,12 +1145,15 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
         [ms[0] for ms in swtrans_circadian_profile_list])
     swtrans_circadian_profile_stats_list = []
     for bidx in bidx_group_list:
-        swtrans_circadian_profile_mean = np.apply_along_axis(
-            np.nanmean, 0, swtrans_circadian_profile_mat[bidx])
-        swtrans_circadian_profile_sd = np.apply_along_axis(
-            np.nanstd, 0, swtrans_circadian_profile_mat[bidx])
-        swtrans_circadian_profile_stats_list.append(
-            np.array([swtrans_circadian_profile_mean, swtrans_circadian_profile_sd]))
+        # "RuntimeWarning: Mean of empty slice" may occure here and safely ignorable
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            swtrans_circadian_profile_mean = np.apply_along_axis(
+                np.nanmean, 0, swtrans_circadian_profile_mat[bidx])
+            swtrans_circadian_profile_sd = np.apply_along_axis(
+                np.nanstd, 0, swtrans_circadian_profile_mat[bidx])
+            swtrans_circadian_profile_stats_list.append(
+                np.array([swtrans_circadian_profile_mean, swtrans_circadian_profile_sd]))
 
     x_max = 24
     x = np.arange(x_max)
@@ -1897,6 +1905,7 @@ def draw_swtransition_barchart_prob(stagetime_stats, output_dir):
 
 def draw_swtransition_barchart_logodds(stagetime_stats, output_dir):
     stagetime_df = stagetime_stats['stagetime']
+    epoch_num = stagetime_stats['epoch_num_in_range']
     mouse_groups = stagetime_df['Mouse group'].values
     mouse_groups_set = sorted(set(mouse_groups), key=list(
         mouse_groups).index)  # unique elements with preseved order
