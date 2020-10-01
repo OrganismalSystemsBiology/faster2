@@ -2962,7 +2962,7 @@ if __name__ == '__main__':
 
 
     # draw delta-power timeseries
-    print_log('Drawing the delta-power timeseries')
+    print_log('Drawing the power timeseries')
     # delta in all epoch
     draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir, 'delta')
     draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir, 'delta')
