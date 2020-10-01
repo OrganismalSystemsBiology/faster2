@@ -1899,7 +1899,7 @@ def draw_swtransition_barchart_prob(stagetime_stats, output_dir):
     axes = fig.axes
     axes[0].set_ylabel('prob. to transit\n between sleep and wake')
     fig.suptitle('sleep/wake trantision probability')
-    filename = f'sleep-wake_transition probability_barchart_{"_".join(mouse_groups_set)}'
+    filename = f'sleep-wake-transition_probability_barchart_{"_".join(mouse_groups_set)}'
     _savefig(output_dir, filename, fig)
 
 
@@ -1916,7 +1916,7 @@ def draw_swtransition_barchart_logodds(stagetime_stats, output_dir):
     axes = fig.axes
     axes[0].set_ylabel('log odds to transit\n between sleep and wake')
     fig.suptitle('sleep/wake trantision probability (log odds)')
-    filename = f'sleep-wake_transition probability_barchart_logodds_{"_".join(mouse_groups_set)}'
+    filename = f'sleep-wake-transition_probability_barchart_logodds_{"_".join(mouse_groups_set)}'
     _savefig(output_dir, filename, fig)
 
 
