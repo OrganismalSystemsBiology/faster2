@@ -360,6 +360,110 @@ def swtrans_from_stages(stages):
     return swtrans
 
 
+def swtrans_from_stage_sss_style(stage_call):
+    # filter the stage call
+    stage_call_f = filter_short_bout(stage_call)
+
+    # convert to sleep / wake label
+    # OUTLIER1,2 are labels used in SSS
+    sw_call = np.array(['SLEEP' if (x == 'NREM' or x == 'REM' or x =='SLEEP')
+                        else 'WAKE' if (x != 'UNKNOWN' and x != 'OUTLIER1' and x != 'OUTLIER2') else 'UNKNOWN' for x in stage_call_f])
+
+    # transitions array
+    tsw = (sw_call[:-1] == 'SLEEP') & (sw_call[1:] == 'WAKE')  # SLEEP -> WAKE
+    tss = (sw_call[:-1] == 'SLEEP') & (sw_call[1:] == 'SLEEP') # SLEEP -> SLEEP
+    tws = (sw_call[:-1] == 'WAKE') & (sw_call[1:] == 'SLEEP')  # WAKE -> WAKE
+    tww = (sw_call[:-1] == 'WAKE') & (sw_call[1:] == 'WAKE')   # WAKE -> WAKE
+    tsw = np.append(tsw, 0)
+    tss = np.append(tss, 0)
+    tws = np.append(tws, 0)
+    tww = np.append(tww, 0)
+
+    # transition binary matrix
+    ## 24 hours(86400 sec) bin
+    tsw_mat_day = tsw.reshape(-1, int(86400/stage.EPOCH_LEN_SEC)) 
+    tss_mat_day = tss.reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
+    tws_mat_day = tws.reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
+    tww_mat_day = tww.reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
+    ## 12 hours(43200 sec) bin
+    tsw_mat_halfday = tsw.reshape(-1, int(43200/stage.EPOCH_LEN_SEC))
+    tss_mat_halfday = tss.reshape(-1, int(43200/stage.EPOCH_LEN_SEC))
+    tws_mat_halfday = tws.reshape(-1, int(43200/stage.EPOCH_LEN_SEC))
+    tww_mat_halfday = tww.reshape(-1, int(43200/stage.EPOCH_LEN_SEC))
+
+    # first & second halfday
+    n_halfday = tsw_mat_halfday.shape[0]
+    tsw_mat_halfday_first  = tsw_mat_halfday[np.arange(0, n_halfday, 2), :] # first half day
+    tss_mat_halfday_first  = tss_mat_halfday[np.arange(0, n_halfday, 2), :]
+    tws_mat_halfday_first  = tws_mat_halfday[np.arange(0, n_halfday, 2), :]
+    tww_mat_halfday_first  = tww_mat_halfday[np.arange(0, n_halfday, 2), :]
+    tsw_mat_halfday_second = tsw_mat_halfday[np.arange(1, n_halfday, 2), :] # second half day
+    tss_mat_halfday_second = tss_mat_halfday[np.arange(1, n_halfday, 2), :]
+    tws_mat_halfday_second = tws_mat_halfday[np.arange(1, n_halfday, 2), :]
+    tww_mat_halfday_second = tww_mat_halfday[np.arange(1, n_halfday, 2), :]
+
+    # transition count array
+    daily_nsw = np.apply_along_axis(np.sum, 1 ,tsw_mat_day)
+    daily_nss = np.apply_along_axis(np.sum, 1 ,tss_mat_day)
+    daily_nws = np.apply_along_axis(np.sum, 1 ,tws_mat_day)
+    daily_nww = np.apply_along_axis(np.sum, 1 ,tww_mat_day)
+    halfdaily_first_nsw = np.apply_along_axis(np.sum, 1, tsw_mat_halfday_first)
+    halfdaily_first_nss = np.apply_along_axis(np.sum, 1, tss_mat_halfday_first)
+    halfdaily_first_nws = np.apply_along_axis(np.sum, 1, tws_mat_halfday_first)
+    halfdaily_first_nww = np.apply_along_axis(np.sum, 1, tww_mat_halfday_first)
+    halfdaily_second_nsw = np.apply_along_axis(np.sum, 1, tsw_mat_halfday_second)
+    halfdaily_second_nss = np.apply_along_axis(np.sum, 1, tss_mat_halfday_second)
+    halfdaily_second_nws = np.apply_along_axis(np.sum, 1, tws_mat_halfday_second)
+    halfdaily_second_nww = np.apply_along_axis(np.sum, 1, tww_mat_halfday_second)
+
+    # time matrix
+    ## 24 hours(86400 sec) bin
+    sleep_epoch_mat_day = (sw_call == 'SLEEP').reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
+    wake_epoch_mat_day  = (sw_call == 'WAKE').reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
+    ## 12 hours(43200 sec) bin
+    sleep_epoch_mat_halfday = (sw_call == 'SLEEP').reshape(-1, int(43200/stage.EPOCH_LEN_SEC)) 
+    wake_epoch_mat_halfday  = (sw_call == 'WAKE').reshape(-1, int(43200/stage.EPOCH_LEN_SEC))
+
+    # daily and halfdaily time
+    daily_sleep_time = np.apply_along_axis(np.sum, 1, sleep_epoch_mat_day*stage.EPOCH_LEN_SEC/60)
+    daily_wake_time  = np.apply_along_axis(np.sum, 1, wake_epoch_mat_day*stage.EPOCH_LEN_SEC/60)
+    halfdaily_sleep_time = np.apply_along_axis(np.sum , 1, sleep_epoch_mat_halfday*stage.EPOCH_LEN_SEC/60)
+    halfdaily_wake_time  = np.apply_along_axis(np.sum, 1, wake_epoch_mat_halfday*stage.EPOCH_LEN_SEC/60)
+    halfdaily_first_sleep_time = halfdaily_sleep_time[np.arange(0, n_halfday, 2)]
+    halfdaily_first_wake_time = halfdaily_wake_time[np.arange(0, n_halfday, 2)]
+    halfdaily_second_sleep_time = halfdaily_sleep_time[np.arange(1, n_halfday, 2)]
+    halfdaily_second_wake_time  = halfdaily_wake_time[np.arange(1, n_halfday, 2)] 
+
+    # all .day
+    pswpws_all_day = _calc_sss_style_trans(daily_nsw, daily_nss, 
+                                           daily_nws, daily_nww, 
+                                           daily_sleep_time, daily_wake_time)
+    # first halfday
+    pswpws_halfday_first = _calc_sss_style_trans(halfdaily_first_nsw, halfdaily_first_nss, 
+                                                 halfdaily_first_nws, halfdaily_first_nww, 
+                                                 halfdaily_first_sleep_time, halfdaily_first_wake_time)
+    #second halfday
+    pswpws_halfday_second = _calc_sss_style_trans(halfdaily_second_nsw, halfdaily_second_nss, 
+                                                  halfdaily_second_nws, halfdaily_second_nww, 
+                                                  halfdaily_second_sleep_time, halfdaily_second_wake_time)
+
+    return {'all_day':pswpws_all_day, 'first_halfday':pswpws_halfday_first, 'second_halfday':pswpws_halfday_second}
+
+
+def _calc_sss_style_trans(nsw, nss, nws, nww, st, wt):
+    denom_sw = np.array(nss + nsw, np.float64)
+    denom_ws = np.array(nww + nws, np.float64)
+    denom_sw[denom_sw==0] = np.nan
+    denom_ws[denom_ws==0] = np.nan
+    
+    _psw = nsw/denom_sw
+    _pws = nws/denom_ws
+    psw = np.sum(_psw*st)/np.sum(st)
+    pws = np.sum(_pws*wt)/np.sum(wt)
+    
+    return (psw, pws)
+
+
 def swtrans_profile(stage_call):
     """ Profile (two timeseries) of the hourly Psw and Psw
 
@@ -370,13 +474,13 @@ def swtrans_profile(stage_call):
     Returns:
         [np.array(1), np.array(1)]: a list of two np.arrays. Each array contain Psw and Pws.
     """
-    sw_call = np.array(['SLEEP' if (x == 'NREM' or x == 'REM')
+    stage_call = np.array(['SLEEP' if (x == 'NREM' or x == 'REM')
                         else 'WAKE' if x != 'UNKNOWN' else 'UNKNOWN' for x in stage_call])
 
-    tsw = (sw_call[:-1] == 'SLEEP') & (sw_call[1:] == 'WAKE')  # SLEEP -> WAKE
-    tss = (sw_call[:-1] == 'SLEEP') & (sw_call[1:] == 'SLEEP') # SLEEP -> SLEEP
-    tws = (sw_call[:-1] == 'WAKE') & (sw_call[1:] == 'SLEEP')  # WAKE -> WAKE
-    tww = (sw_call[:-1] == 'WAKE') & (sw_call[1:] == 'WAKE')   # WAKE -> WAKE
+    tsw = (stage_call[:-1] == 'SLEEP') & (stage_call[1:] == 'WAKE')  # SLEEP -> WAKE
+    tss = (stage_call[:-1] == 'SLEEP') & (stage_call[1:] == 'SLEEP') # SLEEP -> SLEEP
+    tws = (stage_call[:-1] == 'WAKE') & (stage_call[1:] == 'SLEEP')  # WAKE -> WAKE
+    tww = (stage_call[:-1] == 'WAKE') & (stage_call[1:] == 'WAKE')   # WAKE -> WAKE
     tsw = np.append(tsw, 0)
     tss = np.append(tss, 0)
     tws = np.append(tws, 0)
@@ -401,6 +505,59 @@ def swtrans_profile(stage_call):
     hourly_pws = hourly_tws/denom
 
     return [hourly_psw, hourly_pws]
+
+
+def bout_table(stage_call):
+    """ 
+    Args:
+        stage_call (np.array(1)): An array of stage calls such as ['WAKE', 'NREM', 'REM', ...].
+        This function works with any set of stage calls.
+
+    Returns:
+        pd.DataFrame({'stage':, 'len':, 'start_idx':}): A DataFrame of 3 columms of bouts.
+        Each row tells what stage, how long, and the epoch index where the bout starts.
+    """
+
+    epoch_len = len(stage_call)
+
+    bidx_trans = stage_call[0:(epoch_len-1)] != stage_call[1:epoch_len]
+    bidx_trans = np.append(True, bidx_trans) # the first epoch is always True
+
+    idx_trans = np.where(bidx_trans)[0]
+    bout_len = idx_trans[1:len(idx_trans)] - idx_trans[0:(len(idx_trans)-1)]
+    bout_len = np.append(bout_len, epoch_len - idx_trans[len(idx_trans)-1])
+    bout_stage = stage_call[bidx_trans]
+
+    bout_df = pd.DataFrame({'stage':bout_stage, 'len':bout_len, 'start_idx':idx_trans})
+
+    return bout_df
+
+
+def filter_short_bout(stage_call, min_bout_len=2):
+    """ Removes short bouts of stage.
+    Args:
+        stage_call (np.arra(1)): An array of stages.
+        min_bout_len (int, optional): Bouts shorter than this value are to be removed. Defaults to 2.
+        Note: The removal overwrites the short bouts by the adjacent previous epoch's stage.
+
+    Returns:
+        np.array(1): An array of stages without the short bouts.
+    """
+    bout_df = bout_table(stage_call)
+
+    bidx_cond = bout_df['len'] < min_bout_len
+
+    stage_call_filtered = stage_call.copy()
+    for _, r in bout_df[bidx_cond].iterrows():
+        start_idx = r['start_idx']
+        bout_len = r['len']
+        if start_idx == 0:
+            cover_call = stage_call_filtered[start_idx + bout_len]
+        else:
+            cover_call = stage_call_filtered[start_idx - 1]
+        stage_call_filtered[start_idx:(start_idx+bout_len)] = str(cover_call) # str() is to avoid UnicodeDecodeError probably related to the broadcasting
+
+    return stage_call_filtered
 
 
 def test_two_sample(x, y):

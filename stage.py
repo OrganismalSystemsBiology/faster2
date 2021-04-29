@@ -54,7 +54,7 @@ def initialize_logger(log_file):
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)
 
-    return(logger)
+    return logger
 
 
 def print_log(msg):
@@ -749,7 +749,7 @@ def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, stage_
     _savefig(path2figures, 'ScatterPlot2D_LowFreq-HighFreq_axes_Wake_REM_NREM', fig)
 
     colors =  [COLOR_WAKE, COLOR_REM, COLOR_NREM]
-    fig = Figure(figsize=(SCATTER_PLOT_FIG_WIDTH, SCATTER_PLOT_FIG_HEIGHT), dpi=FIG_DPI, facecolor='w')
+    fig = Figure(figsize=(SCATTER_PLOT_FIG_WIDTH, SCATTER_PLOT_ddddFIG_HEIGHT), dpi=FIG_DPI, facecolor='w')
     ax = fig.add_subplot(111, projection='3d')
     ax.view_init(elev=10, azim=-135)
 
