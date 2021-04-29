@@ -562,21 +562,24 @@ def classify_active_and_NREM(stage_coord_2D):
     bidx_under_outliers = stage_coord_1DD < (np.mean(stage_coord_1DD) - 3*np.std(stage_coord_1DD))
     bidx_valid = ~(bidx_over_outliers | bidx_under_outliers)
     gmm_2D = mixture.GaussianMixture(n_components=2, covariance_type='full', n_init=10, means_init=[[-5,5],[5,-5]])
+
     # To estimate clusters, use only epochs projected within the reasonable region on the separation line (<3SD) 
-    gmm_2D = gmm_2D.fit(stage_coord_2D[bidx_valid])
-
-    gmm_2D_pred = gmm_2D.predict(stage_coord_2D)
-    mm_2D = gmm_2D.means_
-    cc_2D = gmm_2D.covariances_
-    ww_2D = gmm_2D.weights_
-
-    # flip the order of clusters if necessary
-    d = mm_2D@np.array([1,-1]).T # project onto the separation axis
-    if (d[0] > d[1]):
-        mm_2D = np.array([mm_2D[1],mm_2D[0]])
-        cc_2D = np.array([cc_2D[1],cc_2D[0]])
-        ww_2D = np.array([ww_2D[1],ww_2D[0]])
-        gmm_2D_pred = np.array([0 if x==1 else 1 for x in gmm_2D_pred])
+    def _geo_classifier(coord):
+        # geometrical classifier (simpl separation by the diagonal line)
+        if coord[0] - coord[1] > 0:
+            return 1
+        else:
+            return 0
+    geo_pred = np.array([geo_classifier(c) for c in stage_coord_2D[bidx_valid]])
+    mm_2D = np.array([
+        np.mean(stage_coord_2D[geo_pred == 0], axis=0),
+        np.mean(stage_coord_2D[geo_pred == 1], axis=0),
+    ])
+    cc_2D = np.array([
+        np.cov(stage_coord_2D[geo_pred == 0], rowvar=False),
+        np.cov(stage_coord_2D[geo_pred == 1], rowvar=False)
+    ])
+    ww_2D = np.array([np.sum(geo_pred==0), np.sum(geo_pred==1)])/len(geo_pred)
 
     # classify active and NREM stages by Gaussian HMM on the 2D plane of (active x sleep)
     print_log('Refine active/NREM clusters with Gaussian HMM')
@@ -877,6 +880,9 @@ def main(data_dir, result_dir, pickle_input_data):
             np.sum(y[bidx_theta_freq,0])/np.sqrt(n_theta_freq)-np.sum(y[bidx_delta_freq, 0])/np.sqrt(n_delta_freq)-np.sum(y[bidx_muscle_freq, 1])  /np.sqrt(n_muscle_freq)  
         ) for y in psd_mat])
         ndata = len(stage_coord)
+
+        # correct low-spec powers by REM-metric
+        stage_coord = np.array([[c[0]-0.3*c[2], c[1], c[2]] for c in stage_coord])
 
         # cancel the weight bias of active/NREM clusters
         cwb = cancel_weight_bias(stage_coord[:,0:2])
