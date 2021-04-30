@@ -653,14 +653,14 @@ def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c):
     if len(rem_cov) != 0:
         # in case the REM cluster penetrates the xy-plane re-run the ghmm with the old REM cluster
         print_log('Re-run Gaussian HMM to improve the REM cluster')
-        ghmm_3D = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='t', params='ts')
-        ghmm_3D.startprob_ = weights_3c
-        ghmm_3D.means_ = np.vstack([ghmm_3D.means_[0,:], mm_3D[1], ghmm_3D.means_[2,:]]) # Wake, REM, NREM
-        ghmm_3D.covars_ = np.vstack([[ghmm_3D.covars_[0]], [cc_3D[1]], [ghmm_3D.covars_[2]]])
+        ghmm_3D_re = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='t', params='ts')
+        ghmm_3D_re.startprob_ = weights_3c
+        ghmm_3D_re.means_ = np.vstack([ghmm_3D.means_[0,:], mm_3D[1], ghmm_3D.means_[2,:]]) # Wake, REM, NREM
+        ghmm_3D_re.covars_ = np.vstack([[ghmm_3D.covars_[0]], [cc_3D[1]], [ghmm_3D.covars_[2]]])
 
-        ghmm_3D.fit(stage_coord)
-        pred_3D = ghmm_3D.predict(stage_coord)
-        pred_3D_proba = ghmm_3D.predict_proba(stage_coord)
+        ghmm_3D_re.fit(stage_coord)
+        pred_3D = ghmm_3D_re.predict(stage_coord)
+        pred_3D_proba = ghmm_3D_re.predict_proba(stage_coord)
 
 
     return (pred_3D, pred_3D_proba)
