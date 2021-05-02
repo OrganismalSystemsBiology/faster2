@@ -909,7 +909,17 @@ def main(data_dir, result_dir, pickle_input_data):
         ndata = len(stage_coord)
 
         # correct low-spec powers by REM-metric
-        stage_coord = np.array([[c[0]-0.3*c[2], c[1], c[2]] for c in stage_coord])
+        rm_dt = np.array([(
+            np.sum(y[bidx_theta_freq, 0])/np.sqrt(n_theta_freq)-np.sum(y[bidx_delta_freq, 0]) /
+            np.sqrt(n_delta_freq) -
+            np.sum(y[bidx_muscle_freq, 1]) / np.sqrt(n_muscle_freq),
+            np.sum(y[bidx_theta_freq, 0])/np.sqrt(n_theta_freq) +
+            np.sum(y[bidx_delta_freq, 0])/np.sqrt(n_delta_freq)
+        ) for y in psd_mat])
+        rm_contrib, _ = np.polyfit(dt_rm[:,0], dt_rm[:,1],1)
+        print_log(f'REM-metric contribution to Low-spec powers: {rm_contrib}')
+        stage_coord = np.array([[c[0] - rm_contrib*c[2], c[1], c[2]]
+                                for c in stage_coord])
 
         # cancel the weight bias of active/NREM clusters
         cwb = cancel_weight_bias(stage_coord[:,0:2])
