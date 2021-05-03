@@ -590,28 +590,6 @@ def classify_active_and_NREM(stage_coord_2D):
     return (geo_pred, geo_pred_proba.T, mm_2D, cc_2D)
 
 
-# def classify_active_and_NREM_by_GMM(stage_coord_2D):
-#     # Initialize active/stative(NREM) clusters by Gaussian mixture model ignoring transition probablity
-#     print_log('Classify active/NREM clusters with GMM')
-
-#     # projection onto the separation "line" (which is perpendicular to the separation "axis")
-#     stage_coord_1DD = stage_coord_2D@np.array([1,1]).T
-#     bidx_over_outliers = stage_coord_1DD > (np.mean(stage_coord_1DD) + 3*np.std(stage_coord_1DD))
-#     bidx_under_outliers = stage_coord_1DD < (np.mean(stage_coord_1DD) - 3*np.std(stage_coord_1DD))
-#     bidx_valid = ~(bidx_over_outliers | bidx_under_outliers)
-
-#     gmm_2D = mixture.GaussianMixture(n_components=2, covariance_type='full', n_init=10, means_init=[[-5,5],[5,-5]])
-#     # To estimate clusters, use only epochs projected within the reasonable region on the separation line (<3SD) 
-#     gmm_2D = gmm_2D.fit(stage_coord_2D[bidx_valid])
-
-#     gmm_2D_pred = gmm_2D.predict(stage_coord_2D)
-#     gmm_2D_proba = gmm_2D.predict_proba(stage_coord_2D)
-#     mm_2D = gmm_2D.means_
-#     cc_2D = gmm_2D.covariances_
-
-#     return (gmm_2D_pred, gmm_2D_proba, mm_2D, cc_2D)
-
-
 def classify_active_and_NREM_by_HGMM(stage_coord_2D, pred_2D, mm_2D, cc_2D):
     # Initialize active/stative(NREM) clusters by Gaussian mixture model ignoring transition probablity
     print_log('Classify active/NREM clusters with HGMM')
@@ -660,20 +638,20 @@ def classify_Wake_and_REM(stage_coord_active):
     return (pred_active, pred_active_proba, mm_active, cc_active, ww_active)
 
 
-def find_REMlike_epochs(stage_coord_active, pred_active):
-    # Estimate Wake cluster including the intermediate cluster
-    stage_coord_wake = stage_coord_active[pred_active==0]
-    gmm_wake = mixture.GaussianMixture(n_components=1, n_init=10, means_init=[[-5,5,-10]]) #wake + intermediate
-    gmm_wake.fit(stage_coord_wake)
-    mm_wake = gmm_wake.means_
-    cc_wake = gmm_wake.covariances_
+# def find_REMlike_epochs(stage_coord_active, pred_active):
+#     # Estimate Wake cluster including the intermediate cluster
+#     stage_coord_wake = stage_coord_active[pred_active==0]
+#     gmm_wake = mixture.GaussianMixture(n_components=1, n_init=10, means_init=[[-5,5,-10]]) #wake + intermediate
+#     gmm_wake.fit(stage_coord_wake)
+#     mm_wake = gmm_wake.means_
+#     cc_wake = gmm_wake.covariances_
 
-    # Return REM-like epochs assuming a point is REM if it is above xy-planne and 
-    # 3SD (Mahalanobis distance) away from wake cluster's mean
-    icc = linalg.inv(cc_wake[0])
-    bidx_REMlike = np.array([distance.mahalanobis(mm_wake[0], x ,icc)>3 and x[2]>0 for x in stage_coord_active])
+#     # Return REM-like epochs assuming a point is REM if it is above xy-planne and 
+#     # 3SD (Mahalanobis distance) away from wake cluster's mean
+#     icc = linalg.inv(cc_wake[0])
+#     bidx_REMlike = np.array([distance.mahalanobis(mm_wake[0], x ,icc)>3 and x[2]>0 for x in stage_coord_active])
 
-    return bidx_REMlike
+#     return bidx_REMlike
 
 
 def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c):
@@ -734,8 +712,8 @@ def classification_process(stage_coord):
     if np.all(mm_active[:,2]<=0):
         # process for data NOT having effective REM cluster
         print_log('No effective REM cluster was found.')
-        bidx_REMlike = find_REMlike_epochs(stage_coord_active, pred_active)
-        print_log(f'REM like epochs were found: {np.sum(bidx_REMlike)} epochs.')
+        # bidx_REMlike = find_REMlike_epochs(stage_coord_active, pred_active)
+        # print_log(f'REM like epochs were found: {np.sum(bidx_REMlike)} epochs.')
 
         # perform GMM to refine active/NREM classification
         pred_2D, pred_2D_proba, mm_2D, cc_2D = classify_active_and_NREM_by_HGMM(stage_coord[:, 0:2], pred_2D, mm_2D, cc_2D)
@@ -747,8 +725,8 @@ def classification_process(stage_coord):
 
         pred_3D = np.array([2 if x==1 else 0 for x in pred_2D]) # change label of NREM from 1 to 2 so that REM can use label:1
         idx_active = np.where(bidx_active)[0]
-        idx_REMlike = idx_active[bidx_REMlike]
-        pred_3D[idx_REMlike] = 1
+        # idx_REMlike = idx_active[bidx_REMlike]
+        # pred_3D[idx_REMlike] = 1
 
         pred_3D_proba = np.zeros([ndata, 3])
         pred_3D_proba[:, np.r_[0,2]] = pred_2D_proba # probability of REM is always zero, but sometimes REM like.
