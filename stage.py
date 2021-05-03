@@ -658,13 +658,16 @@ def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c):
  
     if len(rem_cov) != 0 or ratio_active_rem < 0.5:
         # re-run the ghmm with the old REM cluster in the cases...
-        # 1. REM cluster penetrates the xy-plane, or
+        # 1. REM cluster penetrates the xy-plane
         # 2. the half ot the REM clester is outside the active domain
         print_log('Re-run Gaussian HMM to improve the REM cluster')
+        if  len(rem_cov) == 0 and ratio_active_rem < 0.5:
+            # REM is above xy-plane, but mostly outside the active domain
+            rem_cov = cc_3D[1]
         ghmm_3D_re = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='t', params='ts')
         ghmm_3D_re.startprob_ = weights_3c
         ghmm_3D_re.means_ = np.vstack([ghmm_3D.means_[0,:], mm_3D[1], ghmm_3D.means_[2,:]]) # Wake, REM, NREM
-        ghmm_3D_re.covars_ = np.vstack([[ghmm_3D.covars_[0]], [cc_3D[1]], [ghmm_3D.covars_[2]]])
+        ghmm_3D_re.covars_ = np.vstack([[ghmm_3D.covars_[0]], [rem_cov], [ghmm_3D.covars_[2]]])
 
         ghmm_3D_re.fit(stage_coord)
         pred_3D = ghmm_3D_re.predict(stage_coord)
@@ -697,8 +700,7 @@ def classification_process(stage_coord):
         # construct 3D means and covariances from mm_2D and mm_active with TINY (non-effective) REM cluster
         # This non-effective REM cluster is just for convenience of plotting, so has nothing to do with analytical process.
         mm_3D =  np.vstack([mm_active[0], [0,0,100], np.hstack([mm_2D[1], 0])]) # Wake, REM, NREM
-        cc_3rdD = np.vstack([np.hstack([cc_2D[1], [[0], [0]]]),[0, 0, 0.01]]) # 0.01 is just an arbitral number
-        cc_3D = np.vstack([[cc_active[0]], [np.diag([0.01, 0.01, 0.01])], [cc_3rdD]]) 
+        cc_3D = np.vstack([[cc_active[0]], [np.diag([0.01, 0.01, 0.01])], [np.cov(stage_coord[pred_2D==1], rowvar=False)]]) 
 
         pred_3D = np.array([2 if x==1 else 0 for x in pred_2D]) # change label of NREM from 1 to 2 so that REM can use label:1
         idx_active = np.where(bidx_active)[0]
@@ -833,7 +835,7 @@ def main(data_dir, result_dir, pickle_input_data):
  
     n_fft = int(256 * sample_freq/100) # assures frequency bins compatibe among different sampleling frequencies
     freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129) # same frequency bins given by signal.welch()
-    bidx_sleep_freq = (freq_bins<20) # 52 bins
+    bidx_sleep_freq =  (freq_bins<4) | ((freq_bins>10) & (freq_bins<20)) # without theta, 37 bins
     bidx_active_freq = (freq_bins>30) # 52 bins
     bidx_theta_freq = (freq_bins>=4) & (freq_bins<10) # 15 bins
     bidx_delta_freq = (freq_bins<4) # 11 bins
@@ -916,12 +918,6 @@ def main(data_dir, result_dir, pickle_input_data):
             np.sum(y[bidx_theta_freq, 0])/np.sqrt(n_theta_freq) +
             np.sum(y[bidx_delta_freq, 0])/np.sqrt(n_delta_freq)
         ) for y in psd_mat])
-        rm_contrib_, _ = np.polyfit(
-            rm_dt[:, 0], rm_dt[:, 1], 1)
-        rm_contrib = min(max(rm_contrib_, 0), 0.27) # limit the contribution
-        print_log(f'REM-metric contribution to Low-spec powers: {rm_contrib} ({rm_contrib_})')
-        stage_coord = np.array([[c[0] - rm_contrib*c[2], c[1], c[2]]
-                                for c in stage_coord])
 
         # cancel the weight bias of active/NREM clusters
         cwb = cancel_weight_bias(stage_coord[:,0:2])
