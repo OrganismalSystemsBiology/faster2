@@ -918,7 +918,7 @@ def main(data_dir, result_dir, pickle_input_data):
         ) for y in psd_mat])
         rm_contrib_, _ = np.polyfit(
             rm_dt[:, 0], rm_dt[:, 1], 1)
-        rm_contrib = np.min(np.max(rm_contrib_, 0), 0.27) # limit the contribution
+        rm_contrib = min(max(rm_contrib_, 0), 0.27) # limit the contribution
         print_log(f'REM-metric contribution to Low-spec powers: {rm_contrib} ({rm_contrib_})')
         stage_coord = np.array([[c[0] - rm_contrib*c[2], c[1], c[2]]
                                 for c in stage_coord])
