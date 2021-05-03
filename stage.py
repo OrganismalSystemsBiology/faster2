@@ -610,7 +610,7 @@ def classify_active_and_NREM_by_HGMM(stage_coord_2D, pred_2D, mm_2D, cc_2D):
 def classify_Wake_and_REM(stage_coord_active):
     # Classify REM and Wake in the active cluster in the 3D space  (Low freq. x High freq. x REM metric)
     print_log('Classify REM and Wake clusters with GMM')
-    gmm_active = mixture.GaussianMixture(n_components=3, n_init=10, means_init=[[-5,5,-10],[0,0,20], [0, 0, 0]]) #Wake, REM, intermdeidate
+    gmm_active = mixture.GaussianMixture(n_components=3, n_init=50, means_init=[[-5,5,-10],[0,0,20], [0, 0, 0]]) #Wake, REM, intermdeidate
     gmm_active.fit(stage_coord_active)
     ww_active = gmm_active.weights_
     mm_active = gmm_active.means_
@@ -636,22 +636,6 @@ def classify_Wake_and_REM(stage_coord_active):
         pred_active_proba = pred_active_proba[:,np.r_[1,0]]
 
     return (pred_active, pred_active_proba, mm_active, cc_active, ww_active)
-
-
-# def find_REMlike_epochs(stage_coord_active, pred_active):
-#     # Estimate Wake cluster including the intermediate cluster
-#     stage_coord_wake = stage_coord_active[pred_active==0]
-#     gmm_wake = mixture.GaussianMixture(n_components=1, n_init=10, means_init=[[-5,5,-10]]) #wake + intermediate
-#     gmm_wake.fit(stage_coord_wake)
-#     mm_wake = gmm_wake.means_
-#     cc_wake = gmm_wake.covariances_
-
-#     # Return REM-like epochs assuming a point is REM if it is above xy-planne and 
-#     # 3SD (Mahalanobis distance) away from wake cluster's mean
-#     icc = linalg.inv(cc_wake[0])
-#     bidx_REMlike = np.array([distance.mahalanobis(mm_wake[0], x ,icc)>3 and x[2]>0 for x in stage_coord_active])
-
-#     return bidx_REMlike
 
 
 def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c):
