@@ -653,19 +653,11 @@ def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c):
     # check the REM cluster is above the xy-plane
     rem_cov = shrink_rem_cluster(ghmm_3D.means_[1], ghmm_3D.covars_[1])
 
-    # check the ratio of the REM cluster in the active domain
-    stage_coord_rem = stage_coord[pred_3D == 1]
-    bidx_rem_in_active = np.array([c[1] - c[0] > 0 for c in  stage_coord_rem])
-    ratio_active_rem = np.sum(bidx_rem_in_active)/len(stage_coord_rem)
- 
-    if len(rem_cov) != 0 or ratio_active_rem < 0.5:
+    if len(rem_cov) != 0:
         # re-run the ghmm with the old REM cluster in the cases...
         # 1. REM cluster penetrates the xy-plane
         # 2. the half ot the REM clester is outside the active domain
         print_log('Re-run Gaussian HMM to improve the REM cluster')
-        if  len(rem_cov) == 0 and ratio_active_rem < 0.5:
-            # REM is above xy-plane, but mostly outside the active domain
-            rem_cov = cc_3D[1]
         ghmm_3D_re = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='t', params='ts')
         ghmm_3D_re.startprob_ = weights_3c
         ghmm_3D_re.means_ = np.vstack([ghmm_3D.means_[0,:], mm_3D[1], ghmm_3D.means_[2,:]]) # Wake, REM, NREM
