@@ -916,11 +916,10 @@ def main(data_dir, result_dir, pickle_input_data):
             np.sum(y[bidx_theta_freq, 0])/np.sqrt(n_theta_freq) +
             np.sum(y[bidx_delta_freq, 0])/np.sqrt(n_delta_freq)
         ) for y in psd_mat])
-        # NREM (under the diagonal line) domain
-        bidx_nrem_domain = stage_coord[:, 0] - stage_coord[:, 1] > 0
-        rm_contrib, _ = np.polyfit(
-            rm_dt[bidx_nrem_domain, 0], rm_dt[bidx_nrem_domain, 1], 1)
-        print_log(f'REM-metric contribution to Low-spec powers: {rm_contrib}')
+        rm_contrib_, _ = np.polyfit(
+            rm_dt[:, 0], rm_dt[:, 1], 1)
+        rm_contrib = np.min(np.max(rm_contrib_, 0), 0.27) # limit the contribution
+        print_log(f'REM-metric contribution to Low-spec powers: {rm_contrib} ({rm_contrib_})')
         stage_coord = np.array([[c[0] - rm_contrib*c[2], c[1], c[2]]
                                 for c in stage_coord])
 
