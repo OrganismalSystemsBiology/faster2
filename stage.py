@@ -20,6 +20,7 @@ from glob import glob
 import mne
 import logging
 from logging import getLogger, StreamHandler, FileHandler, Formatter
+import traceback
 
 
 FASTER2_NAME = 'FASTER2'
@@ -586,7 +587,7 @@ def classify_active_and_NREM(stage_coord_2D):
                            for i in [0, 1]])
     geo_pred_proba = (likelihood / likelihood.sum(axis=0))
 
-    return (geo_pred, geo_pred_proba, mm_2D, cc_2D)
+    return (geo_pred, geo_pred_proba.T, mm_2D, cc_2D)
 
 
 def classify_Wake_and_REM(stage_coord_active):
@@ -699,7 +700,7 @@ def classification_process(stage_coord):
 
         # construct 3D means and covariances from mm_2D and mm_active with TINY (non-effective) REM cluster
         # This non-effective REM cluster is just for convenience of plotting, so has nothing to do with analytical process.
-        mm_3D =  np.vstack([mm_active[0], [0,0,100], np.hstack([mm_2D[1], 0])]) # Wake, REM, NREM
+        mm_3D =  np.vstack([mm_active[0], [0,0,100], np.mean(stage_coord[pred_2D==1], axis=0)]) # Wake, REM, NREM
         cc_3D = np.vstack([[cc_active[0]], [np.diag([0.01, 0.01, 0.01])], [np.cov(stage_coord[pred_2D==1], rowvar=False)]]) 
 
         pred_3D = np.array([2 if x==1 else 0 for x in pred_2D]) # change label of NREM from 1 to 2 so that REM can use label:1
@@ -928,9 +929,10 @@ def main(data_dir, result_dir, pickle_input_data):
             # pylint: disable=unused-variable
             pred_2D, pred_2D_proba, means_2D, covars_2D, pred_3D, pred_3D_proba, means_3D, covars_3D = classification_process(
                 stage_coord)
-        except ValueError:
+        except ValueError as e:
             print_log('Encountered an unhandlable analytical error during the staging. Check the ' 
                 'date validity of the mouse.')
+            print_log(traceback.format_exc())
             
             continue
 
