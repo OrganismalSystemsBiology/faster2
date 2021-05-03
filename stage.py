@@ -590,26 +590,43 @@ def classify_active_and_NREM(stage_coord_2D):
     return (geo_pred, geo_pred_proba.T, mm_2D, cc_2D)
 
 
-def classify_active_and_NREM_by_GMM(stage_coord_2D):
+# def classify_active_and_NREM_by_GMM(stage_coord_2D):
+#     # Initialize active/stative(NREM) clusters by Gaussian mixture model ignoring transition probablity
+#     print_log('Classify active/NREM clusters with GMM')
+
+#     # projection onto the separation "line" (which is perpendicular to the separation "axis")
+#     stage_coord_1DD = stage_coord_2D@np.array([1,1]).T
+#     bidx_over_outliers = stage_coord_1DD > (np.mean(stage_coord_1DD) + 3*np.std(stage_coord_1DD))
+#     bidx_under_outliers = stage_coord_1DD < (np.mean(stage_coord_1DD) - 3*np.std(stage_coord_1DD))
+#     bidx_valid = ~(bidx_over_outliers | bidx_under_outliers)
+
+#     gmm_2D = mixture.GaussianMixture(n_components=2, covariance_type='full', n_init=10, means_init=[[-5,5],[5,-5]])
+#     # To estimate clusters, use only epochs projected within the reasonable region on the separation line (<3SD) 
+#     gmm_2D = gmm_2D.fit(stage_coord_2D[bidx_valid])
+
+#     gmm_2D_pred = gmm_2D.predict(stage_coord_2D)
+#     gmm_2D_proba = gmm_2D.predict_proba(stage_coord_2D)
+#     mm_2D = gmm_2D.means_
+#     cc_2D = gmm_2D.covariances_
+
+#     return (gmm_2D_pred, gmm_2D_proba, mm_2D, cc_2D)
+
+
+def classify_active_and_NREM_by_HGMM(stage_coord_2D, pred_2D, mm_2D, cc_2D):
     # Initialize active/stative(NREM) clusters by Gaussian mixture model ignoring transition probablity
-    print_log('Classify active/NREM clusters with GMM')
+    print_log('Classify active/NREM clusters with HGMM')
 
-    # projection onto the separation "line" (which is perpendicular to the separation "axis")
-    stage_coord_1DD = stage_coord_2D@np.array([1,1]).T
-    bidx_over_outliers = stage_coord_1DD > (np.mean(stage_coord_1DD) + 3*np.std(stage_coord_1DD))
-    bidx_under_outliers = stage_coord_1DD < (np.mean(stage_coord_1DD) - 3*np.std(stage_coord_1DD))
-    bidx_valid = ~(bidx_over_outliers | bidx_under_outliers)
+    weights = np.array([np.sum(pred_2D==0), np.sum(pred_2D==1)])/len(pred_2D)
 
-    gmm_2D = mixture.GaussianMixture(n_components=2, covariance_type='full', n_init=10, means_init=[[-5,5],[5,-5]])
-    # To estimate clusters, use only epochs projected within the reasonable region on the separation line (<3SD) 
-    gmm_2D = gmm_2D.fit(stage_coord_2D[bidx_valid])
+    ghmm_2D = hmm.GaussianHMM(n_components=2, covariance_type='full', init_params='t', params='tmcs')
+    ghmm_2D.startprob_ = weights
+    ghmm_2D.means_ = mm_2D
+    ghmm_2D.covars_ = cc_2D
 
-    gmm_2D_pred = gmm_2D.predict(stage_coord_2D)
-    gmm_2D_proba = gmm_2D.predict_proba(stage_coord_2D)
-    mm_2D = gmm_2D.means_
-    cc_2D = gmm_2D.covariances_
-
-    return (gmm_2D_pred, gmm_2D_proba, mm_2D, cc_2D)
+    ghmm_2D.fit(stage_coord_2D)
+    ghmm_2D_pred = ghmm_2D.predict(stage_coord_2D)
+    ghmm_2D_proba = ghmm_2D.predict_proba(stage_coord_2D)
+    return (ghmm_2D_pred, ghmm_2D_proba, ghmm_2D.means_, ghmm_2D.covars_)
 
 
 def classify_Wake_and_REM(stage_coord_active):
@@ -721,7 +738,7 @@ def classification_process(stage_coord):
         print_log(f'REM like epochs were found: {np.sum(bidx_REMlike)} epochs.')
 
         # perform GMM to refine active/NREM classification
-        pred_2D, pred_2D_proba, mm_2D, cc_2D = classify_active_and_NREM_by_GMM(stage_coord[:, 0:2])
+        pred_2D, pred_2D_proba, mm_2D, cc_2D = classify_active_and_NREM_by_HGMM(stage_coord[:, 0:2], pred_2D, mm_2D, cc_2D)
 
         # construct 3D means and covariances from mm_2D and mm_active with TINY (non-effective) REM cluster
         # This non-effective REM cluster is just for convenience of plotting, so has nothing to do with analytical process.
