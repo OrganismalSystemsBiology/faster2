@@ -564,30 +564,16 @@ def classify_active_and_NREM(stage_coord_2D):
     bidx_under_outliers = stage_coord_1DD < (np.mean(stage_coord_1DD) - 3*np.std(stage_coord_1DD))
     bidx_valid = ~(bidx_over_outliers | bidx_under_outliers)
 
+    gmm_2D = mixture.GaussianMixture(n_components=2, covariance_type='full', n_init=10, means_init=[[-5,5],[5,-5]])
     # To estimate clusters, use only epochs projected within the reasonable region on the separation line (<3SD) 
-    def _geo_classifier(coord):
-        # geometrical classifier (simpl separation by the diagonal line)
-        if coord[0] - coord[1] > 0:
-            return 1
-        else:
-            return 0
+    gmm_2D = gmm_2D.fit(stage_coord_2D[bidx_valid])
 
-    # Means and covariances of the active and NREM clusters 
-    geo_pred = np.array([_geo_classifier(c) for c in stage_coord_2D])
-    mm_2D = np.array([
-        np.mean(stage_coord_2D[geo_pred == 0 & bidx_valid], axis=0),
-        np.mean(stage_coord_2D[geo_pred == 1 & bidx_valid], axis=0),
-    ])
-    cc_2D = np.array([
-        np.cov(stage_coord_2D[geo_pred == 0 & bidx_valid], rowvar=False),
-        np.cov(stage_coord_2D[geo_pred == 1 & bidx_valid], rowvar=False)
-    ])
+    gmm_2D_pred = gmm_2D.predict(stage_coord_2D)
+    gmm_2D_proba = gmm_2D.predict_proba(stage_coord_2D)
+    mm_2D = gmm_2D.means_
+    cc_2D = gmm_2D.covariances_
 
-    likelihood = np.stack([multivariate_normal.pdf(stage_coord_2D, mean=mm_2D[i], cov=cc_2D[i])
-                           for i in [0, 1]])
-    geo_pred_proba = (likelihood / likelihood.sum(axis=0))
-
-    return (geo_pred, geo_pred_proba.T, mm_2D, cc_2D)
+    return (gmm_2D_pred, gmm_2D_proba, mm_2D, cc_2D)
 
 
 def classify_Wake_and_REM(stage_coord_active):
