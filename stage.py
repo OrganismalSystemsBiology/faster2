@@ -836,7 +836,7 @@ def main(data_dir, result_dir, pickle_input_data):
  
     n_fft = int(256 * sample_freq/100) # assures frequency bins compatibe among different sampleling frequencies
     freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129) # same frequency bins given by signal.welch()
-    bidx_sleep_freq =  (freq_bins<20) # (freq_bins<4) | ((freq_bins>10) & (freq_bins<20)) # without theta, 37 bins
+    bidx_sleep_freq =  (freq_bins<4) | ((freq_bins>10) & (freq_bins<20)) # without theta, 37 bins
     bidx_active_freq = (freq_bins>30) # 52 bins
     bidx_theta_freq = (freq_bins>=4) & (freq_bins<10) # 15 bins
     bidx_delta_freq = (freq_bins<4) # 11 bins
@@ -910,23 +910,6 @@ def main(data_dir, result_dir, pickle_input_data):
             np.sum(y[bidx_theta_freq,0])/np.sqrt(n_theta_freq)-np.sum(y[bidx_delta_freq, 0])/np.sqrt(n_delta_freq)-np.sum(y[bidx_muscle_freq, 1])  /np.sqrt(n_muscle_freq)  
         ) for y in psd_mat])
         ndata = len(stage_coord)
-
-        # estimate the dependency of low-spec's delta & theta powers on REM-metric
-        rm_dt = np.array([(
-            np.sum(y[bidx_theta_freq, 0])/np.sqrt(n_theta_freq)-np.sum(y[bidx_delta_freq, 0]) /
-            np.sqrt(n_delta_freq) -
-            np.sum(y[bidx_muscle_freq, 1]) / np.sqrt(n_muscle_freq),
-            np.sum(y[bidx_theta_freq, 0])/np.sqrt(n_theta_freq) +
-            np.sum(y[bidx_delta_freq, 0])/np.sqrt(n_delta_freq)
-        ) for y in psd_mat])
-
-        rm_contrib_, _ = np.polyfit(
-            rm_dt[:, 0], rm_dt[:, 1], 1)
-        rm_contrib_max = np.sqrt(n_theta_freq)/np.sum(np.sqrt([n_theta_freq, n_delta_freq, n_muscle_freq]))
-        rm_contrib = min(rm_contrib_max, max(rm_contrib_, 0))
-        print_log(f'REM-metric contribution to Low-spec powers: {rm_contrib} ({rm_contrib_})')
-        stage_coord = np.array([[c[0] - rm_contrib*c[2], c[1], c[2]]
-                                for c in stage_coord])
 
         # cancel the weight bias of active/NREM clusters
         cwb = cancel_weight_bias(stage_coord[:,0:2])
