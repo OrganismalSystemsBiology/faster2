@@ -3121,30 +3121,30 @@ if __name__ == '__main__':
     # draw delta-power timeseries
     print_log('Drawing the power timeseries')
     # delta in all epoch
-    psd_delta_timeseries_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta.csv'))
+    psd_delta_timeseries_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta.csv'), header=False)
     draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir, 'delta')
     draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir, 'delta')
     # delta percentage in all epoch
-    percentage_psd_delta_timeseries_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta_percentage.csv'))
+    percentage_psd_delta_timeseries_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta_percentage.csv'), header=False)
     draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_df, 'Hourly delta power [%]', output_dir, 'delta_percentage')
     draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_df, 'Hourly delta power [%]', output_dir, 'delta_percentage')
     # delta in NREM 
-    psd_delta_timeseries_nrem_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta_NREM.csv'))
+    psd_delta_timeseries_nrem_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta_NREM.csv'), header=False)
     draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [AU]', output_dir, 'delta', 'NREM_')
     draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [AU]', output_dir, 'delta', 'NREM_')
     # delta percentage in NREM
-    percentage_psd_delta_timeseries_nrem_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta_percentage_NREM.csv'))
+    percentage_psd_delta_timeseries_nrem_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta_percentage_NREM.csv'), header=False)
     draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [%]', output_dir, 'delta_percentage', 'NREM_')
     draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [%]', output_dir, 'delta_percentage', 'NREM_')
     # total in Wake
-    psd_total_timeseries_wake_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_total_Wake.csv'))
+    psd_total_timeseries_wake_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_total_Wake.csv'), header=False)
     draw_psd_domain_power_timeseries_individual(psd_total_timeseries_wake_df, 'Hourly Wake total power [AU]', output_dir, 'total', 'Wake_')
     draw_psd_domain_power_timeseries_grouped(psd_total_timeseries_wake_df, 'Hourly Wake total power [AU]', output_dir, 'total', 'Wake_')
     # delta in Wake
-    psd_delta_timeseries_wake_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta_Wake.csv'))
+    psd_delta_timeseries_wake_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta_Wake.csv'), header=False)
     draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_wake_df, 'Hourly Wake delta power [AU]', output_dir, 'delta', 'Wake_')
     draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_wake_df, 'Hourly Wake delta power [AU]', output_dir, 'delta', 'Wake_')
     # delta percentage in Wake
-    percentage_psd_delta_timeseries_wake_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta_percentage_Wake.csv'))
+    percentage_psd_delta_timeseries_wake_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta_percentage_Wake.csv'), header=False)
     draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_wake_df, 'Hourly Wake delta power [AU]', output_dir, 'delta_percentage', 'Wake_')
     draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_wake_df, 'Hourly Wake delta power [AU]', output_dir, 'delta_percentage', 'Wake_')
