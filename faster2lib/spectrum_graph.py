@@ -79,7 +79,7 @@ class SpectrumAnalysisPlots:
         n_fft = int(256 * sample_freq/100)
         # same frequency bins given by signal.welch()
         freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
-        bidx_sleep_freq = (freq_bins < 20)  # 52 bins
+        bidx_sleep_freq = (freq_bins<4) | ((freq_bins>10) & (freq_bins<20)) # without theta, 37 bins
         bidx_active_freq = (freq_bins > 30)  # 52 bins
         bidx_theta_freq = (freq_bins >= 4) & (freq_bins < 10)  # 15 bins
         bidx_delta_freq = (freq_bins < 4)  # 11 bins

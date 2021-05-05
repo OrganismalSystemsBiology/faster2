@@ -607,38 +607,43 @@ def classify_active_and_NREM_by_HGMM(stage_coord_2D, pred_2D, mm_2D, cc_2D):
     return (ghmm_2D_pred, ghmm_2D_proba, ghmm_2D.means_, ghmm_2D.covars_)
 
 
-def classify_Wake_and_REM(stage_coord_active):
+def classify_Wake_and_REM(stage_coord_active, rem_floor):
     # Classify REM and Wake in the active cluster in the 3D space  (Low freq. x High freq. x REM metric)
     print_log('Classify REM and Wake clusters with GMM')
-    gmm_active = mixture.GaussianMixture(n_components=3, n_init=50, means_init=[[-5,5,-10],[0,0,20], [0, 0, 0]]) #Wake, REM, intermdeidate
-    gmm_active.fit(stage_coord_active)
-    ww_active = gmm_active.weights_
-    mm_active = gmm_active.means_
-    cc_active = gmm_active.covariances_
-    pred_active = gmm_active.predict(stage_coord_active)
-    pred_active_proba = gmm_active.predict_proba(stage_coord_active)
+    
+    # exclude intermediates between REM and Wake
+    bidx_wake_rem = ((stage_coord_active[:,2]>rem_floor) | (stage_coord_active[:,2]<0))
+    stage_coord_wake_rem = stage_coord_active[bidx_wake_rem,:]
+
+    # gmm for wake & REM
+    gmm_wr = mixture.GaussianMixture(n_components=3, n_init=50, means_init=[[-5,5,-10],[0,0,20], [0,0,0]]) #Wake, REM, intermediate
+    gmm_wr.fit(stage_coord_wake_rem)
+    ww_wr = gmm_wr.weights_
+    mm_wr = gmm_wr.means_
+    cc_wr = gmm_wr.covariances_
+    pred_wr = gmm_wr.predict(stage_coord_active)
+    pred_wr_proba = gmm_wr.predict_proba(stage_coord_active)
 
     # Treat the intermediate as wake
-    pred_active[pred_active==2]=0
-    pred_active_proba = np.array([[x[0]+x[2], x[1]] for x in pred_active_proba])
-    
+    pred_wr[pred_wr==2]=0
+    pred_wr_proba = np.array([[x[0]+x[2], x[1]] for x in pred_wr_proba])
+
     # The subsequent process uses the Wake and REM clusters
-    ww_active = ww_active[np.r_[0,1]]
-    mm_active = mm_active[np.r_[0,1]]
-    cc_active = cc_active[np.r_[0,1]]
-    (ww_active, mm_active, cc_active)
+    ww_wr = ww_wr[np.r_[0,1]]
+    mm_wr = mm_wr[np.r_[0,1]]
+    cc_wr = cc_wr[np.r_[0,1]]
 
-    if mm_active[0,2] > mm_active[1,2]:
+    if mm_wr[0,2] > mm_wr[1,2]:
         # flip the order of clusters to assure the order of indices 0:Wake, 1:REM
-        mm_active = np.array([mm_active[1],mm_active[0]])
-        cc_active = np.array([cc_active[1],cc_active[0]])
-        pred_active = np.array([0 if x==1 else 1 for x in pred_active])
-        pred_active_proba = pred_active_proba[:,np.r_[1,0]]
+        mm_wr = np.array([mm_wr[1],mm_wr[0]])
+        cc_wr = np.array([cc_wr[1],cc_wr[0]])
+        pred_wr = np.array([0 if x==1 else 1 for x in pred_wr])
+        pred_wr_proba = pred_wr_proba[:,np.r_[1,0]]
 
-    return (pred_active, pred_active_proba, mm_active, cc_active, ww_active)
+    return (pred_wr, pred_wr_proba, mm_wr, cc_wr, ww_wr) 
 
 
-def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c):
+def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
     # classify REM, Wake, and NREM by Gaussian HMM in the 3D space
     print_log('Classify REM, Wake, and NREM by Gaussian HMM')
     ghmm_3D = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='t', params='mcts')
@@ -649,29 +654,79 @@ def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c):
     ghmm_3D.fit(stage_coord)
     pred_3D = ghmm_3D.predict(stage_coord)
     pred_3D_proba = ghmm_3D.predict_proba(stage_coord)
+    pred_3D_mm = ghmm_3D.means_
+    pred_3D_cc = ghmm_3D.covars_
 
     # check the REM cluster is above the xy-plane
     rem_cov = shrink_rem_cluster(ghmm_3D.means_[1], ghmm_3D.covars_[1])
 
-    if len(rem_cov) != 0:
-        # re-run the ghmm with the old REM cluster in the cases...
-        # 1. REM cluster penetrates the xy-plane
-        # 2. the half ot the REM clester is outside the active domain
-        print_log('Re-run Gaussian HMM to improve the REM cluster')
-        ghmm_3D_re = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='t', params='ts')
-        ghmm_3D_re.startprob_ = weights_3c
-        ghmm_3D_re.means_ = np.vstack([ghmm_3D.means_[0,:], mm_3D[1], ghmm_3D.means_[2,:]]) # Wake, REM, NREM
-        ghmm_3D_re.covars_ = np.vstack([[ghmm_3D.covars_[0]], [rem_cov], [ghmm_3D.covars_[2]]])
+    # If the REM cluster is found within 2SD of the NREM cluster, re-run ghmm with the previous REM-cluster
+    icc = linalg.inv(pred_3D_cc[2])
+    if (len(rem_cov) != 0) or (distance.mahalanobis(pred_3D_mm[2], pred_3D_mm[1] ,icc) < 2):
+        print_log('REM cluster found intruding the Wake or NREM cluster, re-run Gaussian HMM')
 
-        ghmm_3D_re.fit(stage_coord)
-        pred_3D = ghmm_3D_re.predict(stage_coord)
-        pred_3D_proba = ghmm_3D_re.predict_proba(stage_coord)
+        # construct 3D means and covariances using the previous REM-cluster and new Wake, NREM clusters
+        re_mm_3D = np.vstack([pred_3D_mm[0,:], mm_3D[1], pred_3D_mm[2,:]]) # Wake, REM, NREM
+        re_cc_3D = np.vstack([[pred_3D_cc[0]], [cc_3D[1]], [pred_3D_cc[2]]])
+
+        pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc = re_classify_three_stages(stage_coord, re_mm_3D, re_cc_3D, weights_3c)
+
+        return (pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc)
+
+    # Check if the REM cluster is 'single-peak'
+    # projection of REM-like epochs onto the separation "axis"
+    bidx_rem_like = (stage_coord[:,2]>rem_floor) & (pred_3D==1)
+    stage_coord_2D_r = stage_coord[bidx_rem_like, 0:2]
+    stage_coord_1DD_r = stage_coord_2D_r@np.array([1,-1]).T
+    density = stats.gaussian_kde(stage_coord_1DD_r)
+    xs = np.linspace(-15,15,100)
+    peaks_pos, _ = signal.find_peaks(density(xs), prominence=0.001)
+
+    if len(peaks_pos)>1:
+        # In case multiple peaks found, re-run the ghmm with the left distribution
+        print_log('REM cluster found having multiple peaks, re-run Gaussian HMM')
+
+        gmm = mixture.GaussianMixture(n_components=2, n_init=10) #active, stative, intermediate
+        gmm.fit(stage_coord_1DD_r.reshape(-1,1))
+        means = gmm.means_.flatten()
+        pred = gmm.predict(stage_coord_1DD_r.reshape(-1,1))   
+        if means[0] < means[1]:
+            rem_flag = 0
+        else:
+            rem_flag = 1
+        idx_rem_like = np.where(bidx_rem_like)[0]
+        idx_rem = idx_rem_like[pred == rem_flag]
+        rem_mm = np.mean(stage_coord[idx_rem, :], axis=0)
+        rem_cc = np.cov(stage_coord[idx_rem, :], rowvar=False)
+
+         # construct 3D means and covariances using the previous REM-cluster and new Wake, NREM clusters
+        re_mm_3D = np.vstack([pred_3D_mm[0,:], rem_mm, pred_3D_mm[2,:]]) # Wake, REM, NREM
+        re_cc_3D = np.vstack([[pred_3D_cc[0]], [rem_cc], [pred_3D_cc[2]]])
+        re_weights_3c = np.array([np.sum(pred_3D == 0), len(idx_rem), np.sum(
+            pred_3D == 2) + np.sum(pred_3D == 1) - len(idx_rem)])/len(stage_coord)
+
+        pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc = re_classify_three_stages(stage_coord, re_mm_3D, re_cc_3D, re_weights_3c)
+       
+    return (pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc)
 
 
-    return (pred_3D, pred_3D_proba)
+def re_classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c):
+    # re-run the ghmm with the old REM cluster in the cases...
+    # 1. REM cluster penetrates the xy-plane
+    # 2. the half ot the REM clester is outside the active domain
+    ghmm_3D_re = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='t', params='ts')
+    ghmm_3D_re.startprob_ = weights_3c
+    ghmm_3D_re.means_ = mm_3D
+    ghmm_3D_re.covars_ = cc_3D
+
+    ghmm_3D_re.fit(stage_coord)
+    pred_3D = ghmm_3D_re.predict(stage_coord)
+    pred_3D_proba = ghmm_3D_re.predict_proba(stage_coord)
+
+    return (pred_3D, pred_3D_proba, ghmm_3D_re.means_, ghmm_3D_re.covars_)
 
 
-def classification_process(stage_coord):
+def classification_process(stage_coord, rem_floor):
     ndata = len(stage_coord)
 
     # 2-stage classification
@@ -682,7 +737,7 @@ def classification_process(stage_coord):
     bidx_active = (pred_2D == 0)
     stage_coord_active = stage_coord[bidx_active,:]
     # pylint: disable=unused-variable
-    pred_active, pred_active_proba, mm_active, cc_active, ww_active = classify_Wake_and_REM(stage_coord_active)
+    pred_active, pred_active_proba, mm_active, cc_active, ww_active = classify_Wake_and_REM(stage_coord_active, rem_floor)
 
     # If the z values of the both clusters are negative or zero, it means there is no REM cluster
     if np.all(mm_active[:,2]<=0):
@@ -722,7 +777,7 @@ def classification_process(stage_coord):
         weights_3c = np.array([np.sum(pred_active==0), np.sum(pred_active==1), np.sum(pred_2D==1)])/ndata
 
         # 3-stage classification: classify REM, Wake, and NREM by Gaussian HMM on the 3D space
-        pred_3D, pred_3D_proba = classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c)
+        pred_3D, pred_3D_proba, mm_3D, cc_3D = classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor)
 
     return pred_2D, pred_2D_proba, mm_2D, cc_2D, pred_3D, pred_3D_proba, mm_3D, cc_3D
 
@@ -844,6 +899,8 @@ def main(data_dir, result_dir, pickle_input_data):
     n_delta_freq = np.sum(bidx_delta_freq)
     n_muscle_freq = np.sum(bidx_muscle_freq)
 
+    rem_floor = np.sum(np.sqrt([n_muscle_freq, n_theta_freq]))
+
     mouse_info_df = read_mouse_info(data_dir)
     for i, r in mouse_info_df.iterrows():
         device_id = r[0]
@@ -915,7 +972,7 @@ def main(data_dir, result_dir, pickle_input_data):
         try:
             # pylint: disable=unused-variable
             pred_2D, pred_2D_proba, means_2D, covars_2D, pred_3D, pred_3D_proba, means_3D, covars_3D = classification_process(
-                stage_coord)
+                stage_coord, rem_floor)
         except ValueError as e:
             print_log('Encountered an unhandlable analytical error during the staging. Check the ' 
                 'date validity of the mouse.')
