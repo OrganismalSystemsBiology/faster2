@@ -36,7 +36,7 @@ COLOR_WAKE = '#EF5E26'
 COLOR_NREM = '#23B4EF'
 COLOR_REM  = '#6B8E23' #'olivedrab'
 COLOR_LIGHT = '#FFD700' # 'gold'
-COLOR_DARK =  '696969' # 'dimgray' 
+COLOR_DARK =  '#696969' # 'dimgray' 
 COLOR_DARKLIGHT = 'lightgray' # light hours in DD condition
 
 
