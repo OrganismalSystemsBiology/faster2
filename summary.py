@@ -46,7 +46,7 @@ def initialize_logger(log_file):
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)
 
-    return(logger)
+    return logger
 
 
 def print_log(msg):
@@ -63,8 +63,8 @@ def collect_mouse_info_df(faster_dir_list):
         faster_dir_list [str] -- a list of paths for FASTER directories
 
     Returns:
-        {'mouse_info':pd.DataFrame, 'epoch_num':int, 'sample_freq':np.float} -- A dict of 
-        dataframe of the concatenated mouse info, the sampling frequency, 
+        {'mouse_info':pd.DataFrame, 'epoch_num':int, 'sample_freq':np.float} -- A dict of
+        dataframe of the concatenated mouse info, the sampling frequency,
         and the number of epochs
     """
     mouse_info_df = pd.DataFrame()
@@ -79,11 +79,11 @@ def collect_mouse_info_df(faster_dir_list):
         epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime = stage.interpret_exp_info(
             exp_info_df)
         if (epoch_num_stored != None) and epoch_num != epoch_num_stored:
-            raise(ValueError('epoch number must be equal among the all dataset'))
+            raise ValueError('epoch number must be equal among the all dataset')
         else:
             epoch_num_stored = epoch_num
         if (sample_freq_stored != None) and sample_freq != sample_freq_stored:
-            raise(ValueError('sample freq must be equal among the all dataset'))
+            raise ValueError('sample freq must be equal among the all dataset')
         else:
             sample_freq_stored = sample_freq
 
@@ -100,7 +100,7 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
             stage time profile: hourly profiles of stages over the recording
             stage circadian profile: hourly profiles of stages over a day
             transition matrix: transition probability matrix among each stage
-            sw transitino: Sleep (NREM+REM) and Wake transition probability 
+            sw transitino: Sleep (NREM+REM) and Wake transition probability
 
     Arguments:
         mouse_info_df {pd.DataFram} -- a dataframe returned by collect_mouse_info_df()
@@ -108,13 +108,13 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
         stage_ext {str} -- the sub-extention of stage files
 
     Returns:
-        {'stagetime': pd.DataFrame, 
-        'stagetime_profile': [np.array(2)], 
-        'stagetime_circadian': [np.array(3)], 
+        {'stagetime': pd.DataFrame,
+        'stagetime_profile': [np.array(2)],
+        'stagetime_circadian': [np.array(3)],
         'transmat': [np.array(3)],
         'swtrans': [np.array(2)],
         'swtrans_profile': [[np.array(1), np.array(1)]],
-        'epoch_num': int} -- A dict of dataframe and arrays of summary stats  
+        'epoch_num': int} -- A dict of dataframe and arrays of summary stats
     """
     stagetime_df = pd.DataFrame()
     stagetime_profile_list = []
@@ -181,10 +181,10 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
 
 
 def stagetime_in_a_day(stage_call):
-    """Count each stage in the stage_call list and calculate 
-    the daily stage time in minuites. 
-    Notice this function assumes that the length of the 
-    stage_call is multiple of days. Also it assumes that the 
+    """Count each stage in the stage_call list and calculate
+    the daily stage time in minuites.
+    Notice this function assumes that the length of the
+    stage_call is multiple of days. Also it assumes that the
     stage calls are CAPITALIZED.
 
     Arguments:
@@ -207,11 +207,11 @@ def stagetime_profile(stage_call):
     """ hourly profiles of stages over the recording
 
     Arguments:
-        stage_call {np.array} -- an array of stage calls (e.g. ['WAKE', 
+        stage_call {np.array} -- an array of stage calls (e.g. ['WAKE',
         'NREM', ...])
 
     Returns:
-        [np.array(3, len(stage_calls))] -- each row corrensponds the 
+        [np.array(3, len(stage_calls))] -- each row corrensponds the
         hourly profiles of stages over the recording (rem, nrem, wake)
     """
     sm = stage_call.reshape(-1, int(3600/stage.EPOCH_LEN_SEC)
@@ -230,11 +230,11 @@ def stagetime_circadian_profile(stage_call):
     """hourly profiles of stages over a day (circadian profile)
 
     Arguments:
-        stage_call {np.array} -- an array of stage calls (e.g. ['WAKE', 
+        stage_call {np.array} -- an array of stage calls (e.g. ['WAKE',
         'NREM', ...])
 
     Returns:
-        [np.array(2,3,24)] -- 1st axis: [mean, sd] 
+        [np.array(2,3,24)] -- 1st axis: [mean, sd]
                             x 2nd axis [rem, nrem, wake]
                             x 3rd axis [24 hours]
     """
@@ -265,7 +265,7 @@ def swtrans_circadian_profile(stage_call):
     """hourly sleep-wake transitions (Psw and Pws) over a day (circadian profile)
 
     Arguments:
-        stage_call {np.array} -- an array of stage calls (e.g. ['WAKE', 
+        stage_call {np.array} -- an array of stage calls (e.g. ['WAKE',
         'NREM', ...])
 
     Returns:
@@ -326,11 +326,11 @@ def transmat_from_stages(stages):
 
 
 def swtrans_from_stages(stages):
-    """Sleep (REM+NREM) <> Wake transition probability matrix 
+    """Sleep (REM+NREM) <> Wake transition probability matrix
     among each stage
 
     Arguments:
-        stages {np.array} -- an array of stage calls (e.g. ['WAKE', 
+        stages {np.array} -- an array of stage calls (e.g. ['WAKE',
         'NREM', ...])
 
     Returns:
@@ -366,7 +366,7 @@ def swtrans_from_stage_sss_style(stage_call):
 
     # convert to sleep / wake label
     # OUTLIER1,2 are labels used in SSS
-    sw_call = np.array(['SLEEP' if (x == 'NREM' or x == 'REM' or x =='SLEEP')
+    sw_call = np.array(['SLEEP' if (x == 'NREM' or x == 'REM' or x == 'SLEEP')
                         else 'WAKE' if (x != 'UNKNOWN' and x != 'OUTLIER1' and x != 'OUTLIER2') else 'UNKNOWN' for x in stage_call_f])
 
     # transitions array
@@ -468,7 +468,7 @@ def swtrans_profile(stage_call):
     """ Profile (two timeseries) of the hourly Psw and Psw
 
     Args:
-        stage_call (np.array(1)): an array of stage calls (e.g. ['WAKE', 
+        stage_call (np.array(1)): an array of stage calls (e.g. ['WAKE',
         'NREM', ...])
 
     Returns:
@@ -803,6 +803,9 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
     if len(mouse_groups_set) > 1:
         # contrast to group index = 0
         for g_idx in range(1, len(mouse_groups_set)):
+            csv_df = pd.DataFrame()
+            mgs_c = mouse_groups_set[0] # control
+            mgs_t = mouse_groups_set[g_idx] # treatment
             num = np.sum(bidx_group_list[g_idx])
             fig = Figure(figsize=(13, 6))
             ax1 = fig.add_subplot(311, xmargin=0, ymargin=0)
@@ -818,6 +821,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
             # REM
             y = stagetime_profile_stats_list[0][0, 0, :]
             y_sem = stagetime_profile_stats_list[0][1, 0, :]/np.sqrt(num_c)
+            csv_df = pd.DataFrame({'Time':x, f'{mgs_c}_REM_mean':y, f'{mgs_c}_REM_SEM':y_sem})
             ax1.plot(x, y, color='grey')
             ax1.fill_between(x, y - y_sem,
                              y + y_sem, color='grey', alpha=0.3)
@@ -826,6 +830,8 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
             # NREM
             y = stagetime_profile_stats_list[0][0, 1, :]
             y_sem = stagetime_profile_stats_list[0][1, 1, :]/np.sqrt(num_c)
+            csv_df = pd.concat([csv_df, pd.DataFrame(
+                {f'{mgs_c}_NREM_mean': y, f'{mgs_c}_NREM_SEM': y_sem})], axis=1)
             ax2.plot(x, y, color='grey')
             ax2.fill_between(x, y - y_sem,
                              y + y_sem, color='grey', alpha=0.3)
@@ -834,6 +840,8 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
             # Wake
             y = stagetime_profile_stats_list[0][0, 2, :]
             y_sem = stagetime_profile_stats_list[0][1, 2, :]/np.sqrt(num_c)
+            csv_df = pd.concat([csv_df, pd.DataFrame(
+                {f'{mgs_c}_Wake_mean': y, f'{mgs_c}_Wake_SEM': y_sem})], axis=1)
             ax3.plot(x, y, color='grey')
             ax3.fill_between(x, y - y_sem/np.sqrt(num),
                              y + y_sem/np.sqrt(num), color='grey', alpha=0.3)
@@ -845,6 +853,8 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
             # REM
             y = stagetime_profile_stats_list[g_idx][0, 0, :]
             y_sem = stagetime_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
+            csv_df = pd.concat([csv_df, pd.DataFrame(
+                {f'{mgs_t}_REM_mean': y, f'{mgs_t}_REM_SEM': y_sem})], axis=1)
             ax1.plot(x, y, color=stage.COLOR_REM)
             ax1.fill_between(x, y - y_sem,
                              y + y_sem, color=stage.COLOR_REM, alpha=0.3)
@@ -852,6 +862,8 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
             # NREM
             y = stagetime_profile_stats_list[g_idx][0, 1, :]
             y_sem = stagetime_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
+            csv_df = pd.concat([csv_df, pd.DataFrame(
+                {f'{mgs_t}_NREM_mean': y, f'{mgs_t}_NREM_SEM': y_sem})], axis=1)
             ax2.plot(x, y, color=stage.COLOR_NREM)
             ax2.fill_between(x, y - y_sem,
                              y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
@@ -859,18 +871,23 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
             # Wake
             y = stagetime_profile_stats_list[g_idx][0, 2, :]
             y_sem = stagetime_profile_stats_list[g_idx][1, 2, :]/np.sqrt(num)
+            csv_df = pd.concat([csv_df, pd.DataFrame(
+                {f'{mgs_c}_Wake_mean': y, f'{mgs_c}_Wake_SEM': y_sem})], axis=1)
             ax3.plot(x, y, color=stage.COLOR_WAKE)
             ax3.fill_between(x, y - y_sem,
                              y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
 
             fig.suptitle(
-                f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'stage-time_profile_G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+                f'{mgs_c} (n={num_c}) v.s. {mgs_t} (n={num})')
+            filename = f'stage-time_profile_G_{mgs_c}_vs_{mgs_t}'
             _savefig(output_dir, filename, fig)
+            csv_df.to_csv(os.path.join(output_dir, f'{filename}.csv'), index=False)
     else:
         # single group
         g_idx = 0
 
+        csv_df = pd.DataFrame()
+        mgs_t = mouse_groups_set[g_idx] # treatment
         num = np.sum(bidx_group_list[g_idx])
         x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
         x = np.arange(x_max)
@@ -886,6 +903,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
         # REM
         y = stagetime_profile_stats_list[g_idx][0, 0, :]
         y_sem = stagetime_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
+        csv_df = pd.DataFrame({'Time':x, f'{mgs_t}_REM_mean':y, f'{mgs_t}_REM_SEM':y_sem})
         ax1.plot(x, y, color=stage.COLOR_REM)
         ax1.fill_between(x, y - y_sem,
                          y + y_sem, color=stage.COLOR_REM, alpha=0.3)
@@ -894,6 +912,8 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
         # NREM
         y = stagetime_profile_stats_list[g_idx][0, 1, :]
         y_sem = stagetime_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
+        csv_df = pd.concat([csv_df, pd.DataFrame(
+            {f'{mgs_t}_NREM_mean': y, f'{mgs_t}_NREM_SEM': y_sem})], axis=1)
         ax2.plot(x, y, color=stage.COLOR_NREM)
         ax2.fill_between(x, y - y_sem,
                          y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
@@ -902,15 +922,18 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
         # Wake
         y = stagetime_profile_stats_list[g_idx][0, 2, :]
         y_sem = stagetime_profile_stats_list[g_idx][1, 2, :]/np.sqrt(num)
+        csv_df = pd.concat([csv_df, pd.DataFrame(
+            {f'{mgs_t}_Wake_mean': y, f'{mgs_t}_Wake_SEM': y_sem})], axis=1)
         ax3.plot(x, y, color=stage.COLOR_WAKE)
         ax3.fill_between(x, y - y_sem/np.sqrt(num),
                          y + y_sem/np.sqrt(num), color=stage.COLOR_WAKE, alpha=0.3)
         ax3.set_ylabel('Hourly wake\n duration (min)')
         ax3.set_xlabel('Time (hours)')
 
-        fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
-        filename = f'stage-time_profile_G_{mouse_groups_set[g_idx]}'
+        fig.suptitle(f'{mgs_t} (n={num})')
+        filename = f'stage-time_profile_G_{mgs_t}'
         _savefig(output_dir, filename, fig)
+        csv_df.to_csv(os.path.join(output_dir, f'{filename}.csv'), index=False)
 
 
 def draw_swtrans_profile_individual(stagetime_stats, output_dir):
