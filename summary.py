@@ -76,8 +76,8 @@ def collect_mouse_info_df(faster_dir_list):
         exp_info_df = stage.read_exp_info(data_dir)
         # not used variable: rack_label, start_datetime, end_datetime
         # pylint: disable=unused-variable
-        epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime = stage.interpret_exp_info(
-            exp_info_df)
+        (epoch_num, sample_freq, exp_label, rack_label, \
+            start_datetime, end_datetime) = stage.interpret_exp_info(exp_info_df)
         if (epoch_num_stored != None) and epoch_num != epoch_num_stored:
             raise ValueError('epoch number must be equal among the all dataset')
         else:
@@ -146,7 +146,8 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
         # stagetime in a day
         rem, nrem, wake, unknown = stagetime_in_a_day(stage_call)
         stagetime_df = stagetime_df.append(
-            [[exp_label, mouse_group, mouse_id, device_label, rem, nrem, wake, unknown, stats_report, note]], ignore_index=True)
+            [[exp_label, mouse_group, mouse_id, device_label,
+              rem, nrem, wake, unknown, stats_report, note]], ignore_index=True)
 
         # stagetime profile
         stagetime_profile_list.append(stagetime_profile(stage_call))
@@ -168,7 +169,8 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
         swtrans_circadian_profile_list.append(swtrans_circadian_profile(stage_call))
 
     stagetime_df.columns = ['Experiment label', 'Mouse group', 'Mouse ID',
-                            'Device label', 'REM', 'NREM', 'Wake', 'Unknown', 'Stats report', 'Note']
+                            'Device label', 'REM', 'NREM', 'Wake', 'Unknown',
+                            'Stats report', 'Note']
 
     return({'stagetime': stagetime_df,
             'stagetime_profile': stagetime_profile_list,
@@ -252,11 +254,11 @@ def stagetime_circadian_profile(stage_call):
     wake_mat = wake.reshape(-1, 24)
 
     rem_mean = np.apply_along_axis(np.mean, 0, rem_mat)
-    rem_sd = np.apply_along_axis(np.std,  0, rem_mat)
+    rem_sd = np.apply_along_axis(np.std, 0, rem_mat)
     nrem_mean = np.apply_along_axis(np.mean, 0, nrem_mat)
-    nrem_sd = np.apply_along_axis(np.std,  0, nrem_mat)
+    nrem_sd = np.apply_along_axis(np.std, 0, nrem_mat)
     wake_mean = np.apply_along_axis(np.mean, 0, wake_mat)
-    wake_sd = np.apply_along_axis(np.std,  0, wake_mat)
+    wake_sd = np.apply_along_axis(np.std, 0, wake_mat)
 
     return np.array([[rem_mean, nrem_mean, wake_mean], [rem_sd, nrem_sd, wake_sd]])
 
@@ -269,7 +271,7 @@ def swtrans_circadian_profile(stage_call):
         'NREM', ...])
 
     Returns:
-        [np.array(2,2,24)] -- 1st axis [mean, sd] 
+        [np.array(2,2,24)] -- 1st axis [mean, sd]
                             x 2nd axis [Psw, Pws]
                             x 3rd axis [24 hours]
     """
@@ -278,14 +280,14 @@ def swtrans_circadian_profile(stage_call):
 
     psw_mat = sw[0].reshape(-1, 24)
     pws_mat = sw[1].reshape(-1, 24)
-    
+
     # "RuntimeWarning: Mean of empty slice" may occure here and safely ignorable
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)
         psw_mean = np.apply_along_axis(np.nanmean, 0, psw_mat)
-        psw_sd = np.apply_along_axis(np.nanstd,  0, psw_mat)
+        psw_sd = np.apply_along_axis(np.nanstd, 0, psw_mat)
         pws_mean = np.apply_along_axis(np.nanmean, 0, pws_mat)
-        pws_sd = np.apply_along_axis(np.nanstd,  0, pws_mat)
+        pws_sd = np.apply_along_axis(np.nanstd, 0, pws_mat)
 
     return np.array([[psw_mean, pws_mean], [psw_sd, pws_sd]])
 
@@ -293,7 +295,7 @@ def transmat_from_stages(stages):
     """transition probability matrix among each stage
 
     Arguments:
-        stages {np.array} -- an array of stage calls (e.g. ['WAKE', 
+        stages {np.array} -- an array of stage calls (e.g. ['WAKE',
         'NREM', ...])
 
     Returns:
@@ -367,7 +369,8 @@ def swtrans_from_stage_sss_style(stage_call):
     # convert to sleep / wake label
     # OUTLIER1,2 are labels used in SSS
     sw_call = np.array(['SLEEP' if (x == 'NREM' or x == 'REM' or x == 'SLEEP')
-                        else 'WAKE' if (x != 'UNKNOWN' and x != 'OUTLIER1' and x != 'OUTLIER2') else 'UNKNOWN' for x in stage_call_f])
+                        else 'WAKE' if (x != 'UNKNOWN' and x != 'OUTLIER1' and x != 'OUTLIER2')
+                        else 'UNKNOWN' for x in stage_call_f])
 
     # transitions array
     tsw = (sw_call[:-1] == 'SLEEP') & (sw_call[1:] == 'WAKE')  # SLEEP -> WAKE
@@ -381,7 +384,7 @@ def swtrans_from_stage_sss_style(stage_call):
 
     # transition binary matrix
     ## 24 hours(86400 sec) bin
-    tsw_mat_day = tsw.reshape(-1, int(86400/stage.EPOCH_LEN_SEC)) 
+    tsw_mat_day = tsw.reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
     tss_mat_day = tss.reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
     tws_mat_day = tws.reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
     tww_mat_day = tww.reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
@@ -393,20 +396,20 @@ def swtrans_from_stage_sss_style(stage_call):
 
     # first & second halfday
     n_halfday = tsw_mat_halfday.shape[0]
-    tsw_mat_halfday_first  = tsw_mat_halfday[np.arange(0, n_halfday, 2), :] # first half day
-    tss_mat_halfday_first  = tss_mat_halfday[np.arange(0, n_halfday, 2), :]
-    tws_mat_halfday_first  = tws_mat_halfday[np.arange(0, n_halfday, 2), :]
-    tww_mat_halfday_first  = tww_mat_halfday[np.arange(0, n_halfday, 2), :]
+    tsw_mat_halfday_first = tsw_mat_halfday[np.arange(0, n_halfday, 2), :] # first half day
+    tss_mat_halfday_first = tss_mat_halfday[np.arange(0, n_halfday, 2), :]
+    tws_mat_halfday_first = tws_mat_halfday[np.arange(0, n_halfday, 2), :]
+    tww_mat_halfday_first = tww_mat_halfday[np.arange(0, n_halfday, 2), :]
     tsw_mat_halfday_second = tsw_mat_halfday[np.arange(1, n_halfday, 2), :] # second half day
     tss_mat_halfday_second = tss_mat_halfday[np.arange(1, n_halfday, 2), :]
     tws_mat_halfday_second = tws_mat_halfday[np.arange(1, n_halfday, 2), :]
     tww_mat_halfday_second = tww_mat_halfday[np.arange(1, n_halfday, 2), :]
 
     # transition count array
-    daily_nsw = np.apply_along_axis(np.sum, 1 ,tsw_mat_day)
-    daily_nss = np.apply_along_axis(np.sum, 1 ,tss_mat_day)
-    daily_nws = np.apply_along_axis(np.sum, 1 ,tws_mat_day)
-    daily_nww = np.apply_along_axis(np.sum, 1 ,tww_mat_day)
+    daily_nsw = np.apply_along_axis(np.sum, 1, tsw_mat_day)
+    daily_nss = np.apply_along_axis(np.sum, 1, tss_mat_day)
+    daily_nws = np.apply_along_axis(np.sum, 1, tws_mat_day)
+    daily_nww = np.apply_along_axis(np.sum, 1, tww_mat_day)
     halfdaily_first_nsw = np.apply_along_axis(np.sum, 1, tsw_mat_halfday_first)
     halfdaily_first_nss = np.apply_along_axis(np.sum, 1, tss_mat_halfday_first)
     halfdaily_first_nws = np.apply_along_axis(np.sum, 1, tws_mat_halfday_first)
@@ -419,20 +422,22 @@ def swtrans_from_stage_sss_style(stage_call):
     # time matrix
     ## 24 hours(86400 sec) bin
     sleep_epoch_mat_day = (sw_call == 'SLEEP').reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
-    wake_epoch_mat_day  = (sw_call == 'WAKE').reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
+    wake_epoch_mat_day = (sw_call == 'WAKE').reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
     ## 12 hours(43200 sec) bin
-    sleep_epoch_mat_halfday = (sw_call == 'SLEEP').reshape(-1, int(43200/stage.EPOCH_LEN_SEC)) 
-    wake_epoch_mat_halfday  = (sw_call == 'WAKE').reshape(-1, int(43200/stage.EPOCH_LEN_SEC))
+    sleep_epoch_mat_halfday = (sw_call == 'SLEEP').reshape(-1, int(43200/stage.EPOCH_LEN_SEC))
+    wake_epoch_mat_halfday = (sw_call == 'WAKE').reshape(-1, int(43200/stage.EPOCH_LEN_SEC))
 
     # daily and halfdaily time
     daily_sleep_time = np.apply_along_axis(np.sum, 1, sleep_epoch_mat_day*stage.EPOCH_LEN_SEC/60)
-    daily_wake_time  = np.apply_along_axis(np.sum, 1, wake_epoch_mat_day*stage.EPOCH_LEN_SEC/60)
-    halfdaily_sleep_time = np.apply_along_axis(np.sum , 1, sleep_epoch_mat_halfday*stage.EPOCH_LEN_SEC/60)
-    halfdaily_wake_time  = np.apply_along_axis(np.sum, 1, wake_epoch_mat_halfday*stage.EPOCH_LEN_SEC/60)
+    daily_wake_time = np.apply_along_axis(np.sum, 1, wake_epoch_mat_day*stage.EPOCH_LEN_SEC/60)
+    halfdaily_sleep_time = np.apply_along_axis(
+        np.sum, 1, sleep_epoch_mat_halfday*stage.EPOCH_LEN_SEC/60)
+    halfdaily_wake_time = np.apply_along_axis(
+        np.sum, 1, wake_epoch_mat_halfday*stage.EPOCH_LEN_SEC/60)
     halfdaily_first_sleep_time = halfdaily_sleep_time[np.arange(0, n_halfday, 2)]
     halfdaily_first_wake_time = halfdaily_wake_time[np.arange(0, n_halfday, 2)]
     halfdaily_second_sleep_time = halfdaily_sleep_time[np.arange(1, n_halfday, 2)]
-    halfdaily_second_wake_time  = halfdaily_wake_time[np.arange(1, n_halfday, 2)] 
+    halfdaily_second_wake_time = halfdaily_wake_time[np.arange(1, n_halfday, 2)]
 
     # all .day
     pswpws_all_day = _calc_sss_style_trans(daily_nsw, daily_nss, 
