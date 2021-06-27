@@ -977,7 +977,8 @@ def main(data_dir, result_dir, pickle_input_data):
         dob = r[3]
         note = r[4]
 
-        print_log(f'#######################################')
+        print_log('\n')
+        print_log(f'#### {FASTER2_NAME} ###################################')
         print_log(f'#### [{i+1}] Device_id: {device_id}')
         print_log(f'Reading voltages')
         print_log(f'Epoch num:{epoch_num} Sampling frequency: {sample_freq} [Hz]')
