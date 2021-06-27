@@ -23,7 +23,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2'
+FASTER2_NAME = 'FASTER2 version 0.2.0'
 EPOCH_LEN_SEC = 8
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
@@ -38,6 +38,74 @@ COLOR_REM  = '#6B8E23' #'olivedrab'
 COLOR_LIGHT = '#FFD700' # 'gold'
 COLOR_DARK =  '#696969' # 'dimgray' 
 COLOR_DARKLIGHT = 'lightgray' # light hours in DD condition
+
+
+class CustomedGHMM(hmm.GaussianHMM):
+    def __init__(self, n_components=1, covariance_type='diag',
+                 min_covar=1e-3,
+                 startprob_prior=1.0, transmat_prior=1.0,
+                 means_prior=0, means_weight=0,
+                 covars_prior=1e-2, covars_weight=1,
+                 algorithm="viterbi", random_state=None,
+                 n_iter=10, tol=1e-2, verbose=False,
+                 params="stmc", init_params="stmc"):
+        super().__init__(n_components, covariance_type,
+                 min_covar, startprob_prior, transmat_prior,
+                 means_prior, means_weight,
+                 covars_prior, covars_weight,
+                 algorithm, random_state,
+                 n_iter, tol, verbose,
+                 params, init_params)
+    
+    def _do_mstep(self, stats):
+        super(hmm.GaussianHMM, self)._do_mstep(stats)
+        means_prior = self.means_prior
+        means_weight = self.means_weight
+
+        denom = stats['post'][:, np.newaxis]
+        if 'm' in self.params:
+            self.means_ = ((means_weight * means_prior + stats['obs'])
+                           / (means_weight + denom))
+
+        if 'c' in self.params:
+            covars_prior = self.covars_prior
+            covars_weight = self.covars_weight
+            meandiff = self.means_ - means_prior
+
+            if self.covariance_type in ('spherical', 'diag'):
+                cv_num = (means_weight * meandiff**2
+                          + stats['obs**2']
+                          - 2 * self.means_ * stats['obs']
+                          + self.means_**2 * denom)
+                cv_den = max(covars_weight - 1, 0) + denom
+                self._covars_ = \
+                    (covars_prior + cv_num) / np.maximum(cv_den, 1e-5)
+                if self.covariance_type == 'spherical':
+                    self._covars_ = np.tile(
+                        self._covars_.mean(1)[:, np.newaxis],
+                        (1, self._covars_.shape[1]))
+            elif self.covariance_type in ('tied', 'full'):
+                cv_num = np.empty((self.n_components, self.n_features,
+                                  self.n_features))
+                for c in range(self.n_components):
+                    obsmean = np.outer(stats['obs'][c], self.means_[c])
+
+                    cv_num[c] = (means_weight * np.outer(meandiff[c],
+                                                         meandiff[c])
+                                 + stats['obs*obs.T'][c]
+                                 - obsmean - obsmean.T
+                                 + np.outer(self.means_[c], self.means_[c])
+                                 * stats['post'][c])
+                cvweight = max(covars_weight - self.n_features, 0)
+                if self.covariance_type == 'tied':
+                    self._covars_ = ((covars_prior + cv_num.sum(axis=0)) /
+                                     (cvweight + stats['post'].sum()))
+                elif self.covariance_type == 'full':
+                    # RY: Update only REM and Wake clurster's covariances
+                    stash_covars = self._covars_
+                    self._covars_ = ((covars_prior + cv_num) /
+                                     (cvweight + stats['post'][:, None, None]))
+                    self._covars_ = np.array([self._covars_[0], self._covars_[1], stash_covars[2]])
 
 
 def initialize_logger(log_file):
@@ -146,7 +214,7 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
     Args:
         data_dir (str): a path to the dirctory that contains either dsi.txt/, pkl/ directory, or an EDF file.
         device_id (str): a transmitter ID (e.g., ID47476) or channel ID (e.g., 09). 
-        sample_freq (int): sampling frequency 
+        sample_freq (int): sampling frequency
         epoch_len_sec (int): the length of an epoch in seconds
         epoch_num (int): the number of epochs to be read.
         start_datetime (datetime): start datetime of the analysis (used only for EDF file and dsi.txt).
@@ -616,7 +684,7 @@ def classify_Wake_and_REM(stage_coord_active, rem_floor):
     stage_coord_wake_rem = stage_coord_active[bidx_wake_rem,:]
 
     # gmm for wake & REM
-    gmm_wr = mixture.GaussianMixture(n_components=3, n_init=50, means_init=[[-5,5,-10],[0,0,20], [0,0,0]]) #Wake, REM, intermediate
+    gmm_wr = mixture.GaussianMixture(n_components=3, n_init=100, means_init=[[-5,5,-10],[0,0,20], [0,0,0]]) #Wake, REM, intermediate
     gmm_wr.fit(stage_coord_wake_rem)
     ww_wr = gmm_wr.weights_
     mm_wr = gmm_wr.means_
@@ -646,7 +714,7 @@ def classify_Wake_and_REM(stage_coord_active, rem_floor):
 def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
     # classify REM, Wake, and NREM by Gaussian HMM in the 3D space
     print_log('Classify REM, Wake, and NREM by Gaussian HMM')
-    ghmm_3D = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='t', params='mcts')
+    ghmm_3D = CustomedGHMM(n_components=3, covariance_type='full', init_params='t', params='ct')
     ghmm_3D.startprob_ = weights_3c
     ghmm_3D.means_ = mm_3D
     ghmm_3D.covars_ = cc_3D
@@ -714,7 +782,7 @@ def re_classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c):
     # re-run the ghmm with the old REM cluster in the cases...
     # 1. REM cluster penetrates the xy-plane
     # 2. the half ot the REM clester is outside the active domain
-    ghmm_3D_re = hmm.GaussianHMM(n_components=3, covariance_type='full', init_params='t', params='ts')
+    ghmm_3D_re = CustomedGHMM(n_components=3, covariance_type='full', init_params='t', params='t')
     ghmm_3D_re.startprob_ = weights_3c
     ghmm_3D_re.means_ = mm_3D
     ghmm_3D_re.covars_ = cc_3D
