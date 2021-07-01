@@ -23,7 +23,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.2.0'
+FASTER2_NAME = 'FASTER2 version 0.2.1'
 EPOCH_LEN_SEC = 8
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
@@ -679,8 +679,8 @@ def classify_Wake_and_REM(stage_coord_active, rem_floor):
     # Classify REM and Wake in the active cluster in the 3D space  (Low freq. x High freq. x REM metric)
     print_log('Classify REM and Wake clusters with GMM')
     
-    # exclude intermediates between REM and Wake
-    bidx_wake_rem = ((stage_coord_active[:,2]>rem_floor) | (stage_coord_active[:,2]<0))
+    # exclude intermediate points between REM and Wake, and points having substantial sleep_freq power
+    bidx_wake_rem = ((stage_coord_active[:,2]>rem_floor) | (stage_coord_active[:,2]<0)) & (stage_coord_active[:,0]<0)
     stage_coord_wake_rem = stage_coord_active[bidx_wake_rem,:]
 
     # gmm for wake & REM
@@ -746,7 +746,10 @@ def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
     bidx_rem_like = (stage_coord[:,2]>rem_floor) & (pred_3D==1)
     stage_coord_2D_r = stage_coord[bidx_rem_like, 0:2]
     stage_coord_1DD_r = stage_coord_2D_r@np.array([1,-1]).T
-    density = stats.gaussian_kde(stage_coord_1DD_r)
+    try:
+        density = stats.gaussian_kde(stage_coord_1DD_r)
+    except ValueError:
+        raise ValueError('Invalid_REM_Cluster')
     xs = np.linspace(-15,15,100)
     peaks_pos, _ = signal.find_peaks(density(xs), prominence=0.001)
 
@@ -794,6 +797,28 @@ def re_classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c):
     return (pred_3D, pred_3D_proba, ghmm_3D_re.means_, ghmm_3D_re.covars_)
 
 
+def classify_two_stages(stage_coord, pred_2D_org, mm_2D_org, cc_2D_org, mm_active, cc_active):
+    ndata = len(stage_coord)
+    bidx_active = (pred_2D_org == 0)
+    # perform GMM to refine active/NREM classification
+    pred_2D, pred_2D_proba, mm_2D, cc_2D = classify_active_and_NREM_by_HGMM(stage_coord[:, 0:2], pred_2D_org, mm_2D_org, cc_2D_org)
+
+    # construct 3D means and covariances from mm_2D and mm_active with TINY (non-effective) REM cluster
+    # This non-effective REM cluster is just for convenience of plotting, so has nothing to do with analytical process.
+    mm_3D =  np.vstack([mm_active[0], [0,0,100], np.mean(stage_coord[pred_2D==1], axis=0)]) # Wake, REM, NREM
+    cc_3D = np.vstack([[cc_active[0]], [np.diag([0.01, 0.01, 0.01])], [np.cov(stage_coord[pred_2D==1], rowvar=False)]]) 
+
+    pred_3D = np.array([2 if x==1 else 0 for x in pred_2D]) # change label of NREM from 1 to 2 so that REM can use label:1
+    idx_active = np.where(bidx_active)[0]
+    # idx_REMlike = idx_active[bidx_REMlike]
+    # pred_3D[idx_REMlike] = 1
+
+    pred_3D_proba = np.zeros([ndata, 3])
+    pred_3D_proba[:, np.r_[0,2]] = pred_2D_proba # probability of REM is always zero, but sometimes REM like.
+
+    return pred_2D, pred_2D_proba, mm_2D, cc_2D, pred_3D, pred_3D_proba, mm_3D, cc_3D
+
+
 def classification_process(stage_coord, rem_floor):
     ndata = len(stage_coord)
 
@@ -811,24 +836,8 @@ def classification_process(stage_coord, rem_floor):
     if np.all(mm_active[:,2]<=0):
         # process for data NOT having effective REM cluster
         print_log('No effective REM cluster was found.')
-        # bidx_REMlike = find_REMlike_epochs(stage_coord_active, pred_active)
-        # print_log(f'REM like epochs were found: {np.sum(bidx_REMlike)} epochs.')
 
-        # perform GMM to refine active/NREM classification
-        pred_2D, pred_2D_proba, mm_2D, cc_2D = classify_active_and_NREM_by_HGMM(stage_coord[:, 0:2], pred_2D, mm_2D, cc_2D)
-
-        # construct 3D means and covariances from mm_2D and mm_active with TINY (non-effective) REM cluster
-        # This non-effective REM cluster is just for convenience of plotting, so has nothing to do with analytical process.
-        mm_3D =  np.vstack([mm_active[0], [0,0,100], np.mean(stage_coord[pred_2D==1], axis=0)]) # Wake, REM, NREM
-        cc_3D = np.vstack([[cc_active[0]], [np.diag([0.01, 0.01, 0.01])], [np.cov(stage_coord[pred_2D==1], rowvar=False)]]) 
-
-        pred_3D = np.array([2 if x==1 else 0 for x in pred_2D]) # change label of NREM from 1 to 2 so that REM can use label:1
-        idx_active = np.where(bidx_active)[0]
-        # idx_REMlike = idx_active[bidx_REMlike]
-        # pred_3D[idx_REMlike] = 1
-
-        pred_3D_proba = np.zeros([ndata, 3])
-        pred_3D_proba[:, np.r_[0,2]] = pred_2D_proba # probability of REM is always zero, but sometimes REM like.
+        pred_2D, pred_2D_proba, mm_2D, cc_2D, pred_3D, pred_3D_proba, mm_3D, cc_3D = classify_two_stages(stage_coord, pred_2D, mm_2D, cc_2D, mm_active, cc_active)
 
     else:
         # process for data having effective REM culster (standard)
@@ -845,7 +854,14 @@ def classification_process(stage_coord, rem_floor):
         weights_3c = np.array([np.sum(pred_active==0), np.sum(pred_active==1), np.sum(pred_2D==1)])/ndata
 
         # 3-stage classification: classify REM, Wake, and NREM by Gaussian HMM on the 3D space
-        pred_3D, pred_3D_proba, mm_3D, cc_3D = classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor)
+        try:
+            pred_3D, pred_3D_proba, mm_3D, cc_3D = classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor)
+        except ValueError as valerr:
+            if valerr.args[0] == 'Invalid_REM_Cluster':
+                print_log('REM cluster is invalid.')
+                pred_2D, pred_2D_proba, mm_2D, cc_2D, pred_3D, pred_3D_proba, mm_3D, cc_3D = classify_two_stages(stage_coord, pred_2D, mm_2D, cc_2D, mm_active, cc_active)
+            else:
+                raise
 
     return pred_2D, pred_2D_proba, mm_2D, cc_2D, pred_3D, pred_3D_proba, mm_3D, cc_3D
 
