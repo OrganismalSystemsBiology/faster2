@@ -434,7 +434,7 @@ def plot_scatter2D(points_2D, classes, means, covariances, colors, xlabel, ylabe
             covar = covariances[i]
             w, v = linalg.eigh(covar)
             w = 4. * np.sqrt(w) # 95% confidence (2SD) area
-            angle = np.arctan(v[0, 1] / v[0, 0])
+            angle = np.arctan(v[1, 0] / v[0, 0])
             angle = 180. * angle / np.pi  # convert to degrees
             ell = mpl.patches.Ellipse(mean, w[0], w[1], 180. + angle, facecolor='none', edgecolor=color)
             ax.add_patch(ell)
