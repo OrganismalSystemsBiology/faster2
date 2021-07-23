@@ -23,7 +23,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.2.1'
+FASTER2_NAME = 'FASTER2 version 0.2.1-feature-rem-constraints'
 EPOCH_LEN_SEC = 8
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
@@ -56,7 +56,60 @@ class CustomedGHMM(hmm.GaussianHMM):
                  algorithm, random_state,
                  n_iter, tol, verbose,
                  params, init_params)
+
+
+    def set_rem_floor(self, rem_floor):
+        # REM cluster cannot grow below this floor
+        self.rem_floor = rem_floor
+
+
+    def set_nrem_wall(self, nrem_wall):
+        # REM cluster cannot grow beyond this wall
+        self.nrem_wall = nrem_wall
+
+
+    def _confine_REM_in_boundary(self, rem_mean, rem_cov):
+        """ By definition, REM cluster is not likely z<REM_floor and x>0. This function focuses
+        on the ellipsoid that represents the 95% confidence area of REM cluster. If this function
+        finds any principal axis of the ellipsoid penetrating the REM floor or the NREM wall
+        (i.e. the end-point of the principal axis at REM_metric<REM_floor) or low freq.power>0,
+        it shrinks the length of the axis to the point on the constraints.
+        """
     
+        w, v = linalg.eigh(rem_cov)
+        w = 2 * np.sqrt(w)# 95% confidence (2SD) area
+        prn_ax = v@np.diag(w) # 3x3 matrix: each column is the principal axis
+
+        # confine above REM floor
+        for i in range(3):
+            arr_hd = rem_mean + prn_ax[:, i] # the arrow head from the mean
+            narr_hd = rem_mean - prn_ax[:, i] # the negative arrow head from the mean
+            if arr_hd[2] < self.rem_floor:
+                sr = (rem_mean[2] - self.rem_floor)/(rem_mean[2] - arr_hd[2]) # shrink ratio
+            elif narr_hd[2] < self.rem_floor:
+                sr = (rem_mean[2] - self.rem_floor)/(rem_mean[2] - narr_hd[2]) # shrink ratio
+            else:
+                sr = 1
+            w[i] = w[i] * sr
+
+        # confine within negative low-freq domain
+        for i in range(3):
+            arr_hd = rem_mean + prn_ax[:, i] # the arrow head from the mean
+            narr_hd = rem_mean - prn_ax[:, i] # the negative arrow head from the mean
+            if arr_hd[0] > self.nrem_wall:
+                sr = (self.nrem_wall - rem_mean[0])/(arr_hd[0] - rem_mean[0]) # shrink ratio
+            elif narr_hd[0] > self.nrem_wall:
+                sr = (self.nrem_wall - rem_mean[0])/(narr_hd[0] - rem_mean[0]) # shrink ratio
+            else:
+                sr = 1
+
+            w[i] = w[i] * sr
+
+        cov_updated = v@np.diag(w)@v.T
+        
+        return cov_updated
+
+
     def _do_mstep(self, stats):
         super(hmm.GaussianHMM, self)._do_mstep(stats)
         means_prior = self.means_prior
@@ -103,9 +156,10 @@ class CustomedGHMM(hmm.GaussianHMM):
                 elif self.covariance_type == 'full':
                     # RY: Update only REM and Wake clurster's covariances
                     stash_covars = self._covars_
-                    self._covars_ = ((covars_prior + cv_num) /
+                    covars = ((covars_prior + cv_num) /
                                      (cvweight + stats['post'][:, None, None]))
-                    self._covars_ = np.array([self._covars_[0], self._covars_[1], stash_covars[2]])
+                    confined_rem_cov = self._confine_REM_in_boundary(self.means_[1], covars[1])
+                    self._covars_ = np.array([covars[0], confined_rem_cov, stash_covars[2]])
 
 
 def initialize_logger(log_file):
@@ -718,6 +772,8 @@ def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
     ghmm_3D.startprob_ = weights_3c
     ghmm_3D.means_ = mm_3D
     ghmm_3D.covars_ = cc_3D
+    ghmm_3D.set_rem_floor(rem_floor)
+    ghmm_3D.set_nrem_wall(0)
 
     ghmm_3D.fit(stage_coord)
     pred_3D = ghmm_3D.predict(stage_coord)
@@ -726,20 +782,21 @@ def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
     pred_3D_cc = ghmm_3D.covars_
 
     # check the REM cluster is above the xy-plane
-    rem_cov = shrink_rem_cluster(ghmm_3D.means_[1], ghmm_3D.covars_[1])
+    ## ToDo: Remove
+    ## rem_cov = shrink_rem_cluster(ghmm_3D.means_[1], ghmm_3D.covars_[1])
 
-    # If the REM cluster is found within 2SD of the NREM cluster, re-run ghmm with the previous REM-cluster
-    icc = linalg.inv(pred_3D_cc[2])
-    if (len(rem_cov) != 0) or (distance.mahalanobis(pred_3D_mm[2], pred_3D_mm[1] ,icc) < 2):
-        print_log('REM cluster found intruding the Wake or NREM cluster, re-run Gaussian HMM')
+    ## If the REM cluster is found within 2SD of the NREM cluster, re-run ghmm with the previous REM-cluster
+    ## icc = linalg.inv(pred_3D_cc[2])
+    ## if (len(rem_cov) != 0) or (distance.mahalanobis(pred_3D_mm[2], pred_3D_mm[1] ,icc) < 2):
+    ##     print_log('REM cluster found intruding the Wake or NREM cluster, re-run Gaussian HMM')
 
-        # construct 3D means and covariances using the previous REM-cluster and new Wake, NREM clusters
-        re_mm_3D = np.vstack([pred_3D_mm[0,:], mm_3D[1], pred_3D_mm[2,:]]) # Wake, REM, NREM
-        re_cc_3D = np.vstack([[pred_3D_cc[0]], [cc_3D[1]], [pred_3D_cc[2]]])
+    ##     # construct 3D means and covariances using the previous REM-cluster and new Wake, NREM clusters
+    ##     re_mm_3D = np.vstack([pred_3D_mm[0,:], mm_3D[1], pred_3D_mm[2,:]]) # Wake, REM, NREM
+    ##     re_cc_3D = np.vstack([[pred_3D_cc[0]], [cc_3D[1]], [pred_3D_cc[2]]])
 
-        pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc = re_classify_three_stages(stage_coord, re_mm_3D, re_cc_3D, weights_3c)
+    ##     pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc = re_classify_three_stages(stage_coord, re_mm_3D, re_cc_3D, weights_3c)
 
-        return (pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc)
+    ##     return (pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc)
 
     # Check if the REM cluster is 'single-peak'
     # projection of REM-like epochs onto the separation "axis"
@@ -776,12 +833,12 @@ def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
         re_weights_3c = np.array([np.sum(pred_3D == 0), len(idx_rem), np.sum(
             pred_3D == 2) + np.sum(pred_3D == 1) - len(idx_rem)])/len(stage_coord)
 
-        pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc = re_classify_three_stages(stage_coord, re_mm_3D, re_cc_3D, re_weights_3c)
+        pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc = re_classify_three_stages(stage_coord, re_mm_3D, re_cc_3D, re_weights_3c, rem_floor)
        
     return (pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc)
 
 
-def re_classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c):
+def re_classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
     # re-run the ghmm with the old REM cluster in the cases...
     # 1. REM cluster penetrates the xy-plane
     # 2. the half ot the REM clester is outside the active domain
@@ -789,6 +846,8 @@ def re_classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c):
     ghmm_3D_re.startprob_ = weights_3c
     ghmm_3D_re.means_ = mm_3D
     ghmm_3D_re.covars_ = cc_3D
+    ghmm_3D_re.set_rem_floor(rem_floor)
+    ghmm_3D_re.set_nrem_wall(0)
 
     ghmm_3D_re.fit(stage_coord)
     pred_3D = ghmm_3D_re.predict(stage_coord)
