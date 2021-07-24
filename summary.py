@@ -322,7 +322,10 @@ def transmat_from_stages(stages):
     w_trans = wr + ww + wn
     n_trans = nr + nw + nn
     transmat = np.array(
-        [[rr, rw, rn]/r_trans, [wr, ww, wn]/w_trans, [nr, nw, nn]/n_trans])
+        [[rr, rw, rn]/r_trans if r_trans > 0 else [np.nan]*3, 
+         [wr, ww, wn]/w_trans if w_trans > 0 else [np.nan]*3,
+         [nr, nw, nn]/n_trans if n_trans > 0 else [np.nan]*3]
+         )
 
     return transmat
 
@@ -1741,6 +1744,11 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
     wn_vals_c = transmat_mat[bidx_group_list[0]][:, 1, 2]
     nr_vals_c = transmat_mat[bidx_group_list[0]][:, 2, 0]
     nw_vals_c = transmat_mat[bidx_group_list[0]][:, 2, 1]
+
+    # transition from REM may sometime be nan
+    rr_vals_c = rr_vals_c[~np.isnan(rr_vals_c)]
+    rw_vals_c = rw_vals_c[~np.isnan(rw_vals_c)]
+    rn_vals_c = rn_vals_c[~np.isnan(rn_vals_c)]
 
     if num_groups > 1:
         # staying

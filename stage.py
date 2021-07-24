@@ -69,15 +69,21 @@ class CustomedGHMM(hmm.GaussianHMM):
 
 
     def _confine_REM_in_boundary(self, rem_mean, rem_cov):
-        """ By definition, REM cluster is not likely z<REM_floor and x>0. This function focuses
-        on the ellipsoid that represents the 95% confidence area of REM cluster. If this function
-        finds any principal axis of the ellipsoid penetrating the REM floor or the NREM wall
-        (i.e. the end-point of the principal axis at REM_metric<REM_floor) or low freq.power>0,
-        it shrinks the length of the axis to the point on the constraints.
+        """ By definition, REM cluster is not likely z (i.e. REM-metric)<REM_floor and
+        x (i.e. low-freq power)>0.
+        This function focuses on the ellipsoid that represents the 95% confidence area
+        of REM cluster. If this function finds any principal axis of the ellipsoid
+        penetrating the REM floor or the NREM wall (i.e. the end-point of the principal
+        axis at z<REM_floor or x>0), it shrinks the length of the axis to the point on
+        the constraints.
         """
     
         w, v = linalg.eigh(rem_cov)
-        w = 2 * np.sqrt(w)# 95% confidence (2SD) area
+        # all eigenvalues must be positive
+        if np.any(w<=0):
+            raise ValueError('Invalid_REM_Cluster')
+
+        w = 2 * np.sqrt(w) # 95% confidence (2SD) area
         prn_ax = v@np.diag(w) # 3x3 matrix: each column is the principal axis
 
         # confine above REM floor
@@ -87,7 +93,7 @@ class CustomedGHMM(hmm.GaussianHMM):
             if arr_hd[2] < self.rem_floor:
                 sr = (rem_mean[2] - self.rem_floor)/(rem_mean[2] - arr_hd[2]) # shrink ratio
             elif narr_hd[2] < self.rem_floor:
-                sr = (rem_mean[2] - self.rem_floor)/(rem_mean[2] - narr_hd[2]) # shrink ratio
+                sr = (rem_mean[2] - self.rem_floor)/(rem_mean[2] - narr_hd[2])
             else:
                 sr = 1
             w[i] = w[i] * sr
@@ -97,16 +103,16 @@ class CustomedGHMM(hmm.GaussianHMM):
             arr_hd = rem_mean + prn_ax[:, i] # the arrow head from the mean
             narr_hd = rem_mean - prn_ax[:, i] # the negative arrow head from the mean
             if arr_hd[0] > self.nrem_wall:
-                sr = (self.nrem_wall - rem_mean[0])/(arr_hd[0] - rem_mean[0]) # shrink ratio
+                sr = (self.nrem_wall - rem_mean[0])/(arr_hd[0] - rem_mean[0])
             elif narr_hd[0] > self.nrem_wall:
-                sr = (self.nrem_wall - rem_mean[0])/(narr_hd[0] - rem_mean[0]) # shrink ratio
+                sr = (self.nrem_wall - rem_mean[0])/(narr_hd[0] - rem_mean[0])
             else:
                 sr = 1
 
             w[i] = w[i] * sr
 
         cov_updated = v@np.diag(w)@v.T
-        
+
         return cov_updated
 
 
@@ -487,7 +493,7 @@ def plot_scatter2D(points_2D, classes, means, covariances, colors, xlabel, ylabe
             mean = means[i]
             covar = covariances[i]
             w, v = linalg.eigh(covar)
-            w = 4. * np.sqrt(w) # 95% confidence (2SD) area
+            w = 4. * np.sqrt(w) # 95% confidence (2SD) area (2*radius)
             angle = np.arctan(v[1, 0] / v[0, 0])
             angle = 180. * angle / np.pi  # convert to degrees
             ell = mpl.patches.Ellipse(mean, w[0], w[1], 180. + angle, facecolor='none', edgecolor=color)
@@ -800,41 +806,41 @@ def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
 
     # Check if the REM cluster is 'single-peak'
     # projection of REM-like epochs onto the separation "axis"
-    bidx_rem_like = (stage_coord[:,2]>rem_floor) & (pred_3D==1)
-    stage_coord_2D_r = stage_coord[bidx_rem_like, 0:2]
-    stage_coord_1DD_r = stage_coord_2D_r@np.array([1,-1]).T
-    try:
-        density = stats.gaussian_kde(stage_coord_1DD_r)
-    except ValueError:
-        raise ValueError('Invalid_REM_Cluster')
-    xs = np.linspace(-15,15,100)
-    peaks_pos, _ = signal.find_peaks(density(xs), prominence=0.001)
+    ##bidx_rem_like = (stage_coord[:,2]>rem_floor) & (pred_3D==1)
+    ##stage_coord_2D_r = stage_coord[bidx_rem_like, 0:2]
+    ##stage_coord_1DD_r = stage_coord_2D_r@np.array([1,-1]).T
+    ##try:
+    ##    density = stats.gaussian_kde(stage_coord_1DD_r)
+    ##except ValueError:
+    ##    raise ValueError('Invalid_REM_Cluster')
+    ##xs = np.linspace(-15,15,100)
+    ##peaks_pos, _ = signal.find_peaks(density(xs), prominence=0.001)
 
-    if len(peaks_pos)>1:
-        # In case multiple peaks found, re-run the ghmm with the left distribution
-        print_log('REM cluster found having multiple peaks, re-run Gaussian HMM')
+    ##if len(peaks_pos)>1:
+    ##    # In case multiple peaks found, re-run the ghmm with the left distribution
+    ##    print_log('REM cluster found having multiple peaks, re-run Gaussian HMM')
 
-        gmm = mixture.GaussianMixture(n_components=2, n_init=10) #active, stative, intermediate
-        gmm.fit(stage_coord_1DD_r.reshape(-1,1))
-        means = gmm.means_.flatten()
-        pred = gmm.predict(stage_coord_1DD_r.reshape(-1,1))   
-        if means[0] < means[1]:
-            rem_flag = 0
-        else:
-            rem_flag = 1
-        idx_rem_like = np.where(bidx_rem_like)[0]
-        idx_rem = idx_rem_like[pred == rem_flag]
-        rem_mm = np.mean(stage_coord[idx_rem, :], axis=0)
-        rem_cc = np.cov(stage_coord[idx_rem, :], rowvar=False)
-
-         # construct 3D means and covariances using the previous REM-cluster and new Wake, NREM clusters
-        re_mm_3D = np.vstack([pred_3D_mm[0,:], rem_mm, pred_3D_mm[2,:]]) # Wake, REM, NREM
-        re_cc_3D = np.vstack([[pred_3D_cc[0]], [rem_cc], [pred_3D_cc[2]]])
-        re_weights_3c = np.array([np.sum(pred_3D == 0), len(idx_rem), np.sum(
-            pred_3D == 2) + np.sum(pred_3D == 1) - len(idx_rem)])/len(stage_coord)
-
-        pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc = re_classify_three_stages(stage_coord, re_mm_3D, re_cc_3D, re_weights_3c, rem_floor)
-       
+    ##    gmm = mixture.GaussianMixture(n_components=2, n_init=10) #active, stative, intermediate
+    ##    gmm.fit(stage_coord_1DD_r.reshape(-1,1))
+    ##    means = gmm.means_.flatten()
+    ##    pred = gmm.predict(stage_coord_1DD_r.reshape(-1,1))   
+    ##    if means[0] < means[1]:
+    ##        rem_flag = 0
+    ##    else:
+    ##        rem_flag = 1
+    ##    idx_rem_like = np.where(bidx_rem_like)[0]
+    ##    idx_rem = idx_rem_like[pred == rem_flag]
+    ##    rem_mm = np.mean(stage_coord[idx_rem, :], axis=0)
+    ##    rem_cc = np.cov(stage_coord[idx_rem, :], rowvar=False)
+    ##
+    ##     # construct 3D means and covariances using the previous REM-cluster and new Wake, NREM clusters
+    ##    re_mm_3D = np.vstack([pred_3D_mm[0,:], rem_mm, pred_3D_mm[2,:]]) # Wake, REM, NREM
+    ##    re_cc_3D = np.vstack([[pred_3D_cc[0]], [rem_cc], [pred_3D_cc[2]]])
+    ##    re_weights_3c = np.array([np.sum(pred_3D == 0), len(idx_rem), np.sum(
+    ##        pred_3D == 2) + np.sum(pred_3D == 1) - len(idx_rem)])/len(stage_coord)
+    ##
+    ##    pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc = re_classify_three_stages(stage_coord, re_mm_3D, re_cc_3D, re_weights_3c, rem_floor)
+    ##   
     return (pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc)
 
 
@@ -901,9 +907,10 @@ def classification_process(stage_coord, rem_floor):
     else:
         # process for data having effective REM culster (standard)
         # try to correct REM cluster by shrinking it if the ellipsoid axis crosses the xy-plane to negative
-        covar_REM_updated = shrink_rem_cluster(mm_active[1], cc_active[1])
-        if covar_REM_updated.size > 0:
-            cc_active[1] = covar_REM_updated
+        ## ToDo:Remove
+        #covar_REM_updated = shrink_rem_cluster(mm_active[1], cc_active[1])
+        #if covar_REM_updated.size > 0:
+        #    cc_active[1] = covar_REM_updated
 
         # construct 3D means and covariances from mm_2D and mm_active
         mm_3D = np.vstack([mm_active, np.mean(stage_coord[pred_2D==1], axis=0)]) # Wake, REM, NREM
