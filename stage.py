@@ -23,7 +23,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.2.1-feature-rem-constraints'
+FASTER2_NAME = 'FASTER2 version 0.3.0'
 EPOCH_LEN_SEC = 8
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
