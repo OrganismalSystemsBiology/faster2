@@ -322,10 +322,12 @@ def transmat_from_stages(stages):
     w_trans = wr + ww + wn
     n_trans = nr + nw + nn
     transmat = np.array(
-        [[rr, rw, rn]/r_trans if r_trans > 0 else [np.nan]*3, 
-         [wr, ww, wn]/w_trans if w_trans > 0 else [np.nan]*3,
-         [nr, nw, nn]/n_trans if n_trans > 0 else [np.nan]*3]
-         )
+        [
+            [rr, rw, rn]/r_trans if r_trans > 0 else [np.nan]*3,
+            [wr, ww, wn]/w_trans if w_trans > 0 else [np.nan]*3,
+            [nr, nw, nn]/n_trans if n_trans > 0 else [np.nan]*3
+        ]
+    )
 
     return transmat
 
@@ -443,7 +445,7 @@ def swtrans_from_stage_sss_style(stage_call):
     halfdaily_second_wake_time = halfdaily_wake_time[np.arange(1, n_halfday, 2)]
 
     # all .day
-    pswpws_all_day = _calc_sss_style_trans(daily_nsw, daily_nss, 
+    pswpws_all_day = _calc_sss_style_trans(daily_nsw, daily_nss,
                                            daily_nws, daily_nww, 
                                            daily_sleep_time, daily_wake_time)
     # first halfday
@@ -461,14 +463,14 @@ def swtrans_from_stage_sss_style(stage_call):
 def _calc_sss_style_trans(nsw, nss, nws, nww, st, wt):
     denom_sw = np.array(nss + nsw, np.float64)
     denom_ws = np.array(nww + nws, np.float64)
-    denom_sw[denom_sw==0] = np.nan
-    denom_ws[denom_ws==0] = np.nan
-    
+    denom_sw[denom_sw == 0] = np.nan
+    denom_ws[denom_ws == 0] = np.nan
+
     _psw = nsw/denom_sw
     _pws = nws/denom_ws
     psw = np.sum(_psw*st)/np.sum(st)
     pws = np.sum(_pws*wt)/np.sum(wt)
-    
+
     return (psw, pws)
 
 
@@ -483,7 +485,7 @@ def swtrans_profile(stage_call):
         [np.array(1), np.array(1)]: a list of two np.arrays. Each array contain Psw and Pws.
     """
     stage_call = np.array(['SLEEP' if (x == 'NREM' or x == 'REM')
-                        else 'WAKE' if x != 'UNKNOWN' else 'UNKNOWN' for x in stage_call])
+                           else 'WAKE' if x != 'UNKNOWN' else 'UNKNOWN' for x in stage_call])
 
     tsw = (stage_call[:-1] == 'SLEEP') & (stage_call[1:] == 'WAKE')  # SLEEP -> WAKE
     tss = (stage_call[:-1] == 'SLEEP') & (stage_call[1:] == 'SLEEP') # SLEEP -> SLEEP

@@ -31,13 +31,13 @@ YLABEL = 'Total high-freq. log-powers'
 ZLABEL = 'REM metric'
 SCATTER_PLOT_FIG_WIDTH = 6   # inch
 SCATTER_PLOT_FIG_HEIGHT = 6  # inch
-FIG_DPI = 100 # dot per inch
+FIG_DPI = 100  # dot per inch
 COLOR_WAKE = '#EF5E26'
 COLOR_NREM = '#23B4EF'
-COLOR_REM  = '#6B8E23' #'olivedrab'
-COLOR_LIGHT = '#FFD700' # 'gold'
-COLOR_DARK =  '#696969' # 'dimgray' 
-COLOR_DARKLIGHT = 'lightgray' # light hours in DD condition
+COLOR_REM = '#6B8E23'  # 'olivedrab'
+COLOR_LIGHT = '#FFD700'  # 'gold'
+COLOR_DARK = '#696969'  # 'dimgray'
+COLOR_DARKLIGHT = 'lightgray'  # light hours in DD condition
 
 
 class CustomedGHMM(hmm.GaussianHMM):
@@ -50,23 +50,22 @@ class CustomedGHMM(hmm.GaussianHMM):
                  n_iter=10, tol=1e-2, verbose=False,
                  params="stmc", init_params="stmc"):
         super().__init__(n_components, covariance_type,
-                 min_covar, startprob_prior, transmat_prior,
-                 means_prior, means_weight,
-                 covars_prior, covars_weight,
-                 algorithm, random_state,
-                 n_iter, tol, verbose,
-                 params, init_params)
-
+                         min_covar, startprob_prior, transmat_prior,
+                         means_prior, means_weight,
+                         covars_prior, covars_weight,
+                         algorithm, random_state,
+                         n_iter, tol, verbose,
+                         params, init_params)
+        self.rem_floor = None
+        self.nrem_wall = None
 
     def set_rem_floor(self, rem_floor):
         # REM cluster cannot grow below this floor
         self.rem_floor = rem_floor
 
-
     def set_nrem_wall(self, nrem_wall):
         # REM cluster cannot grow beyond this wall
         self.nrem_wall = nrem_wall
-
 
     def _confine_REM_in_boundary(self, rem_mean, rem_cov):
         """ By definition, REM cluster is not likely z (i.e. REM-metric)<REM_floor and
@@ -77,21 +76,23 @@ class CustomedGHMM(hmm.GaussianHMM):
         axis at z<REM_floor or x>0), it shrinks the length of the axis to the point on
         the constraints.
         """
-    
+
         w, v = linalg.eigh(rem_cov)
         # all eigenvalues must be positive
-        if np.any(w<=0):
+        if np.any(w <= 0):
             raise ValueError('Invalid_REM_Cluster')
 
-        w = 2 * np.sqrt(w) # 95% confidence (2SD) area
-        prn_ax = v@np.diag(w) # 3x3 matrix: each column is the principal axis
+        w = 2 * np.sqrt(w)  # 95% confidence (2SD) area
+        prn_ax = v@np.diag(w)  # 3x3 matrix: each column is the principal axis
 
         # confine above REM floor
         for i in range(3):
-            arr_hd = rem_mean + prn_ax[:, i] # the arrow head from the mean
-            narr_hd = rem_mean - prn_ax[:, i] # the negative arrow head from the mean
+            arr_hd = rem_mean + prn_ax[:, i]  # the arrow head from the mean
+            # the negative arrow head from the mean
+            narr_hd = rem_mean - prn_ax[:, i]
             if arr_hd[2] < self.rem_floor:
-                sr = (rem_mean[2] - self.rem_floor)/(rem_mean[2] - arr_hd[2]) # shrink ratio
+                sr = (rem_mean[2] - self.rem_floor) / \
+                    (rem_mean[2] - arr_hd[2])  # shrink ratio
             elif narr_hd[2] < self.rem_floor:
                 sr = (rem_mean[2] - self.rem_floor)/(rem_mean[2] - narr_hd[2])
             else:
@@ -100,8 +101,9 @@ class CustomedGHMM(hmm.GaussianHMM):
 
         # confine within negative low-freq domain
         for i in range(3):
-            arr_hd = rem_mean + prn_ax[:, i] # the arrow head from the mean
-            narr_hd = rem_mean - prn_ax[:, i] # the negative arrow head from the mean
+            arr_hd = rem_mean + prn_ax[:, i]  # the arrow head from the mean
+            # the negative arrow head from the mean
+            narr_hd = rem_mean - prn_ax[:, i]
             if arr_hd[0] > self.nrem_wall:
                 sr = (self.nrem_wall - rem_mean[0])/(arr_hd[0] - rem_mean[0])
             elif narr_hd[0] > self.nrem_wall:
@@ -115,15 +117,17 @@ class CustomedGHMM(hmm.GaussianHMM):
 
         return cov_updated
 
-
+    #pylint: disable = redefined-outer-name
     def _do_mstep(self, stats):
-        super(hmm.GaussianHMM, self)._do_mstep(stats)
+        ghmm_stats = stats
+        #pylint: disable = no-value-for-parameter
+        hmm.GaussianHMM._do_mstep(self, ghmm_stats)
         means_prior = self.means_prior
         means_weight = self.means_weight
 
-        denom = stats['post'][:, np.newaxis]
+        denom = ghmm_stats['post'][:, np.newaxis]
         if 'm' in self.params:
-            self.means_ = ((means_weight * means_prior + stats['obs'])
+            self.means_ = ((means_weight * means_prior + ghmm_stats['obs'])
                            / (means_weight + denom))
 
         if 'c' in self.params:
@@ -133,8 +137,8 @@ class CustomedGHMM(hmm.GaussianHMM):
 
             if self.covariance_type in ('spherical', 'diag'):
                 cv_num = (means_weight * meandiff**2
-                          + stats['obs**2']
-                          - 2 * self.means_ * stats['obs']
+                          + ghmm_stats['obs**2']
+                          - 2 * self.means_ * ghmm_stats['obs']
                           + self.means_**2 * denom)
                 cv_den = max(covars_weight - 1, 0) + denom
                 self._covars_ = \
@@ -145,27 +149,29 @@ class CustomedGHMM(hmm.GaussianHMM):
                         (1, self._covars_.shape[1]))
             elif self.covariance_type in ('tied', 'full'):
                 cv_num = np.empty((self.n_components, self.n_features,
-                                  self.n_features))
+                                   self.n_features))
                 for c in range(self.n_components):
-                    obsmean = np.outer(stats['obs'][c], self.means_[c])
+                    obsmean = np.outer(ghmm_stats['obs'][c], self.means_[c])
 
                     cv_num[c] = (means_weight * np.outer(meandiff[c],
                                                          meandiff[c])
-                                 + stats['obs*obs.T'][c]
+                                 + ghmm_stats['obs*obs.T'][c]
                                  - obsmean - obsmean.T
                                  + np.outer(self.means_[c], self.means_[c])
-                                 * stats['post'][c])
+                                 * ghmm_stats['post'][c])
                 cvweight = max(covars_weight - self.n_features, 0)
                 if self.covariance_type == 'tied':
                     self._covars_ = ((covars_prior + cv_num.sum(axis=0)) /
-                                     (cvweight + stats['post'].sum()))
+                                     (cvweight + ghmm_stats['post'].sum()))
                 elif self.covariance_type == 'full':
                     # RY: Update only REM and Wake clurster's covariances
                     stash_covars = self._covars_
                     covars = ((covars_prior + cv_num) /
-                                     (cvweight + stats['post'][:, None, None]))
-                    confined_rem_cov = self._confine_REM_in_boundary(self.means_[1], covars[1])
-                    self._covars_ = np.array([covars[0], confined_rem_cov, stash_covars[2]])
+                              (cvweight + ghmm_stats['post'][:, None, None]))
+                    confined_rem_cov = self._confine_REM_in_boundary(
+                        self.means_[1], covars[1])
+                    self._covars_ = np.array(
+                        [covars[0], confined_rem_cov, stash_covars[2]])
 
 
 def initialize_logger(log_file):
@@ -194,8 +200,8 @@ def print_log(msg):
         print(msg)
 
 
-def read_mouse_info(data_dir):      
-    """This function reads the mouse.info.csv file 
+def read_mouse_info(data_dir):
+    """This function reads the mouse.info.csv file
     and returns a DataFrame with fixed column names.
 
     Args:
@@ -204,9 +210,9 @@ def read_mouse_info(data_dir):
 
         The data directory should include two information files:
         1. exp.info.csv,
-        2. mouse.info.csv, 
+        2. mouse.info.csv,
         and one directory named "raw" that contains all EEG/EMG data to be processed
-    
+
     Returns:
         DataFrame: A dataframe with a fixed column names
     """
@@ -222,7 +228,7 @@ def read_mouse_info(data_dir):
     csv_df = pd.read_csv(filepath,
                          engine="python",
                          dtype={'Device label': str, 'Mouse group': str,
-                                'Mouse ID': str, 'DOB': str, 'Stats report':str, 'Note': str},
+                                'Mouse ID': str, 'DOB': str, 'Stats report': str, 'Note': str},
                          names=["Device label", "Mouse group",
                                 "Mouse ID", "DOB", "Stats report", "Note"],
                          skiprows=1,
@@ -236,10 +242,10 @@ def read_mouse_info(data_dir):
 def read_exp_info(data_dir):
     """This function reads the exp.info.csv file
     and returns a DataFrame with fixed column names.
-    
+
     Args:
         data_dir (str): A path to the data directory that contains the exp.info.csv
-    
+
     Returns:
         DataFrame: A DataFrame with a fixed column names
     """
@@ -248,8 +254,9 @@ def read_exp_info(data_dir):
 
     csv_df = pd.read_csv(filepath,
                          engine="python",
-                         names=["Experiment label", "Rack label", "Start datetime", "End datetime", "Sampling freq"], 
-                         skiprows=1, 
+                         names=["Experiment label", "Rack label",
+                                "Start datetime", "End datetime", "Sampling freq"],
+                         skiprows=1,
                          header=None)
 
     return csv_df
@@ -257,35 +264,39 @@ def read_exp_info(data_dir):
 
 def find_edf_files(data_dir):
     """returns list of edf files in the directory
-    
+
     Args:
         data_dir (str): A path to the data directory
-    
+
     Returns:
         [list]: A list returned by glob()
     """
     return glob(os.path.join(data_dir, '*.edf'))
 
 
-def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch_num, start_datetime=None):
+def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch_num,
+                          start_datetime=None):
     """ This function reads data files of EEG and EMG, then returns matrices
     in the shape of (epochs, signals).
-    
+
     Args:
-        data_dir (str): a path to the dirctory that contains either dsi.txt/, pkl/ directory, or an EDF file.
-        device_id (str): a transmitter ID (e.g., ID47476) or channel ID (e.g., 09). 
+        data_dir (str): a path to the dirctory that contains either dsi.txt/, pkl/ directory,
+        or an EDF file.
+        device_id (str): a transmitter ID (e.g., ID47476) or channel ID (e.g., 09).
         sample_freq (int): sampling frequency
         epoch_len_sec (int): the length of an epoch in seconds
         epoch_num (int): the number of epochs to be read.
-        start_datetime (datetime): start datetime of the analysis (used only for EDF file and dsi.txt).
-    
+        start_datetime (datetime): start datetime of the analysis (used only for EDF file and
+        dsi.txt).
+
     Returns:
         (np.array(2), np.arrray(2), bool): a pair of voltage 2D matrices in a tuple
         and a switch to tell if there was pickled data.
 
     Note:
-        This function looks into the data_dir/ and first try to read pkl files. If pkl files are not found,
-        it tries to read an EDF file. If the EDF file is also not found, it tries to read dsi.txt files.
+        This function looks into the data_dir/ and first try to read pkl files. If pkl files
+        are not found, it tries to read an EDF file. If the EDF file is also not found, it
+        tries to read dsi.txt files.
     """
 
     if os.path.exists(os.path.join(data_dir, 'pkl', f'{device_id}_EEG.pkl')):
@@ -296,94 +307,107 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
         with open(pkl_path, 'rb') as pkl:
             print_log(f'Reading {pkl_path}')
             eeg_vm = pickle.load(pkl)
-        
+
         pkl_path = os.path.join(data_dir, 'pkl', f'{device_id}_EMG.pkl')
         with open(pkl_path, 'rb') as pkl:
             print_log(f'Reading {pkl_path}')
             emg_vm = pickle.load(pkl)
 
-    elif len(find_edf_files(data_dir))>0:
+    elif len(find_edf_files(data_dir)) > 0:
         # try to read EDF file
         not_yet_pickled = True
         # read EDF file
         edf_file = find_edf_files(data_dir)
         if len(edf_file) != 1:
-            raise FileNotFoundError(f'Too many EDF files were found:{edf_file}. FASTER2 assumes there is only one file.')
+            raise FileNotFoundError(
+                f'Too many EDF files were found:{edf_file}. '
+                'FASTER2 assumes there is only one file.')
         edf_file = edf_file[0]
 
         raw = mne.io.read_raw_edf(edf_file)
-        measurement_start_datetime = datetime.utcfromtimestamp(raw.info['meas_date'][0]) + timedelta(microseconds=raw.info['meas_date'][1])
+        measurement_start_datetime = datetime.utcfromtimestamp(
+            raw.info['meas_date'][0]) + timedelta(microseconds=raw.info['meas_date'][1])
         try:
             if isinstance(start_datetime, datetime) and (measurement_start_datetime < start_datetime):
-                start_offset_sec = (start_datetime - measurement_start_datetime).total_seconds()
+                start_offset_sec = (
+                    start_datetime - measurement_start_datetime).total_seconds()
                 end_offset_sec = start_offset_sec + epoch_num * epoch_len_sec
-                bidx = (raw.times >= start_offset_sec) & (raw.times < end_offset_sec)
+                bidx = (raw.times >= start_offset_sec) & (
+                    raw.times < end_offset_sec)
                 start_slice = np.where(bidx)[0][0]
                 end_slice = np.where(bidx)[0][-1]+1
-                eeg = raw.get_data(f'EEG{device_id}', start_slice, end_slice)[0]
-                emg = raw.get_data(f'EMG{device_id}', start_slice, end_slice)[0]
+                eeg = raw.get_data(f'EEG{device_id}',
+                                   start_slice, end_slice)[0]
+                emg = raw.get_data(f'EMG{device_id}',
+                                   start_slice, end_slice)[0]
             else:
                 eeg = raw.get_data(f'EEG{device_id}')[0]
                 emg = raw.get_data(f'EMG{device_id}')[0]
         except ValueError:
-            print_log(f'Failed to extract the data of "{device_id}" from {edf_file}. '\
-                  f'Check the channel name: "EEG/EMG{device_id}" is in the EDF file.')
+            print_log(f'Failed to extract the data of "{device_id}" from {edf_file}. '
+                      f'Check the channel name: "EEG/EMG{device_id}" is in the EDF file.')
             raise
         raw.close()
         try:
             eeg_vm = eeg.reshape(-1, epoch_len_sec * sample_freq)
             emg_vm = emg.reshape(-1, epoch_len_sec * sample_freq)
         except ValueError:
-            print_log(f'Failed to extract {epoch_num} epochs from {edf_file}. '\
-                   'Check the validity of the epoch number, start datetime, and sampling frequency.')
+            print_log(f'Failed to extract {epoch_num} epochs from {edf_file}. '
+                      'Check the validity of the epoch number, start datetime, '
+                      'and sampling frequency.')
             raise
     elif os.path.exists(os.path.join(data_dir, 'dsi.txt')):
         # try to read dsi.txt
         not_yet_pickled = True
         try:
-            dsi_reader_eeg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'), 
-                                            f'{device_id}', 
-                                            'EEG', 
-                                            sample_freq=sample_freq)
-            dsi_reader_emg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'), 
-                                            f'{device_id}', 
-                                            'EMG', 
-                                            sample_freq=sample_freq)
+            dsi_reader_eeg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'),
+                                               f'{device_id}', 'EEG',
+                                               sample_freq=sample_freq)
+            dsi_reader_emg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'),
+                                               f'{device_id}', 'EMG',
+                                               sample_freq=sample_freq)
             if isinstance(start_datetime, datetime):
-                end_datetime = start_datetime + timedelta(seconds=epoch_len_sec*epoch_num)
-                eeg_df = dsi_reader_eeg.read_epochs_by_datetime(start_datetime, end_datetime)
-                emg_df = dsi_reader_emg.read_epochs_by_datetime(start_datetime, end_datetime)
+                end_datetime = start_datetime + \
+                    timedelta(seconds=epoch_len_sec*epoch_num)
+                eeg_df = dsi_reader_eeg.read_epochs_by_datetime(
+                    start_datetime, end_datetime)
+                emg_df = dsi_reader_emg.read_epochs_by_datetime(
+                    start_datetime, end_datetime)
             else:
                 eeg_df = dsi_reader_eeg.read_epochs(1, epoch_num)
                 emg_df = dsi_reader_emg.read_epochs(1, epoch_num)
-            eeg_vm = eeg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
-            emg_vm = emg_df.value.values.reshape(-1, epoch_len_sec * sample_freq)
+            eeg_vm = eeg_df.value.values.reshape(-1,
+                                                 epoch_len_sec * sample_freq)
+            emg_vm = emg_df.value.values.reshape(-1,
+                                                 epoch_len_sec * sample_freq)
         except FileNotFoundError:
-            print_log(f'The dsi.txt file for {device_id} was not found in {data_dir}.')        
+            print_log(
+                f'The dsi.txt file for {device_id} was not found in {data_dir}.')
             raise
     else:
-        raise FileNotFoundError(f'Data file was not found for device {device_id} in {data_dir}.')
-        
+        raise FileNotFoundError(
+            f'Data file was not found for device {device_id} in {data_dir}.')
 
     expected_shape = (epoch_num, sample_freq * epoch_len_sec)
     if (eeg_vm.shape != expected_shape) or (emg_vm.shape != expected_shape):
-        raise ValueError(f'Unexpected shape of matrices EEG:{eeg_vm.shape} or EMG:{emg_vm.shape}. '\
-                         f'Expected shape is {expected_shape}. Check the validity of the data files or configurations '\
-                          'such as the epoch number and the sampling frequency.')
+        raise ValueError(f'Unexpected shape of matrices EEG:{eeg_vm.shape} or EMG:{emg_vm.shape}. '
+                         f'Expected shape is {expected_shape}. Check the validity of '
+                         'the data files or configurations '
+                         'such as the epoch number and the sampling frequency.')
 
     return (eeg_vm, emg_vm, not_yet_pickled)
 
 
 def interpret_datetimestr(datetime_str):
-    """ Find a datetime string and convert it to a datatime object 
+    """ Find a datetime string and convert it to a datatime object
     allowing some variant forms
-    
+
     Args:
         datetime_str (string): a string containing datetime
-    
+
     Returns:
         a datetime object
-    
+
     Raises:
         ValueError: raised when interpretation is failed
     """
@@ -420,8 +444,8 @@ def interpret_datetimestr(datetime_str):
         raise ValueError(
             'failed to interpret datetime string \'{}\''.format(datetime_str))
 
-    return(datetime_obj)
-    
+    return datetime_obj
+
 
 def interpret_exp_info(exp_info_df):
     try:
@@ -431,16 +455,16 @@ def interpret_exp_info(exp_info_df):
         exp_label = exp_info_df['Experiment label'].values[0]
         rack_label = exp_info_df['Rack label'].values[0]
     except KeyError as e:
-        print_log(f'Failed to parse the column: {e} in exp.info.csv. Check the headers.')
+        print_log(
+            f'Failed to parse the column: {e} in exp.info.csv. Check the headers.')
         exit(1)
 
     start_datetime = interpret_datetimestr(start_datetime_str)
     end_datetime = interpret_datetimestr(end_datetime_str)
 
-    epoch_num = int((end_datetime - start_datetime).total_seconds() / EPOCH_LEN_SEC)
+    epoch_num = int(
+        (end_datetime - start_datetime).total_seconds() / EPOCH_LEN_SEC)
 
-
-    
     return (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime)
 
 
@@ -456,50 +480,56 @@ def plot_hist_on_separation_axis(path2figures, d, means, covars, weights):
         covars = covars[::-1]
         weights = weights[::-1]
 
-    d_axis = np.arange(-20,20)
+    d_axis = np.arange(-20, 20)
 
-    fig = Figure(figsize=(SCATTER_PLOT_FIG_WIDTH, SCATTER_PLOT_FIG_HEIGHT), dpi=FIG_DPI, facecolor='w')
+    fig = Figure(figsize=(SCATTER_PLOT_FIG_WIDTH,
+                          SCATTER_PLOT_FIG_HEIGHT), dpi=FIG_DPI, facecolor='w')
     ax = fig.add_subplot(111)
     ax.set_xlim(-20, 20)
     ax.set_ylim(0, 0.1)
 
     ax.hist(d, bins=100, density=True)
-    ax.plot(d_axis, weights[0]*stats.norm.pdf(d_axis,means[0],np.sqrt(covars[0])).ravel(), c=COLOR_WAKE)
-    ax.plot(d_axis, weights[1]*stats.norm.pdf(d_axis,means[1],np.sqrt(covars[1])).ravel(), c=COLOR_NREM)
-    ax.axvline(x=means[0], color='black', dashes=[2,2])
-    ax.axvline(x=means[1], color='black', dashes=[2,2])
+    ax.plot(d_axis, weights[0]*stats.norm.pdf(d_axis,
+                                              means[0], np.sqrt(covars[0])).ravel(), c=COLOR_WAKE)
+    ax.plot(d_axis, weights[1]*stats.norm.pdf(d_axis,
+                                              means[1], np.sqrt(covars[1])).ravel(), c=COLOR_NREM)
+    ax.axvline(x=means[0], color='black', dashes=[2, 2])
+    ax.axvline(x=means[1], color='black', dashes=[2, 2])
     ax.axvline(x=np.mean(means), color='black')
 
     ax.set_xlabel('', fontsize=10)
     ax.set_ylabel('', fontsize=10)
 
-    _savefig(path2figures,'histogram_on_separation_axis', fig)
+    _savefig(path2figures, 'histogram_on_separation_axis', fig)
 
     return fig
 
 
 def plot_scatter2D(points_2D, classes, means, covariances, colors, xlabel, ylabel, diag_line=False):
-    fig = Figure(figsize=(SCATTER_PLOT_FIG_WIDTH, SCATTER_PLOT_FIG_HEIGHT), dpi=FIG_DPI, facecolor='w')
+    fig = Figure(figsize=(SCATTER_PLOT_FIG_WIDTH,
+                          SCATTER_PLOT_FIG_HEIGHT), dpi=FIG_DPI, facecolor='w')
     ax = fig.add_subplot(111)
     ax.set_xlim(-20, 20)
     ax.set_ylim(-20, 20)
-    
+
     for i, color in enumerate(colors):
 
-        ax.scatter(points_2D[classes == i, 0], points_2D[classes == i, 1], .01, color=color)
+        ax.scatter(points_2D[classes == i, 0],
+                   points_2D[classes == i, 1], .01, color=color)
 
         # Plot an ellipse to show the Gaussian component
-        if (len(means)>i and len(covariances)>i):
+        if (len(means) > i and len(covariances) > i):
             mean = means[i]
             covar = covariances[i]
             w, v = linalg.eigh(covar)
-            w = 4. * np.sqrt(w) # 95% confidence (2SD) area (2*radius)
+            w = 4. * np.sqrt(w)  # 95% confidence (2SD) area (2*radius)
             angle = np.arctan(v[1, 0] / v[0, 0])
             angle = 180. * angle / np.pi  # convert to degrees
-            ell = mpl.patches.Ellipse(mean, w[0], w[1], 180. + angle, facecolor='none', edgecolor=color)
+            ell = mpl.patches.Ellipse(
+                mean, w[0], w[1], 180. + angle, facecolor='none', edgecolor=color)
             ax.add_patch(ell)
-    if diag_line==True:
-        ax.plot([-20, 20], [-20, 20], color='gray',linewidth=0.7)
+    if diag_line == True:
+        ax.plot([-20, 20], [-20, 20], color='gray', linewidth=0.7)
     ax.set_xlabel(xlabel, fontsize=10)
     ax.set_ylabel(ylabel, fontsize=10)
     return fig
@@ -526,7 +556,7 @@ def pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id):
         with open(pkl_path, 'wb') as pkl:
             print_log(f'Saving the voltage matrix into {pkl_path}')
             pickle.dump(eeg_vm, pkl)
-    
+
     # save EMG
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EMG.pkl')
     if os.path.exists(pkl_path):
@@ -537,7 +567,7 @@ def pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id):
             pickle.dump(emg_vm, pkl)
 
 
-def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, bidx_unknown, result_dir, device_id):
+def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, result_dir, device_id):
     """ pickles the power spectrum density matrices for subsequent analyses
     
     Args:
@@ -560,7 +590,7 @@ def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, bidx_unknown, result
         with open(pkl_path, 'wb') as pkl:
             print_log(f'Saving the EEG PSD matrix into {pkl_path}')
             pickle.dump(spec_norm_eeg, pkl)
-    
+
     # save EMG PSD
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EMG_PSD.pkl')
     if os.path.exists(pkl_path):
@@ -606,45 +636,48 @@ def remove_extreme_power(y):
     """
     n_len = len(y)
 
-    bidx = (np.abs(y) > 3) # extreme means over 3SD
+    bidx = (np.abs(y) > 3)  # extreme means over 3SD
     n_extr = np.sum(bidx)
 
     y[bidx] = np.random.normal(0, 1, n_extr)
-    
+
     return n_extr / n_len
 
 
 def spectrum_normalize(voltage_matrix, n_fft, sample_freq):
     # power-spectrum normalization of EEG
-    psd_mat = np.apply_along_axis(lambda y: psd(y, n_fft, sample_freq), 1, voltage_matrix)
-    psd_mat = 10*np.log10(psd_mat) # decibel-like
+    psd_mat = np.apply_along_axis(lambda y: psd(
+        y, n_fft, sample_freq), 1, voltage_matrix)
+    psd_mat = 10*np.log10(psd_mat)  # decibel-like
     psd_mean = np.apply_along_axis(np.nanmean, 0, psd_mat)
     psd_sd = np.apply_along_axis(np.nanstd, 0, psd_mat)
     spec_norm_fac = 1/psd_sd
     psd_norm_mat = np.apply_along_axis(lambda y: spec_norm_fac*(y - psd_mean),
-                                                1,
-                                                psd_mat)
-    return {'psd':psd_norm_mat, 'mean':psd_mean, 'norm_fac':spec_norm_fac}
+                                       1,
+                                       psd_mat)
+    return {'psd': psd_norm_mat, 'mean': psd_mean, 'norm_fac': spec_norm_fac}
 
 
 def cancel_weight_bias(stage_coord_2D):
     # Estimate the center of the two clusters
     print_log('Estimate the bias of the two cluster means')
-    d = stage_coord_2D@np.array([1,-1]).T # project onto the separation axis
-    d = d.reshape(-1,1)
-    gmm = mixture.GaussianMixture(n_components=2, n_init=10) #active, stative, intermediate
+    d = stage_coord_2D@np.array([1, -1]).T  # project onto the separation axis
+    d = d.reshape(-1, 1)
+    # active, stative, intermediate
+    gmm = mixture.GaussianMixture(n_components=2, n_init=10)
     gmm.fit(d)
     weights = gmm.weights_
     means = gmm.means_.flatten()
     covars = gmm.covariances_.flatten()
 
-    bias = np.mean(means[0:2]) # this is supposed to be zero if weights are completely balanced
-    s = bias/np.sqrt(2) # x,y-axis components
+    # this is supposed to be zero if weights are completely balanced
+    bias = np.mean(means[0:2])
+    s = bias/np.sqrt(2)  # x,y-axis components
     print_log(f'Estimated bias: {s}')
 
     stage_coord_2D = stage_coord_2D + [-s, s]
 
-    return {'proj_data':d, 'means':means, 'covars':covars, 'weights':weights, 'stage_coord_2D':stage_coord_2D}
+    return {'proj_data': d, 'means': means, 'covars': covars, 'weights': weights, 'stage_coord_2D': stage_coord_2D}
 
 
 def classify_active_and_NREM(stage_coord_2D):
@@ -652,12 +685,14 @@ def classify_active_and_NREM(stage_coord_2D):
     print_log('Initialize active/NREM clusters with the diagonal line')
 
     # projection onto the separation "line" (which is perpendicular to the separation "axis")
-    stage_coord_1DD = stage_coord_2D@np.array([1,1]).T
-    bidx_over_outliers = stage_coord_1DD > (np.mean(stage_coord_1DD) + 3*np.std(stage_coord_1DD))
-    bidx_under_outliers = stage_coord_1DD < (np.mean(stage_coord_1DD) - 3*np.std(stage_coord_1DD))
+    stage_coord_1DD = stage_coord_2D@np.array([1, 1]).T
+    bidx_over_outliers = stage_coord_1DD > (
+        np.mean(stage_coord_1DD) + 3*np.std(stage_coord_1DD))
+    bidx_under_outliers = stage_coord_1DD < (
+        np.mean(stage_coord_1DD) - 3*np.std(stage_coord_1DD))
     bidx_valid = ~(bidx_over_outliers | bidx_under_outliers)
 
-    # To estimate clusters, use only epochs projected within the reasonable region on the separation line (<3SD) 
+    # To estimate clusters, use only epochs projected within the reasonable region on the separation line (<3SD)
     def _geo_classifier(coord):
         # geometrical classifier (simpl separation by the diagonal line)
         if coord[0] - coord[1] > 0:
@@ -665,7 +700,7 @@ def classify_active_and_NREM(stage_coord_2D):
         else:
             return 0
 
-    # Means and covariances of the active and NREM clusters 
+    # Means and covariances of the active and NREM clusters
     geo_pred = np.array([_geo_classifier(c) for c in stage_coord_2D])
     mm_2D = np.array([
         np.mean(stage_coord_2D[geo_pred == 0 & bidx_valid], axis=0),
@@ -687,9 +722,11 @@ def classify_active_and_NREM_by_HGMM(stage_coord_2D, pred_2D, mm_2D, cc_2D):
     # Initialize active/stative(NREM) clusters by Gaussian mixture model ignoring transition probablity
     print_log('Classify active/NREM clusters with HGMM')
 
-    weights = np.array([np.sum(pred_2D==0), np.sum(pred_2D==1)])/len(pred_2D)
+    weights = np.array(
+        [np.sum(pred_2D == 0), np.sum(pred_2D == 1)])/len(pred_2D)
 
-    ghmm_2D = hmm.GaussianHMM(n_components=2, covariance_type='full', init_params='t', params='tmcs')
+    ghmm_2D = hmm.GaussianHMM(
+        n_components=2, covariance_type='full', init_params='t', params='tmcs')
     ghmm_2D.startprob_ = weights
     ghmm_2D.means_ = mm_2D
     ghmm_2D.covars_ = cc_2D
@@ -703,13 +740,15 @@ def classify_active_and_NREM_by_HGMM(stage_coord_2D, pred_2D, mm_2D, cc_2D):
 def classify_Wake_and_REM(stage_coord_active, rem_floor):
     # Classify REM and Wake in the active cluster in the 3D space  (Low freq. x High freq. x REM metric)
     print_log('Classify REM and Wake clusters with GMM')
-    
+
     # exclude intermediate points between REM and Wake, and points having substantial sleep_freq power
-    bidx_wake_rem = ((stage_coord_active[:,2]>rem_floor) | (stage_coord_active[:,2]<0)) & (stage_coord_active[:,0]<0)
-    stage_coord_wake_rem = stage_coord_active[bidx_wake_rem,:]
+    bidx_wake_rem = ((stage_coord_active[:, 2] > rem_floor) | (
+        stage_coord_active[:, 2] < 0)) & (stage_coord_active[:, 0] < 0)
+    stage_coord_wake_rem = stage_coord_active[bidx_wake_rem, :]
 
     # gmm for wake & REM
-    gmm_wr = mixture.GaussianMixture(n_components=3, n_init=100, means_init=[[-5,5,-10],[0,0,20], [0,0,0]]) #Wake, REM, intermediate
+    gmm_wr = mixture.GaussianMixture(n_components=3, n_init=100, means_init=[
+                                     [-5, 5, -10], [0, 0, 20], [0, 0, 0]])  # Wake, REM, intermediate
     gmm_wr.fit(stage_coord_wake_rem)
     ww_wr = gmm_wr.weights_
     mm_wr = gmm_wr.means_
@@ -718,28 +757,29 @@ def classify_Wake_and_REM(stage_coord_active, rem_floor):
     pred_wr_proba = gmm_wr.predict_proba(stage_coord_active)
 
     # Treat the intermediate as wake
-    pred_wr[pred_wr==2]=0
+    pred_wr[pred_wr == 2] = 0
     pred_wr_proba = np.array([[x[0]+x[2], x[1]] for x in pred_wr_proba])
 
     # The subsequent process uses the Wake and REM clusters
-    ww_wr = ww_wr[np.r_[0,1]]
-    mm_wr = mm_wr[np.r_[0,1]]
-    cc_wr = cc_wr[np.r_[0,1]]
+    ww_wr = ww_wr[np.r_[0, 1]]
+    mm_wr = mm_wr[np.r_[0, 1]]
+    cc_wr = cc_wr[np.r_[0, 1]]
 
-    if mm_wr[0,2] > mm_wr[1,2]:
+    if mm_wr[0, 2] > mm_wr[1, 2]:
         # flip the order of clusters to assure the order of indices 0:Wake, 1:REM
-        mm_wr = np.array([mm_wr[1],mm_wr[0]])
-        cc_wr = np.array([cc_wr[1],cc_wr[0]])
-        pred_wr = np.array([0 if x==1 else 1 for x in pred_wr])
-        pred_wr_proba = pred_wr_proba[:,np.r_[1,0]]
+        mm_wr = np.array([mm_wr[1], mm_wr[0]])
+        cc_wr = np.array([cc_wr[1], cc_wr[0]])
+        pred_wr = np.array([0 if x == 1 else 1 for x in pred_wr])
+        pred_wr_proba = pred_wr_proba[:, np.r_[1, 0]]
 
-    return (pred_wr, pred_wr_proba, mm_wr, cc_wr, ww_wr) 
+    return (pred_wr, pred_wr_proba, mm_wr, cc_wr, ww_wr)
 
 
 def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
     # classify REM, Wake, and NREM by Gaussian HMM in the 3D space
     print_log('Classify REM, Wake, and NREM by Gaussian HMM')
-    ghmm_3D = CustomedGHMM(n_components=3, covariance_type='full', init_params='t', params='ct')
+    ghmm_3D = CustomedGHMM(
+        n_components=3, covariance_type='full', init_params='t', params='ct')
     ghmm_3D.startprob_ = weights_3c
     ghmm_3D.means_ = mm_3D
     ghmm_3D.covars_ = cc_3D
@@ -759,20 +799,25 @@ def classify_two_stages(stage_coord, pred_2D_org, mm_2D_org, cc_2D_org, mm_activ
     ndata = len(stage_coord)
     bidx_active = (pred_2D_org == 0)
     # perform GMM to refine active/NREM classification
-    pred_2D, pred_2D_proba, mm_2D, cc_2D = classify_active_and_NREM_by_HGMM(stage_coord[:, 0:2], pred_2D_org, mm_2D_org, cc_2D_org)
+    pred_2D, pred_2D_proba, mm_2D, cc_2D = classify_active_and_NREM_by_HGMM(
+        stage_coord[:, 0:2], pred_2D_org, mm_2D_org, cc_2D_org)
 
     # construct 3D means and covariances from mm_2D and mm_active with TINY (non-effective) REM cluster
     # This non-effective REM cluster is just for convenience of plotting, so has nothing to do with analytical process.
-    mm_3D =  np.vstack([mm_active[0], [0,0,100], np.mean(stage_coord[pred_2D==1], axis=0)]) # Wake, REM, NREM
-    cc_3D = np.vstack([[cc_active[0]], [np.diag([0.01, 0.01, 0.01])], [np.cov(stage_coord[pred_2D==1], rowvar=False)]]) 
+    mm_3D = np.vstack([mm_active[0], [0, 0, 100], np.mean(
+        stage_coord[pred_2D == 1], axis=0)])  # Wake, REM, NREM
+    cc_3D = np.vstack([[cc_active[0]], [np.diag([0.01, 0.01, 0.01])], [
+                      np.cov(stage_coord[pred_2D == 1], rowvar=False)]])
 
-    pred_3D = np.array([2 if x==1 else 0 for x in pred_2D]) # change label of NREM from 1 to 2 so that REM can use label:1
+    # change label of NREM from 1 to 2 so that REM can use label:1
+    pred_3D = np.array([2 if x == 1 else 0 for x in pred_2D])
     idx_active = np.where(bidx_active)[0]
     # idx_REMlike = idx_active[bidx_REMlike]
     # pred_3D[idx_REMlike] = 1
 
     pred_3D_proba = np.zeros([ndata, 3])
-    pred_3D_proba[:, np.r_[0,2]] = pred_2D_proba # probability of REM is always zero, but sometimes REM like.
+    # probability of REM is always zero, but sometimes REM like.
+    pred_3D_proba[:, np.r_[0, 2]] = pred_2D_proba
 
     return pred_2D, pred_2D_proba, mm_2D, cc_2D, pred_3D, pred_3D_proba, mm_3D, cc_3D
 
@@ -782,39 +827,48 @@ def classification_process(stage_coord, rem_floor):
 
     # 2-stage classification
     # classify active and NREM clusters on the 2D plane of (Low freq. x High freq.)
-    pred_2D, pred_2D_proba, mm_2D, cc_2D = classify_active_and_NREM(stage_coord[:, 0:2])
+    pred_2D, pred_2D_proba, mm_2D, cc_2D = classify_active_and_NREM(
+        stage_coord[:, 0:2])
 
     # Classify REM and Wake in the active cluster in the 3D space  (Low freq. x High freq. x REM metric)
     bidx_active = (pred_2D == 0)
-    stage_coord_active = stage_coord[bidx_active,:]
+    stage_coord_active = stage_coord[bidx_active, :]
     # pylint: disable=unused-variable
-    pred_active, pred_active_proba, mm_active, cc_active, ww_active = classify_Wake_and_REM(stage_coord_active, rem_floor)
+    pred_active, pred_active_proba, mm_active, cc_active, ww_active = classify_Wake_and_REM(
+        stage_coord_active, rem_floor)
 
     # If the z values of the both clusters are negative or zero, it means there is no REM cluster
-    if np.all(mm_active[:,2]<=0):
+    if np.all(mm_active[:, 2] <= 0):
         # process for data NOT having effective REM cluster
         print_log('No effective REM cluster was found.')
 
-        pred_2D, pred_2D_proba, mm_2D, cc_2D, pred_3D, pred_3D_proba, mm_3D, cc_3D = classify_two_stages(stage_coord, pred_2D, mm_2D, cc_2D, mm_active, cc_active)
+        pred_2D, pred_2D_proba, mm_2D, cc_2D, pred_3D, pred_3D_proba, mm_3D, cc_3D = classify_two_stages(
+            stage_coord, pred_2D, mm_2D, cc_2D, mm_active, cc_active)
 
     else:
         # process for data having effective REM culster (standard)
         # try to correct REM cluster by shrinking it if the ellipsoid axis crosses the xy-plane to negative
- 
+
         # construct 3D means and covariances from mm_2D and mm_active
-        mm_3D = np.vstack([mm_active, np.mean(stage_coord[pred_2D==1], axis=0)]) # Wake, REM, NREM
-        cc_3D = np.vstack([cc_active, [np.cov(stage_coord[pred_2D==1], rowvar=False)]])
+        # Wake, REM, NREM
+        mm_3D = np.vstack(
+            [mm_active, np.mean(stage_coord[pred_2D == 1], axis=0)])
+        cc_3D = np.vstack(
+            [cc_active, [np.cov(stage_coord[pred_2D == 1], rowvar=False)]])
 
         # three cluster weights; Wake, REM, NREM
-        weights_3c = np.array([np.sum(pred_active==0), np.sum(pred_active==1), np.sum(pred_2D==1)])/ndata
+        weights_3c = np.array([np.sum(pred_active == 0), np.sum(
+            pred_active == 1), np.sum(pred_2D == 1)])/ndata
 
         # 3-stage classification: classify REM, Wake, and NREM by Gaussian HMM on the 3D space
         try:
-            pred_3D, pred_3D_proba, mm_3D, cc_3D = classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor)
+            pred_3D, pred_3D_proba, mm_3D, cc_3D = classify_three_stages(
+                stage_coord, mm_3D, cc_3D, weights_3c, rem_floor)
         except ValueError as valerr:
             if valerr.args[0] == 'Invalid_REM_Cluster':
                 print_log('REM cluster is invalid.')
-                pred_2D, pred_2D_proba, mm_2D, cc_2D, pred_3D, pred_3D_proba, mm_3D, cc_3D = classify_two_stages(stage_coord, pred_2D, mm_2D, cc_2D, mm_active, cc_active)
+                pred_2D, pred_2D_proba, mm_2D, cc_2D, pred_3D, pred_3D_proba, mm_3D, cc_3D = classify_two_stages(
+                    stage_coord, pred_2D, mm_2D, cc_2D, mm_active, cc_active)
             else:
                 raise
 
@@ -823,61 +877,72 @@ def classification_process(stage_coord, rem_floor):
 
 def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, c_pred3, c_means, c_covars):
     print_log('Drawing scatter plots')
-    
-    colors =  [COLOR_WAKE, COLOR_NREM] 
+
+    colors = [COLOR_WAKE, COLOR_NREM]
     axes = [0, 1]
     points = stage_coord[:, np.r_[axes]]
-    fig = plot_scatter2D(points, pred2, means2, covars2, colors, XLABEL, YLABEL, diag_line=True)
+    fig = plot_scatter2D(points, pred2, means2, covars2,
+                         colors, XLABEL, YLABEL, diag_line=True)
     _savefig(path2figures, 'ScatterPlot2D_LowFreq-HighFreq_Axes_Active-NREM', fig)
 
-    points_active = stage_coord[((c_pred3==0) | (c_pred3==1)), :]
-    pred_active = c_pred3[((c_pred3==0) | (c_pred3==1))]
+    points_active = stage_coord[((c_pred3 == 0) | (c_pred3 == 1)), :]
+    pred_active = c_pred3[((c_pred3 == 0) | (c_pred3 == 1))]
 
-    axes = [0, 2] # Low-freq axis & REM axis
+    axes = [0, 2]  # Low-freq axis & REM axis
     points_prj = points_active[:, np.r_[axes]]
-    colors =  [COLOR_WAKE, COLOR_REM]
-    mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0,1]]])
-    cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in c_covars[np.r_[0,1]]])
-    fig = plot_scatter2D(points_prj, pred_active, mm , cc, colors, XLABEL, ZLABEL)
+    colors = [COLOR_WAKE, COLOR_REM]
+    mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0, 1]]])
+    cc = np.array([c[np.r_[axes]][:, np.r_[axes]]
+                   for c in c_covars[np.r_[0, 1]]])
+    fig = plot_scatter2D(points_prj, pred_active, mm,
+                         cc, colors, XLABEL, ZLABEL)
     _savefig(path2figures, 'ScatterPlot2D_LowFreq-REM_axes', fig)
 
-    axes = [1, 2] # High-freq axis & REM axis
+    axes = [1, 2]  # High-freq axis & REM axis
     points_prj = points_active[:, np.r_[axes]]
-    mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0,1]]])
-    cc = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in c_covars[np.r_[0,1]]])
-    fig = plot_scatter2D(points_prj, pred_active, mm , cc, colors, YLABEL, ZLABEL)
+    mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0, 1]]])
+    cc = np.array([c[np.r_[axes]][:, np.r_[axes]]
+                   for c in c_covars[np.r_[0, 1]]])
+    fig = plot_scatter2D(points_prj, pred_active, mm,
+                         cc, colors, YLABEL, ZLABEL)
     _savefig(path2figures, 'ScatterPlot2D_HighFreq-REM_axes', fig)
 
-    axes = [0, 1] # Low-freq axis & High-freq axis
+    axes = [0, 1]  # Low-freq axis & High-freq axis
     points_prj = stage_coord[:, np.r_[axes]]
-    colors =  [COLOR_WAKE, COLOR_REM, COLOR_NREM]
-    mm_proj = np.array([m[np.r_[axes]] for m in c_means[np.r_[0,1,2]]])
-    cc_proj = np.array([c[np.r_[axes]][:,np.r_[axes]] for c in c_covars[np.r_[0,1,2]]])
-    fig = plot_scatter2D(points_prj, c_pred3, mm_proj , cc_proj, colors, XLABEL, YLABEL, diag_line=True)
+    colors = [COLOR_WAKE, COLOR_REM, COLOR_NREM]
+    mm_proj = np.array([m[np.r_[axes]] for m in c_means[np.r_[0, 1, 2]]])
+    cc_proj = np.array([c[np.r_[axes]][:, np.r_[axes]]
+                        for c in c_covars[np.r_[0, 1, 2]]])
+    fig = plot_scatter2D(points_prj, c_pred3, mm_proj,
+                         cc_proj, colors, XLABEL, YLABEL, diag_line=True)
     _savefig(path2figures, 'ScatterPlot2D_LowFreq-HighFreq_axes_Wake_REM_NREM', fig)
 
-    colors =  [COLOR_WAKE, COLOR_REM, COLOR_NREM]
+    colors = [COLOR_WAKE, COLOR_REM, COLOR_NREM]
     colors_light = [lighten_color(c) for c in colors]
-    fig = Figure(figsize=(SCATTER_PLOT_FIG_WIDTH, SCATTER_PLOT_FIG_HEIGHT), dpi=FIG_DPI, facecolor='w')
+    fig = Figure(figsize=(SCATTER_PLOT_FIG_WIDTH,
+                          SCATTER_PLOT_FIG_HEIGHT), dpi=FIG_DPI, facecolor='w')
     ax = fig.add_subplot(111, projection='3d')
     ax.view_init(elev=10, azim=-135)
 
     ax.set_xlim(-20, 20)
     ax.set_ylim(-20, 20)
     ax.set_zlim(-20, 20)
-    ax.set_xlabel(XLABEL, fontsize=10, rotation = 0)
-    ax.set_ylabel(YLABEL, fontsize=10, rotation = 0)
-    ax.set_zlabel(ZLABEL, fontsize=10, rotation = 0)
+    ax.set_xlabel(XLABEL, fontsize=10, rotation=0)
+    ax.set_ylabel(YLABEL, fontsize=10, rotation=0)
+    ax.set_zlabel(ZLABEL, fontsize=10, rotation=0)
     ax.tick_params(axis='both', which='major', labelsize=8)
 
-
     for c in set(c_pred3):
-        t_points = stage_coord[c_pred3==c]
-        ax.scatter3D(t_points[:,0], t_points[:,1], min(ax.get_zlim()), s=0.005, color=colors_light[c])
-        ax.scatter3D(t_points[:,0], max(ax.get_ylim()), t_points[:,2], s=0.005, color=colors_light[c])
-        ax.scatter3D(max(ax.get_xlim()), t_points[:,1], t_points[:,2], s=0.005, color=colors_light[c])
-        
-        ax.scatter3D(t_points[:,0], t_points[:,1], t_points[:,2], s=0.01, color=colors[c])
+        t_points = stage_coord[c_pred3 == c]
+        ax.scatter3D(t_points[:, 0], t_points[:, 1], min(
+            ax.get_zlim()), s=0.005, color=colors_light[c])
+        ax.scatter3D(t_points[:, 0], max(ax.get_ylim()),
+                     t_points[:, 2], s=0.005, color=colors_light[c])
+        ax.scatter3D(max(ax.get_xlim()),
+                     t_points[:, 1], t_points[:, 2], s=0.005, color=colors_light[c])
+
+        ax.scatter3D(t_points[:, 0], t_points[:, 1],
+                     t_points[:, 2], s=0.01, color=colors[c])
 
     _savefig(path2figures, 'ScatterPlot3D', fig)
 
@@ -913,8 +978,9 @@ def voltage_normalize(v_mat):
     bidx_over = v_array > (np.mean(v_array)+3*np.std(v_array))
     bidx_under = v_array < (np.mean(v_array)-3*np.std(v_array))
     bidx_valid = ~(bidx_over | bidx_under)
-    v_mat_norm = (v_mat - np.mean(v_array[bidx_valid]))/np.std(v_array[bidx_valid])
-    
+    v_mat_norm = (
+        v_mat - np.mean(v_array[bidx_valid]))/np.std(v_array[bidx_valid])
+
     return v_mat_norm
 
 
@@ -922,15 +988,19 @@ def main(data_dir, result_dir, pickle_input_data):
     """ main """
 
     exp_info_df = read_exp_info(data_dir)
-    (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime) = interpret_exp_info(exp_info_df)
- 
-    n_fft = int(256 * sample_freq/100) # assures frequency bins compatibe among different sampleling frequencies
-    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129) # same frequency bins given by signal.welch()
-    bidx_sleep_freq =  (freq_bins<4) | ((freq_bins>10) & (freq_bins<20)) # without theta, 37 bins
-    bidx_active_freq = (freq_bins>30) # 52 bins
-    bidx_theta_freq = (freq_bins>=4) & (freq_bins<10) # 15 bins
-    bidx_delta_freq = (freq_bins<4) # 11 bins
-    bidx_muscle_freq = (freq_bins>30) # 52 bins
+    (epoch_num, sample_freq, exp_label, rack_label, start_datetime,
+     end_datetime) = interpret_exp_info(exp_info_df)
+
+    # assures frequency bins compatibe among different sampleling frequencies
+    n_fft = int(256 * sample_freq/100)
+    # same frequency bins given by signal.welch()
+    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+    bidx_sleep_freq = (freq_bins < 4) | ((freq_bins > 10) &
+                                         (freq_bins < 20))  # without theta, 37 bins
+    bidx_active_freq = (freq_bins > 30)  # 52 bins
+    bidx_theta_freq = (freq_bins >= 4) & (freq_bins < 10)  # 15 bins
+    bidx_delta_freq = (freq_bins < 4)  # 11 bins
+    bidx_muscle_freq = (freq_bins > 30)  # 52 bins
 
     n_active_freq = np.sum(bidx_active_freq)
     n_sleep_freq = np.sum(bidx_sleep_freq)
@@ -952,13 +1022,15 @@ def main(data_dir, result_dir, pickle_input_data):
         print_log(f'#### {FASTER2_NAME} ###################################')
         print_log(f'#### [{i+1}] Device_id: {device_id}')
         print_log(f'Reading voltages')
-        print_log(f'Epoch num:{epoch_num} Sampling frequency: {sample_freq} [Hz]')
+        print_log(
+            f'Epoch num:{epoch_num} Sampling frequency: {sample_freq} [Hz]')
         (eeg_vm_org, emg_vm_org, not_yet_pickled) = read_voltage_matrices(
             data_dir, device_id, sample_freq, EPOCH_LEN_SEC, epoch_num, start_datetime)
 
         if (pickle_input_data and not_yet_pickled):
             # if the command line argument has the optinal flag for pickling, pickle the voltage matrices
-            pickle_voltage_matrices(eeg_vm_org, emg_vm_org, data_dir, device_id)
+            pickle_voltage_matrices(
+                eeg_vm_org, emg_vm_org, data_dir, device_id)
 
         print_log('Preprocessing and calculating PSD')
         # recover nans in the data if possible
@@ -968,8 +1040,8 @@ def main(data_dir, result_dir, pickle_input_data):
         # exclude unrecoverable epochs as unknown
         bidx_unknown = np.apply_along_axis(np.any, 1, np.isnan(
             eeg_vm_org)) | np.apply_along_axis(np.any, 1, np.isnan(emg_vm_org))
-        eeg_vm = eeg_vm_org[~bidx_unknown,:]
-        emg_vm = emg_vm_org[~bidx_unknown,:]
+        eeg_vm = eeg_vm_org[~bidx_unknown, :]
+        emg_vm = emg_vm_org[~bidx_unknown, :]
 
         # make data comparable among different mice. Not necessary for staging,
         # but convenient for subsequnet analyses.
@@ -983,14 +1055,17 @@ def main(data_dir, result_dir, pickle_input_data):
         psd_norm_mat_emg = spec_norm_emg['psd']
 
         # remove extreme powers
-        extrp_ratio_eeg = np.apply_along_axis(remove_extreme_power, 1, psd_norm_mat_eeg)
-        extrp_ratio_emg = np.apply_along_axis(remove_extreme_power, 1, psd_norm_mat_emg)
+        extrp_ratio_eeg = np.apply_along_axis(
+            remove_extreme_power, 1, psd_norm_mat_eeg)
+        extrp_ratio_emg = np.apply_along_axis(
+            remove_extreme_power, 1, psd_norm_mat_emg)
 
         # save the PSD matrices and associated factors for subsequent analyses
         ## set bidx_unknown; other factors were set by spectrum_normalize()
-        spec_norm_eeg['bidx_unknown'] = bidx_unknown 
+        spec_norm_eeg['bidx_unknown'] = bidx_unknown
         spec_norm_emg['bidx_unknown'] = bidx_unknown
-        pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, bidx_unknown, result_dir, device_id)
+        pickle_powerspec_matrices(
+            spec_norm_eeg, spec_norm_emg, result_dir, device_id)
 
         # spread epochs on the 3D (Low freq. x High freq. x REM metric) space
         psd_mat = np.concatenate([
@@ -998,14 +1073,16 @@ def main(data_dir, result_dir, pickle_input_data):
             psd_norm_mat_emg.reshape(*psd_norm_mat_emg.shape, 1)
         ], axis=2)
         stage_coord = np.array([(
-            np.sum(y[bidx_sleep_freq, 0])/np.sqrt(n_sleep_freq), 
-            np.sum(y[bidx_active_freq,0])/np.sqrt(n_active_freq),
-            np.sum(y[bidx_theta_freq,0])/np.sqrt(n_theta_freq)-np.sum(y[bidx_delta_freq, 0])/np.sqrt(n_delta_freq)-np.sum(y[bidx_muscle_freq, 1])  /np.sqrt(n_muscle_freq)  
+            np.sum(y[bidx_sleep_freq, 0])/np.sqrt(n_sleep_freq),
+            np.sum(y[bidx_active_freq, 0])/np.sqrt(n_active_freq),
+            np.sum(y[bidx_theta_freq, 0])/np.sqrt(n_theta_freq)-np.sum(y[bidx_delta_freq, 0]) /
+            np.sqrt(n_delta_freq) -
+            np.sum(y[bidx_muscle_freq, 1]) / np.sqrt(n_muscle_freq)
         ) for y in psd_mat])
         ndata = len(stage_coord)
 
         # cancel the weight bias of active/NREM clusters
-        cwb = cancel_weight_bias(stage_coord[:,0:2])
+        cwb = cancel_weight_bias(stage_coord[:, 0:2])
         stage_coord[:, 0:2] = cwb['stage_coord_2D']
 
         # run the classification process
@@ -1014,15 +1091,15 @@ def main(data_dir, result_dir, pickle_input_data):
             pred_2D, pred_2D_proba, means_2D, covars_2D, pred_3D, pred_3D_proba, means_3D, covars_3D = classification_process(
                 stage_coord, rem_floor)
         except ValueError as e:
-            print_log('Encountered an unhandlable analytical error during the staging. Check the ' 
-                'date validity of the mouse.')
+            print_log('Encountered an unhandlable analytical error during the staging. Check the '
+                      'date validity of the mouse.')
             print_log(traceback.format_exc())
-            
+
             continue
 
         # output staging result
         stage_proba = np.zeros(3*epoch_num).reshape(epoch_num, 3)
-        proba_REM  = pred_3D_proba[:, 1]
+        proba_REM = pred_3D_proba[:, 1]
         proba_WAKE = pred_3D_proba[:, 0]
         proba_NREM = pred_3D_proba[:, 2]
         stage_proba[~bidx_unknown, 0] = proba_REM
@@ -1030,7 +1107,8 @@ def main(data_dir, result_dir, pickle_input_data):
         stage_proba[~bidx_unknown, 2] = proba_NREM
 
         stage_call = np.repeat('Unknown', epoch_num)
-        stage_call[~bidx_unknown] =  np.array([STAGE_LABELS[y] for y in pred_3D])
+        stage_call[~bidx_unknown] = np.array(
+            [STAGE_LABELS[y] for y in pred_3D])
 
         # Print a brief result
         print_log(f'2-stage means:\n {means_2D}')
@@ -1039,16 +1117,16 @@ def main(data_dir, result_dir, pickle_input_data):
         print_log(f'3-stage means:\n{means_3D}')
         print_log(f'3-stage covars:\n{covars_3D}')
 
-        print_log(f'[{i+1}] Device ID:{device_id}  REM:{1440*np.sum(stage_call=="REM")/ndata:.2f} '\
-                f'NREM:{1440*np.sum(stage_call=="NREM")/ndata:.2f} '\
-                f'Wake:{1440*np.sum(stage_call=="Wake")/ndata:.2f}')
+        print_log(f'[{i+1}] Device ID:{device_id}  REM:{1440*np.sum(stage_call=="REM")/ndata:.2f} '
+                  f'NREM:{1440*np.sum(stage_call=="NREM")/ndata:.2f} '
+                  f'Wake:{1440*np.sum(stage_call=="Wake")/ndata:.2f}')
 
         # Compose stage table
         extreme_power_ratio = np.zeros(2*epoch_num).reshape(epoch_num, 2)
         extreme_power_ratio[~bidx_unknown, 0] = extrp_ratio_eeg
         extreme_power_ratio[~bidx_unknown, 1] = extrp_ratio_emg
 
-        stage_table = pd.DataFrame({'Stage': stage_call, 
+        stage_table = pd.DataFrame({'Stage': stage_call,
                                     'REM probability': stage_proba[:, 0],
                                     'NREM probability': stage_proba[:, 2],
                                     'Wake probability': stage_proba[:, 1],
@@ -1056,39 +1134,49 @@ def main(data_dir, result_dir, pickle_input_data):
                                     'NaN ratio EMG-TS': nan_ratio_emg,
                                     'Outlier ratio EEG-TS': extreme_power_ratio[:, 0],
                                     'Outlier ratio EMG-TS': extreme_power_ratio[:, 1]})
-        stage_file_path = os.path.join(result_dir, f'{device_id}.faster2.stage.csv')
+        stage_file_path = os.path.join(
+            result_dir, f'{device_id}.faster2.stage.csv')
 
         with open(stage_file_path, 'w', encoding='UTF-8') as f:
             f.write(f'# Exp label: {exp_label} Recorded at {rack_label}\n')
-            f.write(f'# Device ID: {device_id} Mouse group: {mouse_group} Mouse ID: {mouse_id} DOB: {dob}\n')
-            f.write(f'# Start: {start_datetime} End: {end_datetime} Note: {note}\n')
+            f.write(
+                f'# Device ID: {device_id} Mouse group: {mouse_group} Mouse ID: {mouse_id} DOB: {dob}\n')
+            f.write(
+                f'# Start: {start_datetime} End: {end_datetime} Note: {note}\n')
             f.write(f'# Epoch num: {epoch_num}\n')
             f.write(f'# Sampling frequency: {sample_freq}\n')
             f.write(f'# Staged by {FASTER2_NAME}\n')
         with open(stage_file_path, 'a') as f:
-            stage_table.to_csv(f, header=True, index=False, line_terminator='\n')
+            stage_table.to_csv(f, header=True, index=False,
+                               line_terminator='\n')
 
         path2figures = os.path.join(result_dir, 'figure', f'{device_id}')
         os.makedirs(path2figures, exist_ok=True)
         os.makedirs(os.path.join(path2figures, 'pdf'), exist_ok=True)
 
         # draw the bias histogram
-        plot_hist_on_separation_axis(path2figures, cwb['proj_data'], cwb['means'], cwb['covars'], cwb['weights'])
-        
+        plot_hist_on_separation_axis(
+            path2figures, cwb['proj_data'], cwb['means'], cwb['covars'], cwb['weights'])
+
         # draw scatter plots
         draw_scatter_plots(path2figures, stage_coord, pred_2D,
                            means_2D, covars_2D, pred_3D, means_3D, covars_3D)
 
         # pickle cluster parameters
-        pickle_cluster_params(means_2D, covars_2D, means_3D, covars_3D, result_dir, device_id)
+        pickle_cluster_params(means_2D, covars_2D, means_3D,
+                              covars_3D, result_dir, device_id)
 
     return 0
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--data_dir", required=True, help="path to the directory of input data")
-    parser.add_argument("-r", "--result_dir", required=True, help="path to the directory of staging result")
-    parser.add_argument("-p", "--pickle_input_data", help="flag to pickle input data", action='store_true')
+    parser.add_argument("-d", "--data_dir", required=True,
+                        help="path to the directory of input data")
+    parser.add_argument("-r", "--result_dir", required=True,
+                        help="path to the directory of staging result")
+    parser.add_argument("-p", "--pickle_input_data",
+                        help="flag to pickle input data", action='store_true')
 
     args = parser.parse_args()
 
