@@ -505,41 +505,6 @@ def plot_scatter2D(points_2D, classes, means, covariances, colors, xlabel, ylabe
     return fig
 
 
-def shrink_rem_cluster(means, covar):
-    """ By definition, REM epochs should not be z<0. This function focuses on the 
-    ellipsoid that represents the 99.7% confidence area of REM cluster. If this function  
-    finds any ellipsoid axis penetrating the xy plane (i.e. the end-point is 
-    at z<0), it shrinks the length of the most-negative axis to point at z = 0 and 
-    lengths of other axes according to their z-contributions.
-    """
-    z_mean = means[2]
-
-    W, V = np.linalg.eigh(covar) # W: eigen values, V:eigen vectors (unit length)
-    
-    if np.any(W<=0):
-        # not processable if there is zero or negative component of W
-        print_log(f'Negative or zero component was found in eigen values of the covariance: {W}')
-        covar_updated = np.array([]) 
-
-    elif np.any(z_mean - np.abs(V[2,:])*3*np.sqrt(W) <0):
-        idx_of_maxZ = np.argmax(np.abs(V[2,:]*np.sqrt(W))) # find the maxZ-axis: an axis with the maximum abs(Z)
-
-        new_w = (z_mean/(3*np.abs(V[2, idx_of_maxZ])))**2 # 3SD (99.7% confidnece area) of the new maxZ-axis points at z=0
-
-        sr = new_w / W[idx_of_maxZ] # shrink ratio
-        zc = np.abs(V[2,:])*3*np.sqrt(W) / (np.abs(V[2,:])*3*np.sqrt(W))[idx_of_maxZ] # z contributions of all axes relative to the maxZ-axis
-        sh_axes = 1 - (1-sr)*zc # shrink ratios of each axis
-
-        W_updated = W * sh_axes
-
-        covar_updated = V@np.diag(W_updated)@V.T
-    else:
-        # if no axis found under z=0, return a zero-size array
-        covar_updated = np.array([])
-
-    return covar_updated
- 
-
 def pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id):
     """ To save time for reading CSV files, pickle the voltage matrices
     in pickle files.
@@ -787,79 +752,7 @@ def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
     pred_3D_mm = ghmm_3D.means_
     pred_3D_cc = ghmm_3D.covars_
 
-    # check the REM cluster is above the xy-plane
-    ## ToDo: Remove
-    ## rem_cov = shrink_rem_cluster(ghmm_3D.means_[1], ghmm_3D.covars_[1])
-
-    ## If the REM cluster is found within 2SD of the NREM cluster, re-run ghmm with the previous REM-cluster
-    ## icc = linalg.inv(pred_3D_cc[2])
-    ## if (len(rem_cov) != 0) or (distance.mahalanobis(pred_3D_mm[2], pred_3D_mm[1] ,icc) < 2):
-    ##     print_log('REM cluster found intruding the Wake or NREM cluster, re-run Gaussian HMM')
-
-    ##     # construct 3D means and covariances using the previous REM-cluster and new Wake, NREM clusters
-    ##     re_mm_3D = np.vstack([pred_3D_mm[0,:], mm_3D[1], pred_3D_mm[2,:]]) # Wake, REM, NREM
-    ##     re_cc_3D = np.vstack([[pred_3D_cc[0]], [cc_3D[1]], [pred_3D_cc[2]]])
-
-    ##     pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc = re_classify_three_stages(stage_coord, re_mm_3D, re_cc_3D, weights_3c)
-
-    ##     return (pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc)
-
-    # Check if the REM cluster is 'single-peak'
-    # projection of REM-like epochs onto the separation "axis"
-    ##bidx_rem_like = (stage_coord[:,2]>rem_floor) & (pred_3D==1)
-    ##stage_coord_2D_r = stage_coord[bidx_rem_like, 0:2]
-    ##stage_coord_1DD_r = stage_coord_2D_r@np.array([1,-1]).T
-    ##try:
-    ##    density = stats.gaussian_kde(stage_coord_1DD_r)
-    ##except ValueError:
-    ##    raise ValueError('Invalid_REM_Cluster')
-    ##xs = np.linspace(-15,15,100)
-    ##peaks_pos, _ = signal.find_peaks(density(xs), prominence=0.001)
-
-    ##if len(peaks_pos)>1:
-    ##    # In case multiple peaks found, re-run the ghmm with the left distribution
-    ##    print_log('REM cluster found having multiple peaks, re-run Gaussian HMM')
-
-    ##    gmm = mixture.GaussianMixture(n_components=2, n_init=10) #active, stative, intermediate
-    ##    gmm.fit(stage_coord_1DD_r.reshape(-1,1))
-    ##    means = gmm.means_.flatten()
-    ##    pred = gmm.predict(stage_coord_1DD_r.reshape(-1,1))   
-    ##    if means[0] < means[1]:
-    ##        rem_flag = 0
-    ##    else:
-    ##        rem_flag = 1
-    ##    idx_rem_like = np.where(bidx_rem_like)[0]
-    ##    idx_rem = idx_rem_like[pred == rem_flag]
-    ##    rem_mm = np.mean(stage_coord[idx_rem, :], axis=0)
-    ##    rem_cc = np.cov(stage_coord[idx_rem, :], rowvar=False)
-    ##
-    ##     # construct 3D means and covariances using the previous REM-cluster and new Wake, NREM clusters
-    ##    re_mm_3D = np.vstack([pred_3D_mm[0,:], rem_mm, pred_3D_mm[2,:]]) # Wake, REM, NREM
-    ##    re_cc_3D = np.vstack([[pred_3D_cc[0]], [rem_cc], [pred_3D_cc[2]]])
-    ##    re_weights_3c = np.array([np.sum(pred_3D == 0), len(idx_rem), np.sum(
-    ##        pred_3D == 2) + np.sum(pred_3D == 1) - len(idx_rem)])/len(stage_coord)
-    ##
-    ##    pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc = re_classify_three_stages(stage_coord, re_mm_3D, re_cc_3D, re_weights_3c, rem_floor)
-    ##   
     return (pred_3D, pred_3D_proba, pred_3D_mm, pred_3D_cc)
-
-
-def re_classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
-    # re-run the ghmm with the old REM cluster in the cases...
-    # 1. REM cluster penetrates the xy-plane
-    # 2. the half ot the REM clester is outside the active domain
-    ghmm_3D_re = CustomedGHMM(n_components=3, covariance_type='full', init_params='t', params='t')
-    ghmm_3D_re.startprob_ = weights_3c
-    ghmm_3D_re.means_ = mm_3D
-    ghmm_3D_re.covars_ = cc_3D
-    ghmm_3D_re.set_rem_floor(rem_floor)
-    ghmm_3D_re.set_nrem_wall(0)
-
-    ghmm_3D_re.fit(stage_coord)
-    pred_3D = ghmm_3D_re.predict(stage_coord)
-    pred_3D_proba = ghmm_3D_re.predict_proba(stage_coord)
-
-    return (pred_3D, pred_3D_proba, ghmm_3D_re.means_, ghmm_3D_re.covars_)
 
 
 def classify_two_stages(stage_coord, pred_2D_org, mm_2D_org, cc_2D_org, mm_active, cc_active):
@@ -907,11 +800,7 @@ def classification_process(stage_coord, rem_floor):
     else:
         # process for data having effective REM culster (standard)
         # try to correct REM cluster by shrinking it if the ellipsoid axis crosses the xy-plane to negative
-        ## ToDo:Remove
-        #covar_REM_updated = shrink_rem_cluster(mm_active[1], cc_active[1])
-        #if covar_REM_updated.size > 0:
-        #    cc_active[1] = covar_REM_updated
-
+ 
         # construct 3D means and covariances from mm_2D and mm_active
         mm_3D = np.vstack([mm_active, np.mean(stage_coord[pred_2D==1], axis=0)]) # Wake, REM, NREM
         cc_3D = np.vstack([cc_active, [np.cov(stage_coord[pred_2D==1], rowvar=False)]])
