@@ -119,8 +119,9 @@ class CustomedGHMM(hmm.GaussianHMM):
 
     #pylint: disable = redefined-outer-name
     def _do_mstep(self, stats):
+        # pylint: disable = attribute-defined-outside-init
         ghmm_stats = stats
-        #pylint: disable = no-value-for-parameter
+        # pylint: disable = no-value-for-parameter
         hmm.GaussianHMM._do_mstep(self, ghmm_stats)
         means_prior = self.means_prior
         means_weight = self.means_weight
@@ -567,17 +568,17 @@ def pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id):
             pickle.dump(emg_vm, pkl)
 
 
-def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, result_dir, device_id):
+def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, result_dir_path, device_id):
     """ pickles the power spectrum density matrices for subsequent analyses
     
     Args:
         spec_norm_eeg (dict): a dict returned by spectrum_normalize() for EEG data
         spec_norm_emg (dict): a dict returned by spectrum_normalize() for EMG data
         bidx_unknown (np.array): an array of the boolean index
-        result_dir (str):  path to the directory of the pickled data (PSD/)
+        result_dir_path (str):  path to the directory of the pickled data (PSD/)
         device_id (str): a string to identify the recording device (e.g. ID47467)
     """
-    pickle_dir = os.path.join(result_dir, 'PSD/')
+    pickle_dir = os.path.join(result_dir_path, 'PSD/')
     os.makedirs(pickle_dir, exist_ok=True)
 
     print_log(f'Saving PSD files')
@@ -601,16 +602,16 @@ def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, result_dir, device_i
             pickle.dump(spec_norm_emg, pkl)
 
 
-def pickle_cluster_params(means2, covars2, c_means, c_covars, result_dir, device_id):
+def pickle_cluster_params(means2, covars2, c_means, c_covars, result_dir_path, device_id):
     """ pickles the cluster parameters
     
     Args:
-        means2 (np.array(2,2)): a mean matrix of 2 stage-clusters  
+        means2 (np.array(2,2)): a mean matrix of 2 stage-clusters
         covars2 (np.array(2,2,2)): a covariance matrix of 2 stage-clusters
         c_means (np.array(3,3)):  a mean matrix of 3 stage-clusters
         c_covars (np.array(3,3,3)): a covariance matrix of 3 stage-clusters
     """
-    pickle_dir = os.path.join(result_dir, 'cluster_params/')
+    pickle_dir = os.path.join(result_dir_path, 'cluster_params/')
     os.makedirs(pickle_dir, exist_ok=True)
 
     # save
@@ -776,6 +777,7 @@ def classify_Wake_and_REM(stage_coord_active, rem_floor):
 
 
 def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
+    # pylint: disable = attribute-defined-outside-init
     # classify REM, Wake, and NREM by Gaussian HMM in the 3D space
     print_log('Classify REM, Wake, and NREM by Gaussian HMM')
     ghmm_3D = CustomedGHMM(
