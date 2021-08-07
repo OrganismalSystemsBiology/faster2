@@ -63,7 +63,7 @@ class CustomedGHMM(hmm.GaussianHMM):
         # Wake/REM boundary. REM cluster cannot grow below this boundary
         self.wr_boundary = wr_boundary
 
-    def set_(self, nr_boundary):
+    def set_nr_boundary(self, nr_boundary):
         # NREM/REM boundary. REM cluster cannot grow beyond this boundary
         self.nr_boundary = nr_boundary
 
