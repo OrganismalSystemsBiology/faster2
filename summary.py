@@ -446,7 +446,7 @@ def swtrans_from_stage_sss_style(stage_call):
 
     # all .day
     pswpws_all_day = _calc_sss_style_trans(daily_nsw, daily_nss,
-                                           daily_nws, daily_nww, 
+                                           daily_nws, daily_nww,
                                            daily_sleep_time, daily_wake_time)
     # first halfday
     pswpws_halfday_first = _calc_sss_style_trans(halfdaily_first_nsw, halfdaily_first_nss, 

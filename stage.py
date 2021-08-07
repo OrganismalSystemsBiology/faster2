@@ -23,7 +23,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.3.0'
+FASTER2_NAME = 'FASTER2 version 0.3.1'
 EPOCH_LEN_SEC = 8
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
@@ -56,16 +56,16 @@ class CustomedGHMM(hmm.GaussianHMM):
                          algorithm, random_state,
                          n_iter, tol, verbose,
                          params, init_params)
-        self.rem_floor = None
-        self.nrem_wall = None
+        self.wr_boundary = None
+        self.nr_boundary = None
 
-    def set_rem_floor(self, rem_floor):
-        # REM cluster cannot grow below this floor
-        self.rem_floor = rem_floor
+    def set_wr_boundary(self, wr_boundary):
+        # Wake/REM boundary. REM cluster cannot grow below this boundary
+        self.wr_boundary = wr_boundary
 
-    def set_nrem_wall(self, nrem_wall):
-        # REM cluster cannot grow beyond this wall
-        self.nrem_wall = nrem_wall
+    def set_(self, nr_boundary):
+        # NREM/REM boundary. REM cluster cannot grow beyond this boundary
+        self.nr_boundary = nr_boundary
 
     def _confine_REM_in_boundary(self, rem_mean, rem_cov):
         """ By definition, REM cluster is not likely z (i.e. REM-metric)<REM_floor and
@@ -90,11 +90,11 @@ class CustomedGHMM(hmm.GaussianHMM):
             arr_hd = rem_mean + prn_ax[:, i]  # the arrow head from the mean
             # the negative arrow head from the mean
             narr_hd = rem_mean - prn_ax[:, i]
-            if arr_hd[2] < self.rem_floor:
-                sr = (rem_mean[2] - self.rem_floor) / \
+            if arr_hd[2] < self.wr_boundary:
+                sr = (rem_mean[2] - self.wr_boundary) / \
                     (rem_mean[2] - arr_hd[2])  # shrink ratio
-            elif narr_hd[2] < self.rem_floor:
-                sr = (rem_mean[2] - self.rem_floor)/(rem_mean[2] - narr_hd[2])
+            elif narr_hd[2] < self.wr_boundary:
+                sr = (rem_mean[2] - self.wr_boundary)/(rem_mean[2] - narr_hd[2])
             else:
                 sr = 1
             w[i] = w[i] * sr
@@ -104,10 +104,10 @@ class CustomedGHMM(hmm.GaussianHMM):
             arr_hd = rem_mean + prn_ax[:, i]  # the arrow head from the mean
             # the negative arrow head from the mean
             narr_hd = rem_mean - prn_ax[:, i]
-            if arr_hd[0] > self.nrem_wall:
-                sr = (self.nrem_wall - rem_mean[0])/(arr_hd[0] - rem_mean[0])
-            elif narr_hd[0] > self.nrem_wall:
-                sr = (self.nrem_wall - rem_mean[0])/(narr_hd[0] - rem_mean[0])
+            if arr_hd[0] > self.nr_boundary:
+                sr = (self.nr_boundary - rem_mean[0])/(arr_hd[0] - rem_mean[0])
+            elif narr_hd[0] > self.nr_boundary:
+                sr = (self.nr_boundary - rem_mean[0])/(narr_hd[0] - rem_mean[0])
             else:
                 sr = 1
 
@@ -570,7 +570,7 @@ def pickle_voltage_matrices(eeg_vm, emg_vm, data_dir, device_id):
 
 def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, result_dir_path, device_id):
     """ pickles the power spectrum density matrices for subsequent analyses
-    
+
     Args:
         spec_norm_eeg (dict): a dict returned by spectrum_normalize() for EEG data
         spec_norm_emg (dict): a dict returned by spectrum_normalize() for EMG data
@@ -785,8 +785,8 @@ def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
     ghmm_3D.startprob_ = weights_3c
     ghmm_3D.means_ = mm_3D
     ghmm_3D.covars_ = cc_3D
-    ghmm_3D.set_rem_floor(rem_floor)
-    ghmm_3D.set_nrem_wall(0)
+    ghmm_3D.set_wr_boundary(0)
+    ghmm_3D.set_nr_boundary(0)
 
     ghmm_3D.fit(stage_coord)
     pred_3D = ghmm_3D.predict(stage_coord)
