@@ -289,8 +289,9 @@ def run_main():
 
             # Drawing
             fig = Figure(facecolor="w")
-            # The inch size of A4 paper when there are 5 days, top=0.97
+            # The inch size of A4 paper when there are 5 days
             fig.set_size_inches(8.267717, n_days * 11.69291 / 5)
+            # top=0.97 regardless of the number of days (fig size)
             fig.subplots_adjust(left=None, bottom=None,
                                 right=None, top=1-0.35/(n_days * 11.6929/5), wspace=0, hspace=0.8) 
             gs = fig.add_gridspec(nrows=13*n_days, ncols=1)
@@ -411,9 +412,10 @@ def run_main():
                     hourly_labels, fontsize=6, fontfamily='arial')
                 axes[0][3].set_xlim(0, length_epoch)
 
+            # y=0.99 regardless of the number of days (fig size)
             fig.suptitle(
                 f'Hypnogram: {exp_label} ({device_label}) [{mouse_group}] {mouse_id} ', 
-                fontsize=10, fontfamily='arial', y=1-0.117/(n_days * 11.6929/5)) # y=0.99
+                fontsize=10, fontfamily='arial', y=1-0.117/(n_days * 11.6929/5)) 
             filename = f"hypnogram_{exp_label}_{mouse_group}_{mouse_id}_{device_label}"
             out_path = os.path.join(root_plot_dir, filename)
             print(f'Saving PNG...')
