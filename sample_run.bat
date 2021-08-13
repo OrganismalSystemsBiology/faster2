@@ -9,5 +9,6 @@ set RESULT_DIR=%FASTER2_DIR%\result\
 %PYTHON% stage.py -d %DATA_DIR% -r %RESULT_DIR% -p
 %PYTHON% summary.py -f %FASTER2_DIR% 
 
+%PYTHON% plot_hypnogram.py -d %DATA_DIR% -r %RESULT_DIR%
 %PYTHON% plot_timeseries.py -d %DATA_DIR% -r %RESULT_DIR% -w 4
 %PYTHON% plot_spectrum.py -d %DATA_DIR% -r %RESULT_DIR% -w 4
