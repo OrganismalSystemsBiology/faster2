@@ -236,7 +236,7 @@ def run_main():
                 continue
 
             ## regularized stages
-            print(f'Reading stage...')
+            print(f'Reading stage... {device_label}.{stage_ext}.stage.csv')
             stages = et.read_stages(result_dir, device_label, stage_ext)
             stages = remove_unknown_stage(stages)
             stage_idx_dict = {'WAKE': 0, 'NREM': 1, 'REM': 2}
