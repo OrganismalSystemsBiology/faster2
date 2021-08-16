@@ -314,7 +314,7 @@ def run_main():
                     # Boxex of stages
                     start_block_idx = max(
                         np.where(x_pos > range_start_epoch)[0][0] - 1, 0)
-                    end_block_idx = np.where(x_pos < range_end_epoch)[0][-1]
+                    end_block_idx = min(np.where(x_pos < range_end_epoch)[0][-1] + 1, len(x_pos))
                     range_x_pos = x_pos[start_block_idx:end_block_idx]
                     range_y_pos = y_pos[start_block_idx:end_block_idx]
                     range_widths = widths[start_block_idx:end_block_idx]
@@ -364,7 +364,7 @@ def run_main():
                 # Boxex of stages
                 start_block_idx = max(
                     np.where(x_pos > range_start_epoch)[0][0] - 1, 0)
-                end_block_idx = np.where(x_pos < range_end_epoch)[0][-1]
+                end_block_idx = min(np.where(x_pos < range_end_epoch)[0][-1] + 1, len(x_pos))
                 range_x_pos = x_pos[start_block_idx:end_block_idx]
                 range_y_pos = y_pos[start_block_idx:end_block_idx]
                 range_widths = widths[start_block_idx:end_block_idx]
