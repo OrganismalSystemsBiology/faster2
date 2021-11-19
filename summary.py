@@ -1276,7 +1276,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
         ax3.set_xlabel('Time (hours)')
 
         fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
-        filename = f'stage-time_profile_G_{mouse_groups_set[g_idx]}'
+        filename = f'stage-time_circadian_profile_G_{mouse_groups_set[g_idx]}'
         _savefig(output_dir, filename, fig)
 
 
