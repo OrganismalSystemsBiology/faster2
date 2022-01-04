@@ -19,12 +19,14 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--data_dir", required=True, help="path to the directory of input voltage data")
     parser.add_argument("-r", "--result_dir", required=True, help="path to the directory of the input stage data and plots to be produced")
     parser.add_argument("-w", "--workers", type=int, help="number of worker processes to draw in parallel")
+    parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
 
     args = parser.parse_args()
+    epoch_len_sec = int(args.epoch_len_sec)
 
     data_dir = os.path.abspath(args.data_dir)
     exp_info_df = stage.read_exp_info(data_dir)
-    (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime) = stage.interpret_exp_info(exp_info_df)
+    (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime) = stage.interpret_exp_info(exp_info_df, epoch_len_sec)
 
     stage_dir = os.path.join(args.result_dir)
 
@@ -38,7 +40,7 @@ if __name__ == '__main__':
         for i, r in mouse_info_df.iterrows():
             device_id = r[0]
 
-            tg.plot_timeseries_a_mouse(data_dir, stage_dir, stage_dir, device_id, sample_freq, epoch_num, start_datetime)
+            tg.plot_timeseries_a_mouse(data_dir, stage_dir, stage_dir, device_id, sample_freq, epoch_num, epoch_len_sec, start_datetime)
     else:
         # draw timesereis plots in parallel
         w = args.workers

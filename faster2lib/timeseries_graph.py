@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
-import matplotlib
 from matplotlib.figure import Figure
 import numpy as np
 import stage
 import pandas as pd
 
-import matplotlib.pyplot as plt
-from datetime import datetime, timedelta
+from datetime import timedelta
 import os
 
 class Timeseries_plot:
@@ -28,6 +26,7 @@ class Timeseries_plot:
         self.start_datetime = start_datetime
         self.sample_freq = sample_freq
         self.epoch_num = self.eeg_vm.shape[0]
+        self.epoch_len_sec = int(self.eeg_vm.shape[1]/self.sample_freq)
         self.page_num = int(np.ceil(self.epoch_num/45)+1)
         self.lines_eeg = []
         self.lines_emg = []
@@ -45,7 +44,7 @@ class Timeseries_plot:
 
         # set features for the EEG/EMG axes
         for ax in self.axes[:, np.r_[0,1]].flatten():
-            ax.set_ylim(-5, 5),
+            ax.set_ylim(-5, 5)
             ax.set_yticks([-3, 0, 3])
 
         for ax in self.axes[:, 0].flatten():
@@ -85,7 +84,7 @@ class Timeseries_plot:
         """
         ax.set_xlim(0, 72)
         ax.grid(dashes=(2,2))
-        ax.set_xticks(np.arange(0, 72, 8))
+        ax.set_xticks(np.arange(0, 72, self.epoch_len_sec))
         ax.set_xticklabels([])
         ax.set_yticklabels([])
         ax.spines['right'].set_visible(False)
@@ -151,15 +150,18 @@ class Timeseries_plot:
             p_wake (np.array(1)): epoch's probabilities of Wake
             epoch_nums (int): epoch's numbers of the row
             sleep_stages (np.array(1):str): a str array of sleep stages of the row
+            epoch_len_sec: epoch length in seconds
         """
         axes = self.axes[row_index,:]
         
-        score_x = np.linspace(0, 72, 450) # 72 = 8 sec * 9 epochs. 50 points per epoch.
+        score_x = np.linspace(0, 72, 450) # 72 sec per row. 50 points per 8 sec.
+
         base_curve = np.ones(len(score_x))
-        score_rem = base_curve*np.repeat(p_rem, 50)
-        score_nrem = base_curve*np.repeat(p_nrem, 50)
-        score_wake = base_curve*np.repeat(p_wake, 50)
-        
+        score_rem = base_curve*np.repeat(p_rem, 50/(8/self.epoch_len_sec)) # 50 points for 8 sec epoch
+        score_nrem = base_curve*np.repeat(p_nrem, 50/(8/self.epoch_len_sec))
+        score_wake = base_curve*np.repeat(p_wake, 50/(8/self.epoch_len_sec))
+
+
         if len(self.lines_eeg)<=row_index:
             # initialize artists
 
@@ -174,8 +176,9 @@ class Timeseries_plot:
             # plot texts
             txt_datetime = axes[0].text(0, 4.8, timestr, fontname='Arial', fontsize=11, ha='left', va='top')
             txt_stages = []
+            font_size = 9 if self.epoch_len_sec < 8 else 11
             for i,s in enumerate(sleep_stages):
-                txt_stage = axes[0].text(i*8, 3.2, f'{epoch_nums[i]}: {s}', fontname='Arial', fontsize=11, ha='left', va='top')
+                txt_stage = axes[0].text(i*self.epoch_len_sec, 3.2, f'{epoch_nums[i]}: {s}', fontname='Arial', fontsize=font_size, ha='left', va='top')
                 txt_stages.append(txt_stage)
 
             # store artists for reuse
@@ -200,29 +203,32 @@ class Timeseries_plot:
 
     def plot_timeseries_a_page(self, page):
         """ draws a page of timeseries plots and save a file. A page contains 5 rows.
+        A row contains 72 seconds of data (9 epochs when epoch_len_sec=8).
        
         Args:
             page (int): A page number to be drawn
         """
-        y_eeg = self.eeg_vm[(page-1)*45:(page)*45,:].flatten()
-        y_emg = self.emg_vm[(page-1)*45:(page)*45,:].flatten()
-        p_rem  = self.stage_df.iloc[:,1].values[(page-1)*45:(page)*45]
-        p_nrem = self.stage_df.iloc[:,2].values[(page-1)*45:(page)*45]
-        p_wake = self.stage_df.iloc[:,3].values[(page-1)*45:(page)*45]
-        stages = self.stage_df.iloc[:,0].values[(page-1)*45:(page)*45]
-        epoch_nums = range((page-1)*45+1, (page)*45+1)
-        timestamps = [self.start_datetime + timedelta(seconds=(page-1)*45*8 + i*9*8) for i in range(5)]
+        epp = int(5*72/self.epoch_len_sec) # epochs per page
+        y_eeg = self.eeg_vm[(page-1)*epp:(page)*epp,:].flatten()
+        y_emg = self.emg_vm[(page-1)*epp:(page)*epp,:].flatten()
+        p_rem  = self.stage_df.iloc[:,1].values[(page-1)*epp:(page)*epp]
+        p_nrem = self.stage_df.iloc[:,2].values[(page-1)*epp:(page)*epp]
+        p_wake = self.stage_df.iloc[:,3].values[(page-1)*epp:(page)*epp]
+        stages = self.stage_df.iloc[:,0].values[(page-1)*epp:(page)*epp]
+        epoch_nums = range((page-1)*epp+1, (page)*epp+1)
+        timestamps = [self.start_datetime + timedelta(seconds=(page-1)*5*72 + i*72) for i in range(5)]
         
         x = np.linspace(0, 72, 72*self.sample_freq)
+        epr = int(72/self.epoch_len_sec) # epochs per row
         for i in range(5):
             ts = timestamps[i].strftime("%Y/%m/%d %H:%M:%S")
             y_ee = y_eeg[i*72*self.sample_freq:((i+1)*72)*self.sample_freq] 
             y_em = y_emg[i*72*self.sample_freq:((i+1)*72)*self.sample_freq]
-            p_r = p_rem[i*9:(i+1)*9]
-            p_n = p_nrem[i*9:(i+1)*9]
-            p_w = p_wake[i*9:(i+1)*9]
-            en = epoch_nums[i*9:(i+1)*9]
-            ss = stages[i*9:(i+1)*9]
+            p_r = p_rem[i*epr:(i+1)*epr]
+            p_n = p_nrem[i*epr:(i+1)*epr]
+            p_w = p_wake[i*epr:(i+1)*epr]
+            en = epoch_nums[i*epr:(i+1)*epr]
+            ss = stages[i*epr:(i+1)*epr]
 
             self._plot_a_row(i, x, ts, y_ee, y_em, p_r, p_n, p_w, en, ss)
         
@@ -232,7 +238,7 @@ class Timeseries_plot:
         self.fig.savefig(filename, pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
 
 
-def plot_timeseries_a_mouse(voltage_data_dir, stage_dir, result_dir, device_id, sample_freq, epoch_num, start_datetime):
+def plot_timeseries_a_mouse(voltage_data_dir, stage_dir, result_dir, device_id, sample_freq, epoch_num, epoch_len_sec, start_datetime):
     """ wraps the process to draw a set of plots of a mouse over epochs. 
     This function is convenient to run a drawing process in multiprocessing.
     
@@ -262,7 +268,7 @@ def plot_timeseries_a_mouse(voltage_data_dir, stage_dir, result_dir, device_id, 
                                  'Outlier ratio EEG-TS': np.zeros(epoch_num),
                                  'Outlier ratio EMG-TS': np.zeros(epoch_num)})
 
-    (eeg_vm_org, emg_vm_org, _) = stage.read_voltage_matrices(voltage_data_dir, device_id, sample_freq, stage.EPOCH_LEN_SEC, epoch_num, start_datetime)
+    (eeg_vm_org, emg_vm_org, _) = stage.read_voltage_matrices(voltage_data_dir, device_id, sample_freq, epoch_len_sec, epoch_num, start_datetime)
     eeg_vm_norm = stage.voltage_normalize(eeg_vm_org)
     emg_vm_norm = stage.voltage_normalize(emg_vm_org)
 

@@ -23,8 +23,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.3.1'
-EPOCH_LEN_SEC = 8
+FASTER2_NAME = 'FASTER2 version 0.3.3'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
@@ -448,7 +447,7 @@ def interpret_datetimestr(datetime_str):
     return datetime_obj
 
 
-def interpret_exp_info(exp_info_df):
+def interpret_exp_info(exp_info_df, epoch_len_sec):
     try:
         start_datetime_str = exp_info_df['Start datetime'].values[0]
         end_datetime_str = exp_info_df['End datetime'].values[0]
@@ -464,7 +463,7 @@ def interpret_exp_info(exp_info_df):
     end_datetime = interpret_datetimestr(end_datetime_str)
 
     epoch_num = int(
-        (end_datetime - start_datetime).total_seconds() / EPOCH_LEN_SEC)
+        (end_datetime - start_datetime).total_seconds() / epoch_len_sec)
 
     return (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime)
 
@@ -986,12 +985,12 @@ def voltage_normalize(v_mat):
     return v_mat_norm
 
 
-def main(data_dir, result_dir, pickle_input_data):
+def main(data_dir, result_dir, pickle_input_data, epoch_len_sec):
     """ main """
 
     exp_info_df = read_exp_info(data_dir)
     (epoch_num, sample_freq, exp_label, rack_label, start_datetime,
-     end_datetime) = interpret_exp_info(exp_info_df)
+     end_datetime) = interpret_exp_info(exp_info_df, epoch_len_sec)
 
     # assures frequency bins compatibe among different sampleling frequencies
     n_fft = int(256 * sample_freq/100)
@@ -1025,9 +1024,9 @@ def main(data_dir, result_dir, pickle_input_data):
         print_log(f'#### [{i+1}] Device_id: {device_id}')
         print_log(f'Reading voltages')
         print_log(
-            f'Epoch num:{epoch_num} Sampling frequency: {sample_freq} [Hz]')
+            f'Epoch num:{epoch_num}  Epoch length:{epoch_len_sec} [s]  Sampling frequency: {sample_freq} [Hz]')
         (eeg_vm_org, emg_vm_org, not_yet_pickled) = read_voltage_matrices(
-            data_dir, device_id, sample_freq, EPOCH_LEN_SEC, epoch_num, start_datetime)
+            data_dir, device_id, sample_freq, epoch_len_sec, epoch_num, start_datetime)
 
         if (pickle_input_data and not_yet_pickled):
             # if the command line argument has the optinal flag for pickling, pickle the voltage matrices
@@ -1145,8 +1144,8 @@ def main(data_dir, result_dir, pickle_input_data):
                 f'# Device ID: {device_id} Mouse group: {mouse_group} Mouse ID: {mouse_id} DOB: {dob}\n')
             f.write(
                 f'# Start: {start_datetime} End: {end_datetime} Note: {note}\n')
-            f.write(f'# Epoch num: {epoch_num}\n')
-            f.write(f'# Sampling frequency: {sample_freq}\n')
+            f.write(f'# Epoch num: {epoch_num}  Epoch length: {epoch_len_sec} [s]\n')
+            f.write(f'# Sampling frequency: {sample_freq} [Hz]\n')
             f.write(f'# Staged by {FASTER2_NAME}\n')
         with open(stage_file_path, 'a') as f:
             stage_table.to_csv(f, header=True, index=False,
@@ -1179,6 +1178,7 @@ if __name__ == '__main__':
                         help="path to the directory of staging result")
     parser.add_argument("-p", "--pickle_input_data",
                         help="flag to pickle input data", action='store_true')
+    parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
 
     args = parser.parse_args()
 
@@ -1188,4 +1188,4 @@ if __name__ == '__main__':
     os.makedirs(result_dir, exist_ok=True)
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     log = initialize_logger(os.path.join(result_dir, f'stage.{dt_str}.log'))
-    main(args.data_dir, result_dir, args.pickle_input_data)
+    main(args.data_dir, result_dir, args.pickle_input_data, int(args.epoch_len_sec))

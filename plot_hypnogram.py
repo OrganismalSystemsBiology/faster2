@@ -114,10 +114,10 @@ def log_psd_inv(y, normalizing_fac, normalizing_mean):
     return 10**((y / normalizing_fac + normalizing_mean) / 10)
 
 
-def _initialize_axes(axes, day_len_epoch):
+def _initialize_axes(axes, day_len_epoch, epoch_len_sec):
     """Initializes the axes
     """
-    hourly_xticks = np.arange(0, day_len_epoch, 60*60/stage.EPOCH_LEN_SEC)
+    hourly_xticks = np.arange(0, day_len_epoch, 60*60/epoch_len_sec)
 
     for axes_set in axes:
         for axis in axes_set[0:4]:
@@ -176,8 +176,10 @@ def run_main():
             "-e", "--end_hour", help="The ending time of the hypnogram (hours relative to the recording start, default: the ending hour of the recording)")
         parser.add_argument(
             "-i", "--index", help="The zero-start comma separated indices of the mouse in mouse.info.csv to draw the hypnogram (default: draw hypnogram for the all mice)")
+        parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
 
         args = parser.parse_args()
+        epoch_len_sec = int(args.epoch_len_sec)
 
         ## data parameters
         data_dir = os.path.abspath(args.data_dir)
@@ -187,21 +189,21 @@ def run_main():
         psd_data_dir = os.path.join(result_dir, 'PSD')
 
         (epoch_num, sample_freq, exp_label, rack_label, start_datetime,
-         end_datetime) = stage.interpret_exp_info(exp_info_df)
+         end_datetime) = stage.interpret_exp_info(exp_info_df, epoch_len_sec)
         mouse_info_df = stage.read_mouse_info(data_dir)
 
         ## plot parameters
         # The range of the plot in hour
         start_hour = int(args.origin_hour) if args.origin_hour else 0
-        end_hour = int(args.end_hour) if args.end_hour else epoch_num * stage.EPOCH_LEN_SEC / 3600
+        end_hour = int(args.end_hour) if args.end_hour else epoch_num * epoch_len_sec / 3600
         length_hour = end_hour - start_hour
         n_days = int(np.ceil(length_hour/24))
         print(
             f'Hypnogram range in hour (Origin:{start_hour}, End:{end_hour}, Length:{length_hour})')
         # The range of the plot in epoch
-        start_epoch = int(start_hour * 3600 / stage.EPOCH_LEN_SEC)
-        end_epoch = int(end_hour * 3600 / stage.EPOCH_LEN_SEC)
-        day_len_epoch = int(24 * 60 * 60 / stage.EPOCH_LEN_SEC)
+        start_epoch = int(start_hour * 3600 / epoch_len_sec)
+        end_epoch = int(end_hour * 3600 / epoch_len_sec)
+        day_len_epoch = int(24 * 60 * 60 / epoch_len_sec)
         length_epoch = (end_epoch - start_epoch)
         print(
             f'Hypnogram range in epoch (Origin:{start_epoch}, End:{end_epoch}, Length:{length_epoch})')
@@ -278,7 +280,7 @@ def run_main():
             # conventional average EMG power
             capower_muscle = cpower_muscle / n_muscle_freq
 
-            # PDS lines
+            # PSD lines
             color_of_lines = COLOR_LIST[nstages]
             lines_delta = np.array([((i, 0), (i, cpower))
                                     for i, cpower in enumerate(cpower_delta)])
@@ -305,7 +307,7 @@ def run_main():
                  fig.add_subplot(gs[(12+13*i):(13+13*i), :], xmargin=0, ymargin=0)]
                 for i in range(n_days)]
 
-            _initialize_axes(axes, day_len_epoch)
+            _initialize_axes(axes, day_len_epoch, epoch_len_sec)
 
             if length_hour >= 24:
                 for i, range_start_epoch in enumerate(np.arange(start_epoch, end_epoch, day_len_epoch)):

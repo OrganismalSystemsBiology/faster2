@@ -27,6 +27,7 @@ import warnings
 
 
 DOMAIN_NAMES = ['Slow', 'Delta w/o slow', 'Delta', 'Theta']
+EPOCH_LEN_SEC = 8
 
 
 
@@ -77,7 +78,7 @@ def collect_mouse_info_df(faster_dir_list):
         # not used variable: rack_label, start_datetime, end_datetime
         # pylint: disable=unused-variable
         (epoch_num, sample_freq, exp_label, rack_label, \
-            start_datetime, end_datetime) = stage.interpret_exp_info(exp_info_df)
+            start_datetime, end_datetime) = stage.interpret_exp_info(exp_info_df, EPOCH_LEN_SEC)
         if (epoch_num_stored != None) and epoch_num != epoch_num_stored:
             raise ValueError('epoch number must be equal among the all dataset')
         else:
@@ -91,7 +92,7 @@ def collect_mouse_info_df(faster_dir_list):
         m_info['Experiment label'] = exp_label
         m_info['FASTER_DIR'] = faster_dir
         mouse_info_df = pd.concat([mouse_info_df, m_info])
-    return ({'mouse_info': mouse_info_df, 'epoch_num': epoch_num, 'sample_freq': sample_freq})
+    return ({'mouse_info': mouse_info_df, 'epoch_num': epoch_num, 'sample_freq': sample_freq, 'start_datetime': start_datetime})
 
 
 def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
@@ -216,13 +217,13 @@ def stagetime_profile(stage_call):
         [np.array(3, len(stage_calls))] -- each row corrensponds the
         hourly profiles of stages over the recording (rem, nrem, wake)
     """
-    sm = stage_call.reshape(-1, int(3600/stage.EPOCH_LEN_SEC)
+    sm = stage_call.reshape(-1, int(3600/EPOCH_LEN_SEC)
                             )  # 60 min(3600 sec) bin
-    rem = np.array([np.sum(s == 'REM')*stage.EPOCH_LEN_SEC /
+    rem = np.array([np.sum(s == 'REM')*EPOCH_LEN_SEC /
                     60 for s in sm])  # unit minuite
-    nrem = np.array([np.sum(s == 'NREM')*stage.EPOCH_LEN_SEC /
+    nrem = np.array([np.sum(s == 'NREM')*EPOCH_LEN_SEC /
                      60 for s in sm])  # unit minuite
-    wake = np.array([np.sum(s == 'WAKE')*stage.EPOCH_LEN_SEC /
+    wake = np.array([np.sum(s == 'WAKE')*EPOCH_LEN_SEC /
                      60 for s in sm])  # unit minuite
 
     return np.array([rem, nrem, wake])
@@ -241,12 +242,12 @@ def stagetime_circadian_profile(stage_call):
                             x 3rd axis [24 hours]
     """
     # 60 min(3600 sec) bin
-    sm = stage_call.reshape(-1, int(3600/stage.EPOCH_LEN_SEC))
-    rem = np.array([np.sum(s == 'REM')*stage.EPOCH_LEN_SEC /
+    sm = stage_call.reshape(-1, int(3600/EPOCH_LEN_SEC))
+    rem = np.array([np.sum(s == 'REM')*EPOCH_LEN_SEC /
                     60 for s in sm])  # unit minuite
-    nrem = np.array([np.sum(s == 'NREM')*stage.EPOCH_LEN_SEC /
+    nrem = np.array([np.sum(s == 'NREM')*EPOCH_LEN_SEC /
                      60 for s in sm])  # unit minuite
-    wake = np.array([np.sum(s == 'WAKE')*stage.EPOCH_LEN_SEC /
+    wake = np.array([np.sum(s == 'WAKE')*EPOCH_LEN_SEC /
                      60 for s in sm])  # unit minuite
 
     rem_mat = rem.reshape(-1, 24)
@@ -389,15 +390,15 @@ def swtrans_from_stage_sss_style(stage_call):
 
     # transition binary matrix
     ## 24 hours(86400 sec) bin
-    tsw_mat_day = tsw.reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
-    tss_mat_day = tss.reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
-    tws_mat_day = tws.reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
-    tww_mat_day = tww.reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
+    tsw_mat_day = tsw.reshape(-1, int(86400/EPOCH_LEN_SEC))
+    tss_mat_day = tss.reshape(-1, int(86400/EPOCH_LEN_SEC))
+    tws_mat_day = tws.reshape(-1, int(86400/EPOCH_LEN_SEC))
+    tww_mat_day = tww.reshape(-1, int(86400/EPOCH_LEN_SEC))
     ## 12 hours(43200 sec) bin
-    tsw_mat_halfday = tsw.reshape(-1, int(43200/stage.EPOCH_LEN_SEC))
-    tss_mat_halfday = tss.reshape(-1, int(43200/stage.EPOCH_LEN_SEC))
-    tws_mat_halfday = tws.reshape(-1, int(43200/stage.EPOCH_LEN_SEC))
-    tww_mat_halfday = tww.reshape(-1, int(43200/stage.EPOCH_LEN_SEC))
+    tsw_mat_halfday = tsw.reshape(-1, int(43200/EPOCH_LEN_SEC))
+    tss_mat_halfday = tss.reshape(-1, int(43200/EPOCH_LEN_SEC))
+    tws_mat_halfday = tws.reshape(-1, int(43200/EPOCH_LEN_SEC))
+    tww_mat_halfday = tww.reshape(-1, int(43200/EPOCH_LEN_SEC))
 
     # first & second halfday
     n_halfday = tsw_mat_halfday.shape[0]
@@ -426,19 +427,19 @@ def swtrans_from_stage_sss_style(stage_call):
 
     # time matrix
     ## 24 hours(86400 sec) bin
-    sleep_epoch_mat_day = (sw_call == 'SLEEP').reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
-    wake_epoch_mat_day = (sw_call == 'WAKE').reshape(-1, int(86400/stage.EPOCH_LEN_SEC))
+    sleep_epoch_mat_day = (sw_call == 'SLEEP').reshape(-1, int(86400/EPOCH_LEN_SEC))
+    wake_epoch_mat_day = (sw_call == 'WAKE').reshape(-1, int(86400/EPOCH_LEN_SEC))
     ## 12 hours(43200 sec) bin
-    sleep_epoch_mat_halfday = (sw_call == 'SLEEP').reshape(-1, int(43200/stage.EPOCH_LEN_SEC))
-    wake_epoch_mat_halfday = (sw_call == 'WAKE').reshape(-1, int(43200/stage.EPOCH_LEN_SEC))
+    sleep_epoch_mat_halfday = (sw_call == 'SLEEP').reshape(-1, int(43200/EPOCH_LEN_SEC))
+    wake_epoch_mat_halfday = (sw_call == 'WAKE').reshape(-1, int(43200/EPOCH_LEN_SEC))
 
     # daily and halfdaily time
-    daily_sleep_time = np.apply_along_axis(np.sum, 1, sleep_epoch_mat_day*stage.EPOCH_LEN_SEC/60)
-    daily_wake_time = np.apply_along_axis(np.sum, 1, wake_epoch_mat_day*stage.EPOCH_LEN_SEC/60)
+    daily_sleep_time = np.apply_along_axis(np.sum, 1, sleep_epoch_mat_day*EPOCH_LEN_SEC/60)
+    daily_wake_time = np.apply_along_axis(np.sum, 1, wake_epoch_mat_day*EPOCH_LEN_SEC/60)
     halfdaily_sleep_time = np.apply_along_axis(
-        np.sum, 1, sleep_epoch_mat_halfday*stage.EPOCH_LEN_SEC/60)
+        np.sum, 1, sleep_epoch_mat_halfday*EPOCH_LEN_SEC/60)
     halfdaily_wake_time = np.apply_along_axis(
-        np.sum, 1, wake_epoch_mat_halfday*stage.EPOCH_LEN_SEC/60)
+        np.sum, 1, wake_epoch_mat_halfday*EPOCH_LEN_SEC/60)
     halfdaily_first_sleep_time = halfdaily_sleep_time[np.arange(0, n_halfday, 2)]
     halfdaily_first_wake_time = halfdaily_wake_time[np.arange(0, n_halfday, 2)]
     halfdaily_second_sleep_time = halfdaily_sleep_time[np.arange(1, n_halfday, 2)]
@@ -496,10 +497,10 @@ def swtrans_profile(stage_call):
     tws = np.append(tws, 0)
     tww = np.append(tww, 0)
 
-    tsw_mat = tsw.reshape(-1, int(3600/stage.EPOCH_LEN_SEC))  # 60 min(3600 sec) bin
-    tss_mat = tss.reshape(-1, int(3600/stage.EPOCH_LEN_SEC))
-    tws_mat = tws.reshape(-1, int(3600/stage.EPOCH_LEN_SEC))
-    tww_mat = tww.reshape(-1, int(3600/stage.EPOCH_LEN_SEC))
+    tsw_mat = tsw.reshape(-1, int(3600/EPOCH_LEN_SEC))  # 60 min(3600 sec) bin
+    tss_mat = tss.reshape(-1, int(3600/EPOCH_LEN_SEC))
+    tws_mat = tws.reshape(-1, int(3600/EPOCH_LEN_SEC))
+    tww_mat = tww.reshape(-1, int(3600/EPOCH_LEN_SEC))
 
     hourly_tsw = np.apply_along_axis(np.sum, 1, tsw_mat) 
     hourly_tss = np.apply_along_axis(np.sum, 1, tss_mat) 
@@ -761,7 +762,7 @@ def draw_stagetime_profile_individual(stagetime_stats, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     stagetime_profile_list = stagetime_stats['stagetime_profile']
     epoch_num = stagetime_stats['epoch_num_in_range']
-    x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
+    x_max = epoch_num*EPOCH_LEN_SEC/3600
     x = np.arange(x_max)
     for i, profile in enumerate(stagetime_profile_list):
         fig = Figure(figsize=(13, 6))
@@ -808,7 +809,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
         stagetime_profile_stats_list.append(
             np.array([stagetime_profile_mean, stagetime_profile_sd]))
     epoch_num = stagetime_stats['epoch_num_in_range']
-    x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
+    x_max = epoch_num*EPOCH_LEN_SEC/3600
     x = np.arange(x_max)
     if len(mouse_groups_set) > 1:
         # contrast to group index = 0
@@ -899,7 +900,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
         csv_df = pd.DataFrame()
         mgs_t = mouse_groups_set[g_idx] # treatment
         num = np.sum(bidx_group_list[g_idx])
-        x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
+        x_max = epoch_num*EPOCH_LEN_SEC/3600
         x = np.arange(x_max)
         fig = Figure(figsize=(13, 6))
         ax1 = fig.add_subplot(311, xmargin=0, ymargin=0)
@@ -950,7 +951,7 @@ def draw_swtrans_profile_individual(stagetime_stats, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     swtrans_profile_list = stagetime_stats['swtrans_profile']
     epoch_num = stagetime_stats['epoch_num_in_range']
-    x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
+    x_max = epoch_num*EPOCH_LEN_SEC/3600
     x = np.arange(x_max)
     for i, profile in enumerate(swtrans_profile_list):
         fig = Figure(figsize=(13, 6))
@@ -996,7 +997,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
             swtrans_profile_stats_list.append(
                 np.array([swtrans_profile_mean, swtrans_profile_sd]))
     epoch_num = stagetime_stats['epoch_num_in_range']
-    x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
+    x_max = epoch_num*EPOCH_LEN_SEC/3600
     x = np.arange(x_max)
     if len(mouse_groups_set) > 1:
         # contrast to group index = 0
@@ -1053,7 +1054,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
         g_idx = 0
 
         num = np.sum(bidx_group_list[g_idx])
-        x_max = epoch_num*stage.EPOCH_LEN_SEC/3600
+        x_max = epoch_num*EPOCH_LEN_SEC/3600
         x = np.arange(x_max)
         fig = Figure(figsize=(13, 6))
         ax1 = fig.add_subplot(211, xmargin=0, ymargin=0)
@@ -1106,7 +1107,7 @@ def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir):
         ax2.set_ylabel('Hourly NREM\n duration (min)')
         ax3.set_ylabel('Hourly wake\n duration (min)')
 
-        num = epoch_num*stage.EPOCH_LEN_SEC/3600/24
+        num = epoch_num*EPOCH_LEN_SEC/3600/24
 
         # REM
         y = circadian[0, 0, :]
@@ -1299,7 +1300,7 @@ def draw_swtrans_circadian_profile_individual(stagetime_stats, output_dir):
         ax1.set_ylabel('Hourly Psw')
         ax2.set_ylabel('Hourly Pws')
 
-        num = epoch_num*stage.EPOCH_LEN_SEC/3600/24
+        num = epoch_num*EPOCH_LEN_SEC/3600/24
 
         # Psw
         y = circadian[0, 0, :]
@@ -1444,7 +1445,7 @@ def draw_psd_domain_power_timeseries_individual(psd_domain_power_timeseries_df, 
 
     hourly_ts_list = []
     for _, ts in psd_domain_power_timeseries_df.iloc[:,4:].iterrows():
-        ts_mat = ts.to_numpy(dtype=np.float64).reshape(-1, int(3600/stage.EPOCH_LEN_SEC))
+        ts_mat = ts.to_numpy(dtype=np.float64).reshape(-1, int(3600/EPOCH_LEN_SEC))
         # The rows with all nan needs to be avoided in np.nanmean
         idx_all_nan = np.where([np.all(np.isnan(x)) for x in ts_mat])
         ts_mat[idx_all_nan, :] = 0
@@ -1497,7 +1498,7 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, y_l
 
     hourly_ts_list = []
     for _, ts in psd_domain_power_timeseries_df.iloc[:,4:].iterrows():
-        ts_mat = ts.to_numpy().reshape(-1, int(3600/stage.EPOCH_LEN_SEC))
+        ts_mat = ts.to_numpy().reshape(-1, int(3600/EPOCH_LEN_SEC))
         # The rows with all nan needs to be avoided in np.nanmean
         idx_all_nan = np.where([np.all(np.isnan(x)) for x in ts_mat])
         ts_mat[idx_all_nan, :] = 0
@@ -2156,7 +2157,7 @@ def conv_PSD_from_snorm_PSD(spec_norm):
     return psd_mat
 
 
-def make_target_psd_info(mouse_info_df, epoch_range, sample_freq, stage_ext):
+def make_target_psd_info(mouse_info_df, epoch_range, sample_freq, stage_ext, start_datetime):
     """makes PSD information sets for subsequent static analysis for each mouse:
     Arguments:
         mouse_info_df {pd.DataFram} -- a dataframe given by mouse_info_collected()
@@ -2209,7 +2210,7 @@ def make_target_psd_info(mouse_info_df, epoch_range, sample_freq, stage_ext):
         # Read the voltage (EMG is also necessary for marking unknown epochs)
         # pylint: disable=unused-variable
         (eeg_vm_org, emg_vm_org, not_yet_pickled) = stage.read_voltage_matrices(
-            os.path.join(faster_dir, 'data'), device_label, sample_freq, stage.EPOCH_LEN_SEC, epoch_num)     
+            os.path.join(faster_dir, 'data'), device_label, sample_freq, EPOCH_LEN_SEC, epoch_num, start_datetime)
 
         print_log('Preprocessing and calculating PSD')
         # recover nans in the voltage if possible
@@ -2992,8 +2993,11 @@ if __name__ == '__main__':
                         help="the sub-extention of the stage file (default: faster2)")
     parser.add_argument("-o", "--output_dir",
                         help="a path to the output files (default: the first FASTER2 directory)")
+    parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
+
 
     args = parser.parse_args()
+    EPOCH_LEN_SEC = int(args.epoch_len_sec)
 
     faster_dir_list = [os.path.abspath(x) for x in args.faster2_dirs]
     if args.output_dir:
@@ -3007,6 +3011,7 @@ if __name__ == '__main__':
     mouse_info_df = mouse_info_collected['mouse_info']
     epoch_num = mouse_info_collected['epoch_num']
     sample_freq = mouse_info_collected['sample_freq']
+    start_datetime = mouse_info_collected['start_datetime']
 
     # set the epoch range to be summarized
     if args.epoch_range:
@@ -3093,7 +3098,7 @@ if __name__ == '__main__':
 
     # prepare Powerspectrum density (PSD) profiles for individual mice
     # list of {simple exp info, target info, psd (epoch_num, 129)} for each mouse
-    psd_info_list = make_target_psd_info(mouse_info_df, epoch_range, sample_freq, stage_ext)
+    psd_info_list = make_target_psd_info(mouse_info_df, epoch_range, sample_freq, stage_ext, start_datetime)
  
     # log version of psd_info
     print_log('Making the log version of the PSD information')
