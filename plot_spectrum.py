@@ -17,6 +17,7 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--data_dir", required=True, help="path to the directory of input voltage data")
     parser.add_argument("-r", "--result_dir", required=True, help="path to the directory of the input stage data and plots to be produced")
     parser.add_argument("-w", "--workers", type=int, help="number of worker processes to draw in parallel")
+    parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
 
     args = parser.parse_args()
 
@@ -24,10 +25,10 @@ if __name__ == '__main__':
     result_dir = os.path.abspath(args.result_dir)
     psd_data_dir = os.path.join(result_dir, 'PSD')
     cluster_params_dir = os.path.join(result_dir, 'cluster_params')
-    print(result_dir)
+    epoch_len_sec = int(args.epoch_len_sec)
 
     exp_info_df = stage.read_exp_info(data_dir)
-    (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime) = stage.interpret_exp_info(exp_info_df)
+    (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime) = stage.interpret_exp_info(exp_info_df, epoch_len_sec)
 
     mouse_info_df = stage.read_mouse_info(data_dir)
 
