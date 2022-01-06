@@ -27,7 +27,7 @@ class Timeseries_plot:
         self.sample_freq = sample_freq
         self.epoch_num = self.eeg_vm.shape[0]
         self.epoch_len_sec = int(self.eeg_vm.shape[1]/self.sample_freq)
-        self.page_num = int(np.ceil(self.epoch_num/45)+1)
+        self.page_num = int(np.ceil(self.epoch_num*self.epoch_len_sec/360)+1) #360s per page
         self.lines_eeg = []
         self.lines_emg = []
         self.lines_score = []
