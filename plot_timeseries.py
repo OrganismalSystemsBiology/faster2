@@ -54,7 +54,7 @@ if __name__ == '__main__':
         for device_ids in device_ids_mat:
             # prepare w processes
             pss = [multiprocessing.Process(target=tg.plot_timeseries_a_mouse, args=(
-                data_dir, stage_dir, stage_dir, device_ids[i], sample_freq, epoch_num, start_datetime)) for i in range(len(device_ids)) if device_ids[i] != None]
+                data_dir, stage_dir, stage_dir, device_ids[i], sample_freq, epoch_num, epoch_len_sec, start_datetime)) for i in range(len(device_ids)) if device_ids[i] != None]
             # start them
             for ps in pss:
                 ps.start()
