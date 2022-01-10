@@ -23,7 +23,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.3.3'
+FASTER2_NAME = 'FASTER2 version 0.3.4'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
@@ -620,6 +620,27 @@ def pickle_cluster_params(means2, covars2, c_means, c_covars, result_dir_path, d
         pickle.dump({'2stage-means': means2, '2stage-covars': covars2,
                      '3stage-means': c_means, '3stage-covars': c_covars}, pkl)
 
+def remove_extreme_voltage(y, sample_freq):
+    """An experimental function to remove periodic-spike noises such as
+    heart beat in EMG. Since the spikes are ofhen above 2 SD within the
+    data region of interest, FASTER2 tries to replace those points with
+    randam values.
+    Note: This function is destructive i.e. it changes values of the 
+    given vector.
+
+
+    Args:
+        y (np.array(1)): a vector of voltages in an epoch
+        sample_freq (int): the sampling frequency
+    """
+    
+    vm = y.reshape(-1, sample_freq*2) # 2 sec
+    for v in vm:
+        m = np.mean(v)
+        s = np.std(v)
+        bidx = (abs(v) - m) > 2*s
+        v[bidx] =  np.random.normal(m, s, np.sum(bidx))
+
 
 def remove_extreme_power(y):
     """In FASTER2, the spectrum powers are normalized so that the mean and 
@@ -1048,6 +1069,9 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec):
         # but convenient for subsequnet analyses.
         eeg_vm_norm = voltage_normalize(eeg_vm)
         emg_vm_norm = voltage_normalize(emg_vm)
+
+        # remove extreme voltages (e.g. heart beat) from EMG
+        np.apply_along_axis(remove_extreme_voltage, 1, emg_vm_norm, sample_freq)
 
         # power-spectrum normalization of EEG and EMG
         spec_norm_eeg = spectrum_normalize(eeg_vm_norm, n_fft, sample_freq)
