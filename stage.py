@@ -1204,7 +1204,7 @@ if __name__ == '__main__':
     parser.add_argument("-p", "--pickle_input_data",
                         help="flag to pickle input data", action='store_true')
     parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
-    parser.add_argument("-h", "--heart_beat_filter", help="Boolean switch for the heart beat filter", default=False)
+    parser.add_argument("-f", "--heart_beat_filter", help="Boolean switch for the heart beat filter", default=False)
 
 
     args = parser.parse_args()
