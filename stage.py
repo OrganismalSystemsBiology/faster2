@@ -633,7 +633,6 @@ def remove_extreme_voltage(y, sample_freq):
         y (np.array(1)): a vector of voltages in an epoch
         sample_freq (int): the sampling frequency
     """
-    
     vm = y.reshape(-1, sample_freq*2) # 2 sec
     for v in vm:
         m = np.mean(v)
@@ -1072,6 +1071,7 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
 
         # remove extreme voltages (e.g. heart beat) from EMG
         if heart_beat_filter:
+            print_log('Applying the optional filter on the EMG signal')
             np.apply_along_axis(remove_extreme_voltage, 1, emg_vm_norm, sample_freq)
 
         # power-spectrum normalization of EEG and EMG
@@ -1204,7 +1204,7 @@ if __name__ == '__main__':
     parser.add_argument("-p", "--pickle_input_data",
                         help="flag to pickle input data", action='store_true')
     parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
-    parser.add_argument("-f", "--heart_beat_filter", help="Boolean switch for the heart beat filter", default=False)
+    parser.add_argument("-f", "--heart_beat_filter", help="Boolean switch for the heart beat filter", action='store_true')
 
 
     args = parser.parse_args()
