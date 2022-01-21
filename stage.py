@@ -23,7 +23,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.3.4'
+FASTER2_NAME = 'FASTER2 version 0.3.5'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
@@ -621,11 +621,11 @@ def pickle_cluster_params(means2, covars2, c_means, c_covars, result_dir_path, d
                      '3stage-means': c_means, '3stage-covars': c_covars}, pkl)
 
 def remove_extreme_voltage(y, sample_freq):
-    """An experimental function to remove periodic-spike noises such as
-    heart beat in EMG. Since the spikes are ofhen above 2 SD within the
-    data region of interest, FASTER2 tries to replace those points with
+    """An optional function to remove periodic-spike noises such as
+    heart beat in EMG. Since the spikes are ofhen above 1.64 SD (upper 10%) 
+    within the data region of interest, FASTER2 tries to replace those points with
     randam values.
-    Note: This function is destructive i.e. it changes values of the 
+    Note: This function is destructive i.e. it changes values of the
     given vector.
 
 
@@ -638,7 +638,7 @@ def remove_extreme_voltage(y, sample_freq):
     for v in vm:
         m = np.mean(v)
         s = np.std(v)
-        bidx = (abs(v) - m) > 2*s
+        bidx = (abs(v) - m) > 1.64*s
         v[bidx] =  np.random.normal(m, s, np.sum(bidx))
 
 
@@ -1006,7 +1006,7 @@ def voltage_normalize(v_mat):
     return v_mat_norm
 
 
-def main(data_dir, result_dir, pickle_input_data, epoch_len_sec):
+def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filter=False):
     """ main """
 
     exp_info_df = read_exp_info(data_dir)
@@ -1071,7 +1071,8 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec):
         emg_vm_norm = voltage_normalize(emg_vm)
 
         # remove extreme voltages (e.g. heart beat) from EMG
-        np.apply_along_axis(remove_extreme_voltage, 1, emg_vm_norm, sample_freq)
+        if heart_beat_filter:
+            np.apply_along_axis(remove_extreme_voltage, 1, emg_vm_norm, sample_freq)
 
         # power-spectrum normalization of EEG and EMG
         spec_norm_eeg = spectrum_normalize(eeg_vm_norm, n_fft, sample_freq)
@@ -1203,6 +1204,8 @@ if __name__ == '__main__':
     parser.add_argument("-p", "--pickle_input_data",
                         help="flag to pickle input data", action='store_true')
     parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
+    parser.add_argument("-h", "--heart_beat_filter", help="Boolean switch for the heart beat filter", default=False)
+
 
     args = parser.parse_args()
 
@@ -1212,4 +1215,4 @@ if __name__ == '__main__':
     os.makedirs(result_dir, exist_ok=True)
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     log = initialize_logger(os.path.join(result_dir, f'stage.{dt_str}.log'))
-    main(args.data_dir, result_dir, args.pickle_input_data, int(args.epoch_len_sec))
+    main(args.data_dir, result_dir, args.pickle_input_data, int(args.epoch_len_sec), args.heart_beat_filter)
