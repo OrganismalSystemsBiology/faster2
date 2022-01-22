@@ -7,7 +7,7 @@ import faster2lib.eeg_tools as et
 import re
 from datetime import datetime, timedelta
 from scipy import signal
-from hmmlearn import hmm
+from hmmlearn import hmm, base
 from sklearn import mixture
 import matplotlib as mpl
 from matplotlib.figure import Figure
@@ -23,7 +23,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.3.5'
+FASTER2_NAME = 'FASTER2 version 0.3.6'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
@@ -100,13 +100,12 @@ class CustomedGHMM(hmm.GaussianHMM):
 
         # confine within negative low-freq domain
         for i in range(3):
-            arr_hd = rem_mean + prn_ax[:, i]  # the arrow head from the mean
-            # the negative arrow head from the mean
-            narr_hd = rem_mean - prn_ax[:, i]
+            arr_hd = rem_mean + prn_ax[:, i] # the arrow head from the mean
+            narr_hd = rem_mean - prn_ax[:, i] # the negative arrow head from the mean
             if arr_hd[0] > self.nr_boundary:
-                sr = (self.nr_boundary - rem_mean[0])/(arr_hd[0] - rem_mean[0])
+                sr = (self.nr_boundary - rem_mean[0])/(arr_hd[0] - rem_mean[0]) # shrink ratio
             elif narr_hd[0] > self.nr_boundary:
-                sr = (self.nr_boundary - rem_mean[0])/(narr_hd[0] - rem_mean[0])
+                sr = (self.nr_boundary - rem_mean[0])/(narr_hd[0] - rem_mean[0]) # shrink ratio
             else:
                 sr = 1
 
@@ -116,20 +115,113 @@ class CustomedGHMM(hmm.GaussianHMM):
 
         return cov_updated
 
+    def _confine_Wake_in_boundary(self, wake_mean, wake_cov):
+        """ By definition, Wake cluster is not likely to cross the diagonal line.
+        This function focuses on the ellipsoid that represents the 95% confidence area
+        of Wake cluster. If this function finds any principal axis of the ellipsoid
+        penetrating the diagonal line (i.e. the end-point of the principal
+        axis is in the area y < x), it shrinks the length of the axis to the point on
+        the constraints.
+        """
+
+        w, v = linalg.eigh(wake_cov)
+        # all eigenvalues must be positive
+        if np.any(w <= 0):
+            raise ValueError('Invalid_Wake_Cluster')
+
+        w = 2 * np.sqrt(w)  # 95% confidence (2SD) area
+        prn_ax = v@np.diag(w)  # 3x3 matrix: each column is the principal axis
+        
+        # confine above diagonal line
+        for i in range(3):
+            arr_hd = wake_mean + prn_ax[:, i]  # the arrow head from the mean
+            # the negative arrow head from the mean
+            narr_hd = wake_mean - prn_ax[:, i]
+            if arr_hd[1] < arr_hd[0]:
+                sr = self._shrink_ratio(arr_hd, wake_mean)
+            elif narr_hd[1] < narr_hd[0]:
+                sr = self._shrink_ratio(narr_hd, wake_mean)
+            else:
+                sr = 1
+            w[i] = w[i] * sr
+
+
+        cov_updated = v@np.diag(w)@v.T
+
+        return cov_updated
+
+    
+    def _confine_NREM_in_boundary(self, nrem_mean, nrem_cov):
+        """ By definition, NREM cluster is not likely to cross the diagonal line.
+        This function focuses on the ellipsoid that represents the 95% confidence area
+        of NREM cluster. If this function finds any principal axis of the ellipsoid
+        penetrating the diagonal line (i.e. the end-point of the principal
+        axis is in the area y > x), it shrinks the length of the axis to the point on
+        the constraints.
+        """
+
+        w, v = linalg.eigh(nrem_cov)
+        # all eigenvalues must be positive
+        if np.any(w <= 0):
+            raise ValueError('Invalid_NREM_Cluster')
+
+        w = 2 * np.sqrt(w)  # 95% confidence (2SD) area
+        prn_ax = v@np.diag(w)  # 3x3 matrix: each column is the principal axis
+
+        # confine above diagonal line
+        for i in range(3):
+            arr_hd = nrem_mean + prn_ax[:, i]  # the arrow head from the mean
+            # the negative arrow head from the mean
+            narr_hd = nrem_mean - prn_ax[:, i]
+            if arr_hd[1] > arr_hd[0]:
+                sr = self._shrink_ratio(arr_hd, nrem_mean)
+            elif narr_hd[1] > narr_hd[0]:
+                sr = self._shrink_ratio(narr_hd, nrem_mean)
+            else:
+                sr = 1
+            w[i] = w[i] * sr
+
+
+        cov_updated = v@np.diag(w)@v.T
+
+        return cov_updated
+ 
+
+    def _shrink_ratio(self, arr_hd, mn):
+        r = (arr_hd[1] - mn[1])/(arr_hd[0]-mn[0])
+        x_on_diag = (mn[1] - r*mn[0])/(1-r)
+        sr = (x_on_diag - mn[0])/(arr_hd[0] - mn[0])
+        return sr
+
+
     #pylint: disable = redefined-outer-name
     def _do_mstep(self, stats):
         # pylint: disable = attribute-defined-outside-init
         ghmm_stats = stats
         # pylint: disable = no-value-for-parameter
-        hmm.GaussianHMM._do_mstep(self, ghmm_stats)
+        base._BaseHMM._do_mstep(self, ghmm_stats)
         means_prior = self.means_prior
         means_weight = self.means_weight
 
         denom = ghmm_stats['post'][:, np.newaxis]
         if 'm' in self.params:
-            self.means_ = ((means_weight * means_prior + ghmm_stats['obs'])
+            stash_means = self.means_
+            
+            means_ = ((means_weight * means_prior + ghmm_stats['obs'])
                            / (means_weight + denom))
-
+            # confine means in each domain
+            # Wake cluster's mean must be x < y
+            if means_[0][0] > means_[0][1]:
+                means_[0] = stash_means[0]
+            # REM cluster's mean must be x < nr_boundary and z > wr_boundary
+            if means_[1][0] > self.nr_boundary or means_[1][2]<self.wr_boundary:  
+                means_[1] = stash_means[1]
+            # NREM cluster's mean must be x > y
+            if means_[2][0] < means_[2][1]:
+                means_[2] = stash_means[2]
+            
+            self.means_ = means_
+ 
         if 'c' in self.params:
             covars_prior = self.covars_prior
             covars_weight = self.covars_weight
@@ -164,14 +256,16 @@ class CustomedGHMM(hmm.GaussianHMM):
                     self._covars_ = ((covars_prior + cv_num.sum(axis=0)) /
                                      (cvweight + ghmm_stats['post'].sum()))
                 elif self.covariance_type == 'full':
-                    # RY: Update only REM and Wake clurster's covariances
-                    stash_covars = self._covars_
                     covars = ((covars_prior + cv_num) /
                               (cvweight + ghmm_stats['post'][:, None, None]))
                     confined_rem_cov = self._confine_REM_in_boundary(
                         self.means_[1], covars[1])
+                    confined_wake_cov = self._confine_Wake_in_boundary(
+                        self.means_[0], covars[0])
+                    confined_nrem_cov = self._confine_NREM_in_boundary(
+                        self.means_[2], covars[2])
                     self._covars_ = np.array(
-                        [covars[0], confined_rem_cov, stash_covars[2]])
+                        [confined_wake_cov, confined_rem_cov, confined_nrem_cov])
 
 
 def initialize_logger(log_file):
@@ -800,7 +894,7 @@ def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
     # classify REM, Wake, and NREM by Gaussian HMM in the 3D space
     print_log('Classify REM, Wake, and NREM by Gaussian HMM')
     ghmm_3D = CustomedGHMM(
-        n_components=3, covariance_type='full', init_params='t', params='ct')
+        n_components=3, covariance_type='full', init_params='t', params='cmt')
     ghmm_3D.startprob_ = weights_3c
     ghmm_3D.means_ = mm_3D
     ghmm_3D.covars_ = cc_3D
