@@ -23,7 +23,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.3.6'
+FASTER2_NAME = 'FASTER2 version 0.3.7'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
@@ -111,7 +111,7 @@ class CustomedGHMM(hmm.GaussianHMM):
 
             w[i] = w[i] * sr
 
-        cov_updated = v@np.diag(w)@v.T
+        cov_updated = v@np.diag((w/2)**2)@v.T
 
         return cov_updated
 
@@ -146,7 +146,7 @@ class CustomedGHMM(hmm.GaussianHMM):
             w[i] = w[i] * sr
 
 
-        cov_updated = v@np.diag(w)@v.T
+        cov_updated = v@np.diag((w/2)**2)@v.T
 
         return cov_updated
 
@@ -182,7 +182,7 @@ class CustomedGHMM(hmm.GaussianHMM):
             w[i] = w[i] * sr
 
 
-        cov_updated = v@np.diag(w)@v.T
+        cov_updated = v@np.diag((w/2)**2)@v.T
 
         return cov_updated
  
