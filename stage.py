@@ -98,13 +98,13 @@ class CustomedGHMM(hmm.GaussianHMM):
                 sr = 1
             w[i] = w[i] * sr
 
-        # confine within negative low-freq domain
+        # confine within negative low-freq domain when high-freq is negative
         for i in range(3):
             arr_hd = rem_mean + prn_ax[:, i] # the arrow head from the mean
             narr_hd = rem_mean - prn_ax[:, i] # the negative arrow head from the mean
-            if arr_hd[0] > self.nr_boundary:
+            if arr_hd[0] > self.nr_boundary and arr_hd[1] < 0:
                 sr = (self.nr_boundary - rem_mean[0])/(arr_hd[0] - rem_mean[0]) # shrink ratio
-            elif narr_hd[0] > self.nr_boundary:
+            elif narr_hd[0] > self.nr_boundary and narr_hd[1] < 0:
                 sr = (self.nr_boundary - rem_mean[0])/(narr_hd[0] - rem_mean[0]) # shrink ratio
             else:
                 sr = 1
@@ -198,7 +198,7 @@ class CustomedGHMM(hmm.GaussianHMM):
     def _do_mstep(self, stats):
         # pylint: disable = attribute-defined-outside-init
         ghmm_stats = stats
-        # pylint: disable = no-value-for-parameter
+        # pylint: disable = protected-access
         base._BaseHMM._do_mstep(self, ghmm_stats)
         means_prior = self.means_prior
         means_weight = self.means_weight
