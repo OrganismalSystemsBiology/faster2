@@ -98,13 +98,13 @@ class CustomedGHMM(hmm.GaussianHMM):
                 sr = 1
             w[i] = w[i] * sr
 
-        # confine within negative low-freq domain when high-freq is negative
+        # confine within negative low-freq domain when REM cluster's mean is under the diagonal line
         for i in range(3):
             arr_hd = rem_mean + prn_ax[:, i] # the arrow head from the mean
             narr_hd = rem_mean - prn_ax[:, i] # the negative arrow head from the mean
-            if arr_hd[0] > self.nr_boundary and arr_hd[1] < 0:
+            if arr_hd[0] > self.nr_boundary and rem_mean[1] < rem_mean[0]:
                 sr = (self.nr_boundary - rem_mean[0])/(arr_hd[0] - rem_mean[0]) # shrink ratio
-            elif narr_hd[0] > self.nr_boundary and narr_hd[1] < 0:
+            elif narr_hd[0] > self.nr_boundary and rem_mean[1] < rem_mean[0]:
                 sr = (self.nr_boundary - rem_mean[0])/(narr_hd[0] - rem_mean[0]) # shrink ratio
             else:
                 sr = 1
