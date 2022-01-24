@@ -82,9 +82,9 @@ class CustomedGHMM(hmm.GaussianHMM):
             raise ValueError('Invalid_REM_Cluster')
 
         w = 2 * np.sqrt(w)  # 95% confidence (2SD) area
-        prn_ax = v@np.diag(w)  # 3x3 matrix: each column is the principal axis
 
         # confine above REM floor
+        prn_ax = v@np.diag(w)  # 3x3 matrix: each column is the principal axis
         for i in range(3):
             arr_hd = rem_mean + prn_ax[:, i]  # the arrow head from the mean
             # the negative arrow head from the mean
@@ -97,23 +97,42 @@ class CustomedGHMM(hmm.GaussianHMM):
             else:
                 sr = 1
             w[i] = w[i] * sr
-
-        # confine within negative low-freq domain when REM cluster's mean is under the diagonal line
+        
+        # confine the REM cluster within negative low-freq and above the diagonal line
+        prn_ax = v@np.diag(w)  # 3x3 matrix: each column is the principal axis
         for i in range(3):
             arr_hd = rem_mean + prn_ax[:, i] # the arrow head from the mean
             narr_hd = rem_mean - prn_ax[:, i] # the negative arrow head from the mean
-            if arr_hd[0] > self.nr_boundary and rem_mean[1] < rem_mean[0]:
-                sr = (self.nr_boundary - rem_mean[0])/(arr_hd[0] - rem_mean[0]) # shrink ratio
-            elif narr_hd[0] > self.nr_boundary and rem_mean[1] < rem_mean[0]:
-                sr = (self.nr_boundary - rem_mean[0])/(narr_hd[0] - rem_mean[0]) # shrink ratio
+            
+            # condition 1: negative low-freq and BELOW the diagonal line
+            if arr_hd[0] > self.nr_boundary and arr_hd[1] < arr_hd[0]:
+                # condition 2: if positive high-freq > 0 then allow to grow onto the diagonal line
+                if arr_hd[1] > 0:
+                    sr = self._shrink_ratio(arr_hd, rem_mean)
+                # Otherwise (negative high-freq) then only allow to reach onto the y-axis. 
+                else: 
+                    sr = (self.nr_boundary - rem_mean[0])/(arr_hd[0] - rem_mean[0]) # shrink ratio
+            elif narr_hd[0] > self.nr_boundary and narr_hd[1] < narr_hd[0]:
+                if narr_hd[1] > 0:
+                    sr = self._shrink_ratio(narr_hd, rem_mean)
+                else: 
+                    sr = (self.nr_boundary - rem_mean[0])/(narr_hd[0] - rem_mean[0]) # shrink ratio
             else:
                 sr = 1
-
             w[i] = w[i] * sr
 
+
         cov_updated = v@np.diag((w/2)**2)@v.T
+        w, v = linalg.eigh(cov_updated)
+        w = 2 * np.sqrt(w)  # 95% confidence (2SD) area
+        prn_ax = v@np.diag(w)  # 3x3 matrix: each column is the principal axis
+        for i in range(3):
+            arr_hd = rem_mean + prn_ax[:, i] # the arrow head from the mean
+            narr_hd = rem_mean - prn_ax[:, i] # the negative arrow head from the mean
+
 
         return cov_updated
+
 
     def _confine_Wake_in_boundary(self, wake_mean, wake_cov):
         """ By definition, Wake cluster is not likely to cross the diagonal line.
@@ -205,22 +224,8 @@ class CustomedGHMM(hmm.GaussianHMM):
 
         denom = ghmm_stats['post'][:, np.newaxis]
         if 'm' in self.params:
-            stash_means = self.means_
-            
-            means_ = ((means_weight * means_prior + ghmm_stats['obs'])
+            self.means_ = ((means_weight * means_prior + ghmm_stats['obs'])
                            / (means_weight + denom))
-            # confine means in each domain
-            # Wake cluster's mean must be x < y
-            if means_[0][0] > means_[0][1]:
-                means_[0] = stash_means[0]
-            # REM cluster's mean must be x < nr_boundary and z > wr_boundary
-            if means_[1][0] > self.nr_boundary or means_[1][2]<self.wr_boundary:  
-                means_[1] = stash_means[1]
-            # NREM cluster's mean must be x > y
-            if means_[2][0] < means_[2][1]:
-                means_[2] = stash_means[2]
-            
-            self.means_ = means_
  
         if 'c' in self.params:
             covars_prior = self.covars_prior
@@ -894,7 +899,7 @@ def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
     # classify REM, Wake, and NREM by Gaussian HMM in the 3D space
     print_log('Classify REM, Wake, and NREM by Gaussian HMM')
     ghmm_3D = CustomedGHMM(
-        n_components=3, covariance_type='full', init_params='t', params='cmt')
+        n_components=3, covariance_type='full', init_params='t', params='ct')
     ghmm_3D.startprob_ = weights_3c
     ghmm_3D.means_ = mm_3D
     ghmm_3D.covars_ = cc_3D
