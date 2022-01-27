@@ -23,7 +23,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.3.7'
+FASTER2_NAME = 'FASTER2 version 0.3.8'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
@@ -57,6 +57,7 @@ class CustomedGHMM(hmm.GaussianHMM):
                          params, init_params)
         self.wr_boundary = None
         self.nr_boundary = None
+        self.max_rem_ax = None
 
     def set_wr_boundary(self, wr_boundary):
         # Wake/REM boundary. REM cluster cannot grow below this boundary
@@ -65,6 +66,10 @@ class CustomedGHMM(hmm.GaussianHMM):
     def set_nr_boundary(self, nr_boundary):
         # NREM/REM boundary. REM cluster cannot grow beyond this boundary
         self.nr_boundary = nr_boundary
+
+    def set_max_rem_ax(self, max_rem_ax_len):
+        # maximum length of REM's principal axis
+        self.max_rem_ax = max_rem_ax_len
 
     def _confine_REM_in_boundary(self, rem_mean, rem_cov):
         """ By definition, REM cluster is not likely z (i.e. REM-metric)<REM_floor and
@@ -121,15 +126,17 @@ class CustomedGHMM(hmm.GaussianHMM):
                 sr = 1
             w[i] = w[i] * sr
 
-
-        cov_updated = v@np.diag((w/2)**2)@v.T
-        w, v = linalg.eigh(cov_updated)
-        w = 2 * np.sqrt(w)  # 95% confidence (2SD) area
-        prn_ax = v@np.diag(w)  # 3x3 matrix: each column is the principal axis
+        # confine the length of principal axes
+        prn_ax = v@np.diag(w/2)  # half w because it was doubled in the previous process
+        prn_ax_len = np.sqrt(np.diag(prn_ax.T@prn_ax)) # lengths of principal axes
         for i in range(3):
-            arr_hd = rem_mean + prn_ax[:, i] # the arrow head from the mean
-            narr_hd = rem_mean - prn_ax[:, i] # the negative arrow head from the mean
-
+            if prn_ax_len[i] > self.max_rem_ax:
+                sr = self.max_rem_ax / prn_ax_len[i]
+            else:
+                sr = 1
+            w[i] = w[i] * sr
+        
+        cov_updated = v@np.diag((w/2)**2)@v.T
 
         return cov_updated
 
@@ -894,7 +901,7 @@ def classify_Wake_and_REM(stage_coord_active, rem_floor):
     return (pred_wr, pred_wr_proba, mm_wr, cc_wr, ww_wr)
 
 
-def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
+def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, max_rem_prn_len):
     # pylint: disable = attribute-defined-outside-init
     # classify REM, Wake, and NREM by Gaussian HMM in the 3D space
     print_log('Classify REM, Wake, and NREM by Gaussian HMM')
@@ -905,6 +912,7 @@ def classify_three_stages(stage_coord, mm_3D, cc_3D, weights_3c, rem_floor):
     ghmm_3D.covars_ = cc_3D
     ghmm_3D.set_wr_boundary(0)
     ghmm_3D.set_nr_boundary(0)
+    ghmm_3D.set_max_rem_ax(max_rem_prn_len)
 
     ghmm_3D.fit(stage_coord)
     pred_3D = ghmm_3D.predict(stage_coord)
@@ -950,6 +958,13 @@ def classification_process(stage_coord, rem_floor):
     pred_2D, pred_2D_proba, mm_2D, cc_2D = classify_active_and_NREM(
         stage_coord[:, 0:2])
 
+    # Calculate the length of the longest principal axis of the active cluster
+    w, v = linalg.eigh(cc_2D[0])
+    w = np.sqrt(w)
+    prn_ax = v@np.diag(w) # each column is the principal axis
+    prn_ax_len = np.sqrt(np.diag(prn_ax.T@prn_ax))
+    max_prn_ax_len = np.max(prn_ax_len)
+
     # Classify REM and Wake in the active cluster in the 3D space  (Low freq. x High freq. x REM metric)
     bidx_active = (pred_2D == 0)
     stage_coord_active = stage_coord[bidx_active, :]
@@ -966,8 +981,7 @@ def classification_process(stage_coord, rem_floor):
             stage_coord, pred_2D, mm_2D, cc_2D, mm_active, cc_active)
 
     else:
-        # process for data having effective REM culster (standard)
-        # try to correct REM cluster by shrinking it if the ellipsoid axis crosses the xy-plane to negative
+        # process for data having effective REM culster (this is the standard process)
 
         # construct 3D means and covariances from mm_2D and mm_active
         # Wake, REM, NREM
@@ -983,7 +997,7 @@ def classification_process(stage_coord, rem_floor):
         # 3-stage classification: classify REM, Wake, and NREM by Gaussian HMM on the 3D space
         try:
             pred_3D, pred_3D_proba, mm_3D, cc_3D = classify_three_stages(
-                stage_coord, mm_3D, cc_3D, weights_3c, rem_floor)
+                stage_coord, mm_3D, cc_3D, weights_3c, max_prn_ax_len)
         except ValueError as valerr:
             if valerr.args[0] == 'Invalid_REM_Cluster':
                 print_log('REM cluster is invalid.')
