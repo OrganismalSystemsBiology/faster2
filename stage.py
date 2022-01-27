@@ -1023,21 +1023,21 @@ def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, c_pred
     pred_active = c_pred3[((c_pred3 == 0) | (c_pred3 == 1))]
 
     axes = [0, 2]  # Low-freq axis & REM axis
-    points_prj = points_active[:, np.r_[axes]]
-    colors = [COLOR_WAKE, COLOR_REM]
-    mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0, 1]]])
+    points_prj = stage_coord[:, np.r_[axes]]
+    colors = [COLOR_WAKE, COLOR_REM, COLOR_NREM]
+    mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0, 1, 2]]])
     cc = np.array([c[np.r_[axes]][:, np.r_[axes]]
-                   for c in c_covars[np.r_[0, 1]]])
-    fig = plot_scatter2D(points_prj, pred_active, mm,
+                   for c in c_covars[np.r_[0, 1, 2]]])
+    fig = plot_scatter2D(points_prj, c_pred3, mm,
                          cc, colors, XLABEL, ZLABEL)
     _savefig(path2figures, 'ScatterPlot2D_LowFreq-REM_axes', fig)
 
     axes = [1, 2]  # High-freq axis & REM axis
-    points_prj = points_active[:, np.r_[axes]]
-    mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0, 1]]])
+    points_prj = stage_coord[:, np.r_[axes]]
+    mm = np.array([m[np.r_[axes]] for m in c_means[np.r_[0, 1, 2]]])
     cc = np.array([c[np.r_[axes]][:, np.r_[axes]]
-                   for c in c_covars[np.r_[0, 1]]])
-    fig = plot_scatter2D(points_prj, pred_active, mm,
+                   for c in c_covars[np.r_[0, 1, 2]]])
+    fig = plot_scatter2D(points_prj, c_pred3, mm,
                          cc, colors, YLABEL, ZLABEL)
     _savefig(path2figures, 'ScatterPlot2D_HighFreq-REM_axes', fig)
 
