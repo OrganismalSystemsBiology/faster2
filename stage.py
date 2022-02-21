@@ -844,9 +844,9 @@ def classify_active_and_NREM(stage_coord_2D):
     return (geo_pred, geo_pred_proba.T, mm_2D, cc_2D)
 
 
-def classify_active_and_NREM_by_HGMM(stage_coord_2D, pred_2D, mm_2D, cc_2D):
+def classify_active_and_NREM_by_GHMM(stage_coord_2D, pred_2D, mm_2D, cc_2D):
     # Initialize active/stative(NREM) clusters by Gaussian mixture model ignoring transition probablity
-    print_log('Classify active/NREM clusters with HGMM')
+    print_log('Classify active/NREM clusters with GHMM')
 
     weights = np.array(
         [np.sum(pred_2D == 0), np.sum(pred_2D == 1)])/len(pred_2D)
@@ -927,7 +927,7 @@ def classify_two_stages(stage_coord, pred_2D_org, mm_2D_org, cc_2D_org, mm_activ
     ndata = len(stage_coord)
     bidx_active = (pred_2D_org == 0)
     # perform GMM to refine active/NREM classification
-    pred_2D, pred_2D_proba, mm_2D, cc_2D = classify_active_and_NREM_by_HGMM(
+    pred_2D, pred_2D_proba, mm_2D, cc_2D = classify_active_and_NREM_by_GHMM(
         stage_coord[:, 0:2], pred_2D_org, mm_2D_org, cc_2D_org)
 
     # construct 3D means and covariances from mm_2D and mm_active with TINY (non-effective) REM cluster
