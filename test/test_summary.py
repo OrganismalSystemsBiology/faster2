@@ -276,7 +276,8 @@ class  TestFunctions(unittest.TestCase):
                     'FASTER_DIR':['../test/data/FASTER2_UT_20180814_M3Dq/']})
 
         # TEST
-        psd_info_list = ps.make_target_psd_info(mif, slice(100,1800,None), self.sample_freq, 'faster2_1800')
+        start_datetime = datetime.datetime(2019, 8, 15, 8, 0)
+        psd_info_list = ps.make_target_psd_info(mif, slice(100,1800,None), self.sample_freq, 'faster2_1800', start_datetime)
         psd_info = psd_info_list[0]
         ans_conv_psd = psd_info['conv_psd']
 

@@ -84,7 +84,11 @@ class DSI_TXT_Reader:
     #   end_datetime   ... ending datetime (not inclusive)
     def read_epochs_by_datetime(self, start_datetime, end_datetime):
 
-        file_list = glob(os.path.join(self._dataroot, f'{self._label}.{self._signal_type}*'))
+        glob_path = os.path.join(self._dataroot, f'{self._label}.{self._signal_type}*')
+        file_list = glob(glob_path)
+        if len(file_list) == 0: 
+            raise LookupError(f'No dsi.txt file found:{glob_path}')
+
 
         # check encodings
         enc = encode_lookup(file_list[0])
