@@ -634,7 +634,7 @@ def test_two_sample(x, y):
             stars = '***'
         elif p_value < 0.01:
             stars = '**'
-        elif p_value < 0.05:
+        elif p_value < 0.06:
             stars = '*'
         else:
             stars = ''
@@ -2389,13 +2389,13 @@ def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_
 
         x = freq_bins
         df = psd_profiles_df.loc[psd_profiles_df['Mouse ID'] == m]
-        y = df.loc[df['Stage'] == 'REM'].iloc[0].values[5:]
+        y = df.loc[df['Stage'] == 'REM'].iloc[0].values[6:]
         ax1.plot(x, y, color=stage.COLOR_REM)
 
-        y = df.loc[df['Stage'] == 'NREM'].iloc[0].values[5:]
+        y = df.loc[df['Stage'] == 'NREM'].iloc[0].values[6:]
         ax2.plot(x, y, color=stage.COLOR_NREM)
 
-        y = df.loc[df['Stage'] == 'Wake'].iloc[0].values[5:]
+        y = df.loc[df['Stage'] == 'Wake'].iloc[0].values[6:]
         ax3.plot(x, y, color=stage.COLOR_WAKE)
 
         mouse_tag_list = [str(x) for x in df.iloc[0, 0:4]]
@@ -2420,9 +2420,9 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
     # _c of Control (assuming index = 0 is a control mouse)
     df = psd_profiles_df[psd_profiles_df['Mouse group'] == mouse_group_set[0]]
 
-    psd_mean_mat_rem_c = df[df['Stage'] == 'REM'].iloc[:, 5:].values
-    psd_mean_mat_nrem_c = df[df['Stage'] == 'NREM'].iloc[:, 5:].values
-    psd_mean_mat_wake_c = df[df['Stage'] == 'Wake'].iloc[:, 5:].values
+    psd_mean_mat_rem_c = df[df['Stage'] == 'REM'].iloc[:, 6:].values
+    psd_mean_mat_nrem_c = df[df['Stage'] == 'NREM'].iloc[:, 6:].values
+    psd_mean_mat_wake_c = df[df['Stage'] == 'Wake'].iloc[:, 6:].values
     num_c = psd_mean_mat_wake_c.shape[0]
 
     psd_mean_rem_c = np.apply_along_axis(np.mean, 0, psd_mean_mat_rem_c)
@@ -2453,9 +2453,9 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
             # _t of Treatment
             df = psd_profiles_df[psd_profiles_df['Mouse group']
                                 == mouse_group_set[g_idx]]
-            psd_mean_mat_rem_t = df[df['Stage'] == 'REM'].iloc[:, 5:].values
-            psd_mean_mat_nrem_t = df[df['Stage'] == 'NREM'].iloc[:, 5:].values
-            psd_mean_mat_wake_t = df[df['Stage'] == 'Wake'].iloc[:, 5:].values
+            psd_mean_mat_rem_t = df[df['Stage'] == 'REM'].iloc[:, 6:].values
+            psd_mean_mat_nrem_t = df[df['Stage'] == 'NREM'].iloc[:, 6:].values
+            psd_mean_mat_wake_t = df[df['Stage'] == 'Wake'].iloc[:, 6:].values
             num_t = psd_mean_mat_wake_t.shape[0]
 
             psd_mean_rem_t = np.apply_along_axis(np.mean, 0, psd_mean_mat_rem_t)
@@ -2526,9 +2526,9 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
         # _t of Treatment
         df = psd_profiles_df[psd_profiles_df['Mouse group']
                             == mouse_group_set[g_idx]]
-        psd_mean_mat_rem_t = df[df['Stage'] == 'REM'].iloc[:, 5:].values
-        psd_mean_mat_nrem_t = df[df['Stage'] == 'NREM'].iloc[:, 5:].values
-        psd_mean_mat_wake_t = df[df['Stage'] == 'Wake'].iloc[:, 5:].values
+        psd_mean_mat_rem_t = df[df['Stage'] == 'REM'].iloc[:, 6:].values
+        psd_mean_mat_nrem_t = df[df['Stage'] == 'NREM'].iloc[:, 6:].values
+        psd_mean_mat_wake_t = df[df['Stage'] == 'Wake'].iloc[:, 6:].values
         num_t = psd_mean_mat_wake_t.shape[0]
 
         psd_mean_rem_t = np.apply_along_axis(np.mean, 0, psd_mean_mat_rem_t)
@@ -2778,7 +2778,7 @@ def make_psd_domain(psd_profiles_df, summary_func=np.mean):
             Device label, Stage, Slow, Delta w/o slow, Delta, Theta
     """
     # get freq_bins from column names
-    freq_bin_columns = psd_profiles_df.columns[5:].tolist()
+    freq_bin_columns = psd_profiles_df.columns[6:].tolist()
     freq_bins = np.array([float(x.strip().split('@')[1])
                           for x in freq_bin_columns])
 
@@ -2792,8 +2792,8 @@ def make_psd_domain(psd_profiles_df, summary_func=np.mean):
     # make psd_domain_df
     row_list = []
     for _, r in psd_profiles_df.iterrows():
-        infos = r[:5]
-        powers = r[5:]
+        infos = r[:6]
+        powers = r[6:]
         powers_slow = powers[bidx_slow_freq]
         powers_delta_wo_slow = powers[bidx_delta_wo_slow_freq]
         powers_delta = powers[bidx_delta_freq]
