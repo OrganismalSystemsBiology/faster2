@@ -2276,112 +2276,39 @@ def make_target_psd_info(mouse_info_df, epoch_range, sample_freq, stage_ext, sta
         
     return psd_info_list
 
-def make_psd_total_timeseries_wake_df(psd_info_list, sample_freq, epoch_num, epoch_range, summary_func=np.mean):
-    # make the Wake total-power timeseries
-    psd_total_timeseries_wake_df = pd.DataFrame()
+
+def make_psd_timeseries_df(psd_info_list, epoch_range, bidx_freq, stage_bidx_key=None):
+    """make timeseries of PSD with a specified stage and freq domain
+
+    Args:
+        psd_info_list (list of psd_info): The list of object given by make_target_psd_info()
+        epoch_range (slice): The epoch range of interest
+        stage_bidx_key (str): The key of dict in the psd_info for a stage (e.g. 'bidx_nrem')
+        bidx_freq (array): The binary index of frequency domain in the PSD
+
+    Returns:
+        [pd.dataframe]: The timeseries of PSD
+    """
+    psd_timeseries_df = pd.DataFrame()
     for psd_info in psd_info_list:
-        bidx_unknown = psd_info['bidx_unknown']
-        stage_call = psd_info['stage_call']
         bidx_target = psd_info['bidx_target']
-        bidx_wake_known = psd_info['bidx_wake'][~bidx_unknown]
+        if stage_bidx_key:
+            bidx_stage = psd_info[stage_bidx_key]
+            bidx_targeted_stage = bidx_target & bidx_stage
+        else:
+            bidx_targeted_stage = bidx_target
+
         conv_psd = psd_info['conv_psd']
-        psd_total_timeseries_wake = np.repeat(np.nan, epoch_num)
-        psd_total_timeseries_wake[~bidx_unknown & (stage_call=='WAKE') & bidx_target] = np.apply_along_axis(summary_func, 1, conv_psd[bidx_wake_known, :][:,:])
-        psd_total_timeseries_wake = psd_total_timeseries_wake[epoch_range] # extract epochs of the selected range
-        psd_total_timeseries_wake_df = psd_total_timeseries_wake_df.append(
-            [[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_total_timeseries_wake.tolist()], ignore_index=True)
-
-    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
-    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
-    psd_total_timeseries_wake_df.columns = column_names
-
-    return psd_total_timeseries_wake_df
-
-
-def make_psd_delta_timeseries_wake_df(psd_info_list, sample_freq, epoch_num, epoch_range, summary_func=np.mean):
-    # frequency bins
-    # assures frequency bins compatibe among different sampling frequencies
-    n_fft = int(256 * sample_freq/100)
-    # same frequency bins given by signal.welch()
-    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
-    bidx_delta_freq = (freq_bins<4) # 11 bins
-
-    # make the Wake total-power timeseries
-    psd_delta_timeseries_wake_df = pd.DataFrame()
-    for psd_info in psd_info_list:
-        bidx_unknown = psd_info['bidx_unknown']
-        stage_call = psd_info['stage_call']
-        bidx_target = psd_info['bidx_target']
-        bidx_wake_known = psd_info['bidx_wake'][~bidx_unknown]
-        conv_psd = psd_info['conv_psd']
-        psd_delta_timeseries_wake = np.repeat(np.nan, epoch_num)
-        psd_delta_timeseries_wake[~bidx_unknown & (stage_call=='WAKE') & bidx_target] = np.apply_along_axis(summary_func, 1, conv_psd[bidx_wake_known, :][:,bidx_delta_freq])
-        psd_delta_timeseries_wake = psd_delta_timeseries_wake[epoch_range] # extract epochs of the selected range
-        psd_delta_timeseries_wake_df = psd_delta_timeseries_wake_df.append(
-            [[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_delta_timeseries_wake.tolist()], ignore_index=True)
-
-    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
-    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
-    psd_delta_timeseries_wake_df.columns = column_names
-
-    return psd_delta_timeseries_wake_df
-
-
-def make_psd_delta_timeseries_nrem_df(psd_info_list, sample_freq, epoch_num, epoch_range, summary_func=np.mean):
-    # frequency bins
-    # assures frequency bins compatibe among different sampling frequencies
-    n_fft = int(256 * sample_freq/100)
-    # same frequency bins given by signal.welch()
-    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
-    bidx_delta_freq = (freq_bins<4) # 11 bins
-
-    # make the NREM delta-power timeseries
-    psd_delta_timeseries_nrem_df = pd.DataFrame()
-    for psd_info in psd_info_list:
-        bidx_unknown = psd_info['bidx_unknown']
-        stage_call = psd_info['stage_call']
-        bidx_target = psd_info['bidx_target']
-        bidx_nrem_known = psd_info['bidx_nrem'][~bidx_unknown]
-        conv_psd = psd_info['conv_psd']
-        psd_delta_timeseries_nrem = np.repeat(np.nan, epoch_num)
-        psd_delta_timeseries_nrem[~bidx_unknown & (stage_call=='NREM') & bidx_target] = np.apply_along_axis(summary_func, 1, conv_psd[bidx_nrem_known, :][:,bidx_delta_freq])
-        psd_delta_timeseries_nrem = psd_delta_timeseries_nrem[epoch_range] # extract epochs of the selected range
-        psd_delta_timeseries_nrem_df = psd_delta_timeseries_nrem_df.append(
-            [[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_delta_timeseries_nrem.tolist()], ignore_index=True)
-
-    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
-    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
-    psd_delta_timeseries_nrem_df.columns = column_names
-
-    return psd_delta_timeseries_nrem_df
-
-
-def make_psd_delta_timeseries_df(psd_info_list, sample_freq, epoch_num, epoch_range, summary_func=np.mean):
-    # frequency bins
-    # assures frequency bins compatibe among different sampling frequencies
-    n_fft = int(256 * sample_freq/100)
-    # same frequency bins given by signal.welch()
-    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
-    bidx_delta_freq = (freq_bins<4) # 11 bins
-
-    # make the NREM delta-power timeseries
-    psd_delta_timeseries_df = pd.DataFrame()
-    for psd_info in psd_info_list:
-        bidx_unknown = psd_info['bidx_unknown']
-        bidx_target = psd_info['bidx_target']
-        bidx_target_known = bidx_target[~bidx_unknown]
-        conv_psd = psd_info['conv_psd']
-        psd_delta_timeseries = np.repeat(np.nan, epoch_num)
-        psd_delta_timeseries[~bidx_unknown & bidx_target] = np.apply_along_axis(summary_func, 1, conv_psd[bidx_target_known, :][:,bidx_delta_freq])
-        psd_delta_timeseries = psd_delta_timeseries[epoch_range] # extract epochs of the selected range
-        psd_delta_timeseries_df = psd_delta_timeseries_df.append(
+        psd_delta_timeseries = np.repeat(np.nan, epoch_range.stop - epoch_range.start)
+        psd_delta_timeseries[bidx_targeted_stage[epoch_range]] = np.apply_along_axis(np.nanmean, 1, conv_psd[bidx_targeted_stage, :][:,bidx_freq])
+        psd_timeseries_df = psd_timeseries_df.append(
             [[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_delta_timeseries.tolist()], ignore_index=True)
 
     epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
     column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
-    psd_delta_timeseries_df.columns = column_names
+    psd_timeseries_df.columns = column_names
 
-    return psd_delta_timeseries_df
+    return psd_timeseries_df
 
 
 def make_psd_profile(psd_info_list, sample_freq):
@@ -3137,20 +3064,28 @@ if __name__ == '__main__':
     draw_PSDs_group(percentage_psd_profiles_df, sample_freq,
                     'normalized percentage PSD [%]', output_dir, 'percentage-')
 
-    print_log('Making the delta-power timeseries')
-    psd_delta_timeseries_df = make_psd_delta_timeseries_df(psd_info_list, sample_freq, epoch_num, epoch_range)
+    # PSD timeseries
+    # assures frequency bins compatibe among different sampling frequencies
+    n_fft = int(256 * sample_freq/100)
+    # same frequency bins given by signal.welch()
+    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+    bidx_delta_freq = (freq_bins<4) # 11 bins
+    bidx_all_freq = np.full(129, True)
+
+    print_log('Making the delta-power timeseries in all stages')
+    psd_delta_timeseries_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq)
     print_log('Making the delta-power timeseries in NREM')
-    psd_delta_timeseries_nrem_df = make_psd_delta_timeseries_nrem_df(psd_info_list, sample_freq, epoch_num, epoch_range)
-    print_log('Making the delta-power timeseries (percentage)')
-    percentage_psd_delta_timeseries_df = make_psd_delta_timeseries_df(percentage_psd_info_list, sample_freq, epoch_num, epoch_range, np.sum)
+    psd_delta_timeseries_nrem_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem')
+    print_log('Making the delta-power timeseries in all stages (percentage)')
+    percentage_psd_delta_timeseries_df = make_psd_timeseries_df(percentage_psd_info_list, epoch_range,  bidx_delta_freq)
     print_log('Making the delta-power timeseries in NREM (percentage)')
-    percentage_psd_delta_timeseries_nrem_df = make_psd_delta_timeseries_nrem_df(percentage_psd_info_list, sample_freq, epoch_num, epoch_range, np.sum)
+    percentage_psd_delta_timeseries_nrem_df = make_psd_timeseries_df(percentage_psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem')
     print_log('Making the total-power timeseries in Wake')
-    psd_total_timeseries_wake_df = make_psd_total_timeseries_wake_df(psd_info_list, sample_freq, epoch_num, epoch_range)
+    psd_total_timeseries_wake_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_all_freq, 'bidx_wake')
     print_log('Making the delta-power timeseries in Wake')
-    psd_delta_timeseries_wake_df = make_psd_delta_timeseries_wake_df(psd_info_list, sample_freq, epoch_num, epoch_range)
+    psd_delta_timeseries_wake_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_wake')
     print_log('Making the delta-power timeseries in Wake (percentage)')
-    percentage_psd_delta_timeseries_wake_df = make_psd_delta_timeseries_wake_df(percentage_psd_info_list, sample_freq, epoch_num, epoch_range, np.sum)
+    percentage_psd_delta_timeseries_wake_df = make_psd_timeseries_df(percentage_psd_info_list, epoch_range, bidx_delta_freq, 'bidx_wake')
 
 
     # draw delta-power timeseries
