@@ -313,71 +313,8 @@ class  TestFunctions(unittest.TestCase):
         # check 5: 'NOT of bidx_target' is the 'NOT of the good epochs (no staged epoch in the check 4)'
         np.testing.assert_array_equal(np.where(~psd_info_list[0]['bidx_target'])[0][100:]+8, idx)
         
-        # check 6: loaded conv_psd's shape should be 1799,129 because of one unknown (1800-1)
-        np.testing.assert_equal(ans_conv_psd.shape, (1799, 129))
-
-
-    # def test_make_psd_profile(self):
-    #     # conventional PSD from voltage matrix
-    #     conv_psd = np.apply_along_axis(lambda y: stage.psd(y, self.n_fft, self.sample_freq), 1, self.eeg_vm_org)
-
-    #     bidx_unknown = (self.stage_call == 'UNKNOWN')
-    #     bidx_rem = (self.stage_call == 'REM') & (~bidx_unknown)
-    #     bidx_nrem = (self.stage_call == 'NREM') & (~bidx_unknown)
-    #     bidx_wake = (self.stage_call == 'WAKE') & (~bidx_unknown)
-    #     exp_psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
-    #     exp_psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
-    #     exp_psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
-
-    #     # a small mouse_info_df
-    #     mif = pd.DataFrame({'Device label':['ID33572'], 
-    #                 'Stats report':['Yes'], 
-    #                 'Mouse group':['T287D'], 
-    #                 'Mouse ID':'AAV0837_1',
-    #                 'Experiment label': ['FASTER2_20200206_EEG_2019-023'], 
-    #                 'FASTER_DIR':['../test/data/FASTER2_20200206_EEG_2019-023/']})
-
-    #     # TEST
-    #     df = ps.make_psd_profile(mif, 100, slice(0,1800,None), 'faster2_1800')
-    #     ans_psd_mean_rem = df.iloc[0][5:].tolist()
-    #     ans_psd_mean_nrem = df.iloc[1][5:].tolist()
-    #     ans_psd_mean_wake = df.iloc[2][5:].tolist()
-
-    #     np.testing.assert_array_almost_equal(exp_psd_mean_rem, ans_psd_mean_rem)
-    #     np.testing.assert_array_almost_equal(exp_psd_mean_nrem, ans_psd_mean_nrem)
-    #     np.testing.assert_array_almost_equal(exp_psd_mean_wake, ans_psd_mean_wake)
-
-
-    # def test_make_log_psd_profile(self):
-    #     # conventional PSD from voltage matrix
-    #     conv_psd = np.apply_along_axis(lambda y: stage.psd(y, self.n_fft, self.sample_freq), 1, self.eeg_vm_org)
-    #     conv_psd = 10*np.log10(conv_psd)
-
-    #     bidx_unknown = (self.stage_call == 'UNKNOWN')
-    #     bidx_rem = (self.stage_call == 'REM') & (~bidx_unknown)
-    #     bidx_nrem = (self.stage_call == 'NREM') & (~bidx_unknown)
-    #     bidx_wake = (self.stage_call == 'WAKE') & (~bidx_unknown)
-    #     exp_psd_mean_rem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem, :])
-    #     exp_psd_mean_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem, :])
-    #     exp_psd_mean_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake, :])
-
-    #     # a small mouse_info_df
-    #     mif = pd.DataFrame({'Device label':['ID33572'], 
-    #                 'Stats report':['Yes'], 
-    #                 'Mouse group':['T287D'], 
-    #                 'Mouse ID':'AAV0837_1',
-    #                 'Experiment label': ['FASTER2_20200206_EEG_2019-023'], 
-    #                 'FASTER_DIR':['../test/data/FASTER2_20200206_EEG_2019-023/']})
-
-    #     # TEST
-    #     df = ps.make_log_psd_profile(mif, 100, slice(0,1800,None), 'faster2_1800')
-    #     ans_psd_mean_rem = df.iloc[0][5:].tolist()
-    #     ans_psd_mean_nrem = df.iloc[1][5:].tolist()
-    #     ans_psd_mean_wake = df.iloc[2][5:].tolist()
-
-    #     np.testing.assert_array_almost_equal(exp_psd_mean_rem, ans_psd_mean_rem)
-    #     np.testing.assert_array_almost_equal(exp_psd_mean_nrem, ans_psd_mean_nrem)
-    #     np.testing.assert_array_almost_equal(exp_psd_mean_wake, ans_psd_mean_wake)
+        # check 6: loaded conv_psd's shape should be 1800,129 even there is one unknown
+        np.testing.assert_equal(ans_conv_psd.shape, (1800, 129))
 
 
     def test_make_psd_domain(self):

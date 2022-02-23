@@ -2164,19 +2164,17 @@ def make_target_psd_info(mouse_info_df, epoch_range, sample_freq, stage_ext, sta
         sample_freq {int} -- sampling frequency
         epoch_range {slice} -- a range of target epochs
         stage_ext {str} -- a file sub-extention (e.g. 'faster2' for *.faster2.csv)
+        start_datetime -- datetime object for reading the voltage matrices
 
     Returns:
         psd_info_list [dict] --  A list of dict:
             'exp_label', 'mouse_group':mouse group, 'mouse_id':mouse id,
-            'device_label', 'stage_call', 'bidx_rem', 'bidx_nrem','bidx_wake':bidx_wake, 
-            'bidx_unknown', 'conv_psd':conv_psd'
+            'device_label', 'stage_call', 'bidx_rem', 'bidx_nrem','bidx_wake', 
+            'bidx_target', 'bidx_unknown', 'conv_psd':conv_psd'
     NOTE:
-        len(conv_psd) <= (len(stage_call)=len(bidx_rem)=len(other bidx), because the
-        unknown-stages' epochs do not have PSD. Therefore users should trim down the index
-        arrays with bidx_unknown to extract elements from conv_psd:
-        
-        > bidx_rem_known = psd_info['bidx_rem'][~bidx_unknown]
-        > psd_mean_rem  = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem_known, :])
+        stage.py also makes PSD. But, it is different from PSD of summary.py
+        because stage.py dicards PSD of unknown epochs while here the length of 
+        conv_psd is always equal to len(stage).
     """    
 
     # target PSDs are from known-stage's, within-the-epoch-range, and good epochs
@@ -2261,8 +2259,8 @@ def make_target_psd_info(mouse_info_df, epoch_range, sample_freq, stage_ext, sta
         print_log(f'    Number of epochs sampled for normalization: {epoch_num_balanced} each from NREM ({epoch_num_nrem} epochs) and Wake ({epoch_num_wake} epochs)')
         # calculate EEG's PSD
         n_fft = int(256 * sample_freq/100) # assures frequency bins compatibe among different sampleling frequencies
+        # Note: unknown epoch's conv_psd is nan. This is different from PSD pickled by stage.py.
         conv_psd = np.apply_along_axis(lambda y: stage.psd(y, n_fft, sample_freq), 1, eeg_vm_norm)
-        conv_psd = conv_psd[~bidx_unknown] # because conv_psd is supposed not to have unkown epochs in the sebsequent code
 
         psd_info_list.append({'exp_label':exp_label,
                         'mouse_group':mouse_group,
@@ -2386,15 +2384,13 @@ def make_psd_delta_timeseries_df(psd_info_list, sample_freq, epoch_num, epoch_ra
     return psd_delta_timeseries_df
 
 
-def make_psd_profile(psd_info_list, sample_freq, epoch_range, stage_ext):
+def make_psd_profile(psd_info_list, sample_freq):
     """makes summary PSD statics of each mouse:
             psd_mean_df: summary (default: mean) of PSD profiles for each stage for each mice.
 
     Arguments:
         psd_info_list {[np.array]} -- a list of psd_info given by make_target_psd_info()
         sample_freq {int} -- sampling frequency
-        epoch_range {slice} -- a range of target epochs
-        stage_ext {str} -- a file sub-extention (e.g. 'faster2' for *.faster2.csv)
 
     Returns:
         psd_summary_df {pd.DataFrame} --  Experiment label, Mouse group, Mouse ID, 
@@ -2416,25 +2412,24 @@ def make_psd_profile(psd_info_list, sample_freq, epoch_range, stage_ext):
         exp_label = psd_info['exp_label']
         conv_psd = psd_info['conv_psd']
 
-        bidx_unknown = psd_info['bidx_unknown']
-        bidx_rem_known = psd_info['bidx_rem'][~bidx_unknown]
-        bidx_nrem_known = psd_info['bidx_nrem'][~bidx_unknown]
-        bidx_wake_known = psd_info['bidx_wake'][~bidx_unknown]
+        bidx_rem_target = psd_info['bidx_rem'] & psd_info['bidx_target']
+        bidx_nrem_target = psd_info['bidx_nrem'] & psd_info['bidx_target']
+        bidx_wake_target = psd_info['bidx_wake'] & psd_info['bidx_target']
  
-        psd_summary_rem  = np.apply_along_axis(np.mean, 0, conv_psd[bidx_rem_known, :])
-        psd_summary_nrem = np.apply_along_axis(np.mean, 0, conv_psd[bidx_nrem_known, :])
-        psd_summary_wake = np.apply_along_axis(np.mean, 0, conv_psd[bidx_wake_known, :])
+        psd_summary_rem  = np.apply_along_axis(np.nanmean, 0, conv_psd[bidx_rem_target, :])
+        psd_summary_nrem = np.apply_along_axis(np.nanmean, 0, conv_psd[bidx_nrem_target, :])
+        psd_summary_wake = np.apply_along_axis(np.nanmean, 0, conv_psd[bidx_wake_target, :])
 
         psd_summary_df = psd_summary_df.append([
-            [exp_label, mouse_group, mouse_id, device_label, 'REM'] + psd_summary_rem.tolist()], ignore_index=True)
+            [exp_label, mouse_group, mouse_id, device_label, 'REM', np.sum(bidx_rem_target)] + psd_summary_rem.tolist()], ignore_index=True)
         psd_summary_df = psd_summary_df.append([
-            [exp_label, mouse_group, mouse_id, device_label, 'NREM'] + psd_summary_nrem.tolist()], ignore_index=True)
+            [exp_label, mouse_group, mouse_id, device_label, 'NREM', np.sum(bidx_nrem_target)] + psd_summary_nrem.tolist()], ignore_index=True)
         psd_summary_df = psd_summary_df.append([
-            [exp_label, mouse_group, mouse_id, device_label, 'Wake'] + psd_summary_wake.tolist()], ignore_index=True)
+            [exp_label, mouse_group, mouse_id, device_label, 'Wake', np.sum(bidx_wake_target)] + psd_summary_wake.tolist()], ignore_index=True)
 
     freq_columns = [f'f@{x}' for x in freq_bins.tolist()]
     column_names = ['Experiment label', 'Mouse group',
-                    'Mouse ID', 'Device label', 'Stage'] + freq_columns
+                    'Mouse ID', 'Device label', 'Stage', 'epoch #'] + freq_columns
     psd_summary_df.columns = column_names
 
     return psd_summary_df
@@ -3117,12 +3112,9 @@ if __name__ == '__main__':
         percentage_psd_info['conv_psd'] = percentage_psd_mat
 
     # PSD profiles
-    psd_profiles_df = make_psd_profile(
-        psd_info_list, sample_freq, epoch_range, stage_ext)
-    log_psd_profiles_df = make_psd_profile(
-        log_psd_info_list, sample_freq, epoch_range, stage_ext)
-    percentage_psd_profiles_df = make_psd_profile(
-        percentage_psd_info_list, sample_freq, epoch_range, stage_ext)
+    psd_profiles_df = make_psd_profile(psd_info_list, sample_freq)
+    log_psd_profiles_df = make_psd_profile(log_psd_info_list, sample_freq)
+    percentage_psd_profiles_df = make_psd_profile(percentage_psd_info_list, sample_freq)
 
     # write a table of PSD
     write_psd_stats(psd_profiles_df, output_dir)
