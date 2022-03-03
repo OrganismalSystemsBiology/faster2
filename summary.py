@@ -1320,6 +1320,7 @@ def draw_swtrans_circadian_profile_individual(stagetime_stats, output_dir):
         filename = f'sleep-wake-transition_circadian_profile_I_{"_".join(stagetime_df.iloc[i,0:4].values)}'
         _savefig(output_dir, filename, fig)
 
+
 def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     swtrans_circadian_profile_list = stagetime_stats['swtrans_circadian']
@@ -2169,11 +2170,11 @@ def make_target_psd_info(mouse_info_df, epoch_range, sample_freq, stage_ext, sta
     Returns:
         psd_info_list [dict] --  A list of dict:
             'exp_label', 'mouse_group':mouse group, 'mouse_id':mouse id,
-            'device_label', 'stage_call', 'bidx_rem', 'bidx_nrem','bidx_wake', 
-            'bidx_target', 'bidx_unknown', 'conv_psd':conv_psd'
+            'device_label', 'stage_call', 'bidx_rem', 'bidx_nrem','bidx_wake',
+            'bidx_target', 'bidx_unknown', 'norm', 'raw'
     NOTE:
         stage.py also makes PSD. But, it is different from PSD of summary.py
-        because stage.py dicards PSD of unknown epochs while here the length of 
+        because stage.py dicards PSD of unknown epochs while here the length of
         conv_psd is always equal to len(stage).
     """    
 
@@ -2261,6 +2262,8 @@ def make_target_psd_info(mouse_info_df, epoch_range, sample_freq, stage_ext, sta
         n_fft = int(256 * sample_freq/100) # assures frequency bins compatibe among different sampleling frequencies
         # Note: unknown epoch's conv_psd is nan. This is different from PSD pickled by stage.py.
         conv_psd = np.apply_along_axis(lambda y: stage.psd(y, n_fft, sample_freq), 1, eeg_vm_norm)
+        # PSD without normalization
+        conv_psd_raw = np.apply_along_axis(lambda y: stage.psd(y, n_fft, sample_freq), 1, eeg_vm_org)
 
         psd_info_list.append({'exp_label':exp_label,
                         'mouse_group':mouse_group,
@@ -2272,7 +2275,8 @@ def make_target_psd_info(mouse_info_df, epoch_range, sample_freq, stage_ext, sta
                         'bidx_wake':bidx_wake, 
                         'bidx_unknown':bidx_unknown, 
                         'bidx_target': bidx_target,
-                        'conv_psd':conv_psd})
+                        'norm':conv_psd,
+                        'raw':conv_psd_raw})
         
     return psd_info_list
 
@@ -2311,19 +2315,30 @@ def make_psd_timeseries_df(psd_info_list, epoch_range, bidx_freq, stage_bidx_key
     return psd_timeseries_df
 
 
-def make_psd_profile(psd_info_list, sample_freq):
+def make_psd_profile(psd_info_list, sample_freq, psd_type='norm', mask=None):
     """makes summary PSD statics of each mouse:
             psd_mean_df: summary (default: mean) of PSD profiles for each stage for each mice.
 
     Arguments:
         psd_info_list {[np.array]} -- a list of psd_info given by make_target_psd_info()
         sample_freq {int} -- sampling frequency
-
+        psd_type {str}: 'norm' or 'raw'
+        mask {str} -- binary mask to specify epochs to be included. Default is None meaning
+                      to include all epochs
     Returns:
         psd_summary_df {pd.DataFrame} --  Experiment label, Mouse group, Mouse ID, 
             Device label, Stage, [freq_bins...]
 
     """
+
+    def _psd_summary_by_bidx(bidx):
+        if np.sum(bidx)>0:
+            psd_summary = np.apply_along_axis(np.nanmean, 0, conv_psd[bidx, :])
+        else:
+            psd_summary = np.full(conv_psd.shape[1], np.nan)
+
+        return psd_summary
+
 
     # frequency bins
     # assures frequency bins compatibe among different sampling frequencies
@@ -2337,15 +2352,19 @@ def make_psd_profile(psd_info_list, sample_freq):
         mouse_group = psd_info['mouse_group']
         mouse_id = psd_info['mouse_id']
         exp_label = psd_info['exp_label']
-        conv_psd = psd_info['conv_psd']
+        conv_psd = psd_info[psd_type]
 
-        bidx_rem_target = psd_info['bidx_rem'] & psd_info['bidx_target']
-        bidx_nrem_target = psd_info['bidx_nrem'] & psd_info['bidx_target']
-        bidx_wake_target = psd_info['bidx_wake'] & psd_info['bidx_target']
- 
-        psd_summary_rem  = np.apply_along_axis(np.nanmean, 0, conv_psd[bidx_rem_target, :])
-        psd_summary_nrem = np.apply_along_axis(np.nanmean, 0, conv_psd[bidx_nrem_target, :])
-        psd_summary_wake = np.apply_along_axis(np.nanmean, 0, conv_psd[bidx_wake_target, :])
+        # Default mask
+        if mask is None:
+            mask = np.full(len(psd_info['bidx_target']), True)
+
+        bidx_rem_target = psd_info['bidx_rem'] & psd_info['bidx_target'] & mask
+        bidx_nrem_target = psd_info['bidx_nrem'] & psd_info['bidx_target'] & mask
+        bidx_wake_target = psd_info['bidx_wake'] & psd_info['bidx_target'] & mask
+         
+        psd_summary_rem  = _psd_summary_by_bidx(bidx_rem_target)
+        psd_summary_nrem = _psd_summary_by_bidx(bidx_nrem_target)
+        psd_summary_wake = _psd_summary_by_bidx(bidx_wake_target)
 
         psd_summary_df = psd_summary_df.append([
             [exp_label, mouse_group, mouse_id, device_label, 'REM', np.sum(bidx_rem_target)] + psd_summary_rem.tolist()], ignore_index=True)
@@ -2858,7 +2877,7 @@ def make_psd_stats(psd_domain_df):
     for stage_name, powers_domains in zip(stage_names, powers_domains_stages_c):
         for domain_name in DOMAIN_NAMES:
             powers = powers_domains[domain_name]
-            num = len(powers)
+            num = np.sum(~np.isnan(powers)) # conunt effective N
             rows.append([group_c, stage_name, domain_name, num,
                          np.mean(powers),  np.std(powers), np.nan, None, None])
 
@@ -2874,9 +2893,9 @@ def make_psd_stats(psd_domain_df):
                 powers_c = powers_domains_c[domain_name]
                 powers_t = powers_domains_t[domain_name]
                 test = test_two_sample(powers_c, powers_t)
-                num = len(powers_t)
+                num = np.sum(~np.isnan(powers_t)) # conunt effective N
                 rows.append([group_t, stage_name, domain_name, num,
-                             np.mean(powers_t),  np.std(powers_t), test['p_value'], test['stars'], test['method']])
+                             np.nanmean(powers_t),  np.nanstd(powers_t), test['p_value'], test['stars'], test['method']])
 
         psd_stats_df = psd_stats_df.append(rows)
 
@@ -2903,6 +2922,130 @@ def write_psd_stats(psd_profiles_df, output_dir, opt_label='', summary_func=np.m
         output_dir, f'PSD_{opt_label}profile_freq_domain_table.csv'), index=False)
     psd_stats_df.to_csv(os.path.join(
         output_dir, f'PSD_{opt_label}profile_stats_table.csv'), index=False)
+
+
+def pickle_psd_info_list(psd_info_list, output_dir, filename):
+    """ Save the psd_info_list into a file
+
+    Args:
+        psd_info_list (list of dict): An object made by make_target_psd_info()
+        output_dir: The path to the folder of summary files
+        filename (str): The filename of the pickle file
+    
+    Note: This function assumes the PSD folder already exists
+    """
+    # Save the psd_info_lists
+    pkl_path = os.path.join(output_dir, 'PSD', filename)
+    with open(pkl_path, 'wb') as pkl:
+        pickle.dump(psd_info_list, pkl)
+
+
+def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, day_num, sample_freq, psd_output_dir, psd_type):
+    # make output dirs
+    output_dir = os.path.join(psd_output_dir, f'PSD_{psd_type}')
+    os.makedirs(os.path.join(output_dir, 'PDF'), exist_ok=True)
+    
+    # Mask for the fist halfday
+    epoch_num_halfday = int(12*60*60/EPOCH_LEN_SEC)
+    mask_first_halfday = np.tile(
+        np.hstack([np.full(epoch_num_halfday, True), 
+        np.full(epoch_num_halfday, False)]), 
+        day_num)
+
+    # Mask for the second halfday 
+    mask_second_halfday = np.tile(
+        np.hstack([np.full(epoch_num_halfday, False), 
+        np.full(epoch_num_halfday, True)]), 
+        day_num)
+
+    # PSD profiles (all day)
+    psd_profiles_df = make_psd_profile(psd_info_list, sample_freq, psd_type)
+    log_psd_profiles_df = make_psd_profile(log_psd_info_list, sample_freq, psd_type)
+    percentage_psd_profiles_df = make_psd_profile(
+        percentage_psd_info_list, sample_freq, psd_type)
+
+    # PSD profiles (first half-day)
+    psd_profiles_first_halfday_df = make_psd_profile(
+        psd_info_list, sample_freq, psd_type, mask_first_halfday)
+    log_psd_profiles_first_halfday_df = make_psd_profile(
+        log_psd_info_list, sample_freq, psd_type, mask_first_halfday)
+    percentage_psd_profiles_first_halfday_df = make_psd_profile(
+        percentage_psd_info_list, sample_freq, psd_type, mask_first_halfday)
+
+    # PSD profiles (second half-day)
+    psd_profiles_second_halfday_df = make_psd_profile(
+        psd_info_list, sample_freq, psd_type, mask_second_halfday)
+    log_psd_profiles_second_halfday_df = make_psd_profile(
+        log_psd_info_list, sample_freq, psd_type, mask_second_halfday)
+    percentage_psd_profiles_second_halfday_df = make_psd_profile(
+        percentage_psd_info_list, sample_freq, psd_type, mask_second_halfday)
+
+    # write a table of PSD (all day)
+    write_psd_stats(psd_profiles_df, output_dir, f'{psd_type}_allday_')
+    write_psd_stats(log_psd_profiles_df, output_dir, f'{psd_type}_allday_log-')
+    write_psd_stats(percentage_psd_profiles_df, output_dir, f'{psd_type}_allday_percentage-', np.sum)
+
+    # write a table of PSD (first half-day)
+    write_psd_stats(psd_profiles_first_halfday_df, output_dir, f'{psd_type}_first-halfday_')
+    write_psd_stats(log_psd_profiles_first_halfday_df, output_dir, f'{psd_type}_first-halfday_log-')
+    write_psd_stats(percentage_psd_profiles_first_halfday_df, output_dir, f'{psd_type}_first-halfday_percentage-', np.sum)    
+
+    # write a table of PSD (second half-day)
+    write_psd_stats(psd_profiles_second_halfday_df, output_dir, f'{psd_type}_second-halfday_')
+    write_psd_stats(log_psd_profiles_second_halfday_df, output_dir, f'{psd_type}_second-halfday_log-')
+    write_psd_stats(percentage_psd_profiles_second_halfday_df, output_dir, f'{psd_type}_second-halfday_percentage-', np.sum)    
+
+    # draw PSDs (all day)
+    print_log(f'Drawing the PSDs of type:{psd_type}')
+    if psd_type == 'norm':
+        unit = 'AU'
+    elif psd_type == 'raw':
+        unit = '$V^{2}/Hz$'
+    else:
+        unit = 'Unknown'
+    draw_PSDs_individual(psd_profiles_df, sample_freq,
+                         f'{psd_type} PSD [{unit}]', output_dir, f'{psd_type}_allday_')
+    draw_PSDs_individual(log_psd_profiles_df, sample_freq,
+                         f'{psd_type} PSD [log {unit}]', output_dir, f'{psd_type}_allday_log-')
+    draw_PSDs_individual(percentage_psd_profiles_df, sample_freq,
+                         f'{psd_type} percentage PSD [%]', output_dir, f'{psd_type}_allday_percentage-')
+
+    draw_PSDs_group(psd_profiles_df, sample_freq,
+                    f'{psd_type} PSD [{unit}]', output_dir, f'{psd_type}_allday_')
+    draw_PSDs_group(log_psd_profiles_df, sample_freq,
+                    f'{psd_type} PSD [log {unit}]', output_dir, f'{psd_type}_allday_log-')
+    draw_PSDs_group(percentage_psd_profiles_df, sample_freq,
+                    f'{psd_type} percentage PSD [%]', output_dir, f'{psd_type}_allday_percentage-')
+
+    # draw PSDs (first halfday)
+    draw_PSDs_individual(psd_profiles_first_halfday_df, sample_freq,
+                         f'{psd_type} PSD [{unit}]', output_dir, f'{psd_type}_first-halfday_')
+    draw_PSDs_individual(log_psd_profiles_first_halfday_df, sample_freq,
+                         f'{psd_type} PSD [log {unit}]', output_dir, f'{psd_type}_first-halfday_log-')
+    draw_PSDs_individual(percentage_psd_profiles_first_halfday_df, sample_freq,
+                         f'{psd_type} percentage PSD [%]', output_dir, f'{psd_type}_first-halfday_percentage-')
+
+    draw_PSDs_group(psd_profiles_first_halfday_df, sample_freq,
+                    f'{psd_type} PSD [{unit}]', output_dir, f'{psd_type}_first-halfday_')
+    draw_PSDs_group(log_psd_profiles_first_halfday_df, sample_freq,
+                    f'{psd_type} PSD [log {unit}]', output_dir, f'{psd_type}_first-halfday_log-')
+    draw_PSDs_group(percentage_psd_profiles_first_halfday_df, sample_freq,
+                    f'{psd_type} percentage PSD [%]', output_dir, f'{psd_type}_first-halfday_percentage-')
+
+    # draw PSDs (second halfday)
+    draw_PSDs_individual(psd_profiles_second_halfday_df, sample_freq,
+                         f'{psd_type} PSD [{unit}]', output_dir, f'{psd_type}_second-halfday_')
+    draw_PSDs_individual(log_psd_profiles_second_halfday_df, sample_freq,
+                         f'{psd_type} PSD [log {unit}]', output_dir, f'{psd_type}_second-halfday_log-')
+    draw_PSDs_individual(percentage_psd_profiles_second_halfday_df, sample_freq,
+                         f'{psd_type} percentage PSD [%]', output_dir, f'{psd_type}_second-halfday_percentage-')
+
+    draw_PSDs_group(psd_profiles_second_halfday_df, sample_freq,
+                    f'{psd_type} PSD [{unit}]', output_dir, f'{psd_type}_second-halfday_')
+    draw_PSDs_group(log_psd_profiles_second_halfday_df, sample_freq,
+                    f'{psd_type} PSD [log {unit}]', output_dir, f'{psd_type}_second-halfday_log-')
+    draw_PSDs_group(percentage_psd_profiles_second_halfday_df, sample_freq,
+                    f'{psd_type} percentage PSD [%]', output_dir, f'{psd_type}_second-halfday_percentage-')
 
 
 if __name__ == '__main__':
@@ -2935,6 +3078,13 @@ if __name__ == '__main__':
     sample_freq = mouse_info_collected['sample_freq']
     start_datetime = mouse_info_collected['start_datetime']
 
+    # number of days in the data
+    day_num = epoch_num * EPOCH_LEN_SEC / 60 / 60 / 24
+    if day_num != int(day_num):
+        raise ValueError(f'The number of days: {day_num} must be an integer.')
+    else:
+        day_num = int(day_num)
+
     # set the epoch range to be summarized
     if args.epoch_range:
         # use the range given by the command line option
@@ -2963,6 +3113,7 @@ if __name__ == '__main__':
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(os.path.join(output_dir, 'pdf'), exist_ok=True)
     os.makedirs(os.path.join(output_dir, 'log'), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, 'PSD'), exist_ok=True)
 
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     log = initialize_logger(os.path.join(output_dir, 'log', f'summary.{dt_str}.log'))
@@ -3026,43 +3177,30 @@ if __name__ == '__main__':
     print_log('Making the log version of the PSD information')
     log_psd_info_list = copy.deepcopy(psd_info_list)
     for log_psd_info in log_psd_info_list:
-        log_psd_info['conv_psd'] = 10*np.log10(log_psd_info['conv_psd'])
+        log_psd_info['norm'] = 10*np.log10(log_psd_info['norm'])
+        log_psd_info['raw'] = 10*np.log10(log_psd_info['raw'])
 
     # percentage version of psd_info
     print_log('Making the percentage version of the PSD information')
     percentage_psd_info_list = copy.deepcopy(psd_info_list)
     for percentage_psd_info in percentage_psd_info_list:
-        conv_psd = percentage_psd_info['conv_psd']
+        conv_psd = percentage_psd_info['norm']
+        conv_psd_raw = percentage_psd_info['raw']
         percentage_psd_mat = np.zeros(conv_psd.shape)
+        percentage_psd_raw_mat = np.zeros(conv_psd_raw.shape)
         for i, p in enumerate(conv_psd): # row wise
             percentage_psd_mat[i,:] = 100*p / np.sum(p)
-        percentage_psd_info['conv_psd'] = percentage_psd_mat
+        percentage_psd_info['norm'] = percentage_psd_mat
+        for i, p in enumerate(conv_psd_raw): # row wise
+            percentage_psd_raw_mat[i,:] = 100*p / np.sum(p)
+        percentage_psd_info['raw'] = percentage_psd_raw_mat
 
-    # PSD profiles
-    psd_profiles_df = make_psd_profile(psd_info_list, sample_freq)
-    log_psd_profiles_df = make_psd_profile(log_psd_info_list, sample_freq)
-    percentage_psd_profiles_df = make_psd_profile(percentage_psd_info_list, sample_freq)
+    # Save the psd_info_lists
+    print_log('Saving the PSD information')
+    pickle_psd_info_list(psd_info_list, output_dir, 'psd_info_list.pkl')
 
-    # write a table of PSD
-    write_psd_stats(psd_profiles_df, output_dir)
-    write_psd_stats(log_psd_profiles_df, output_dir, 'log-')
-    write_psd_stats(percentage_psd_profiles_df, output_dir, 'percentage-', np.sum)
-
-    # draw PSDs
-    print_log('Drawing the PSDs')
-    draw_PSDs_individual(psd_profiles_df, sample_freq,
-                         'normalized PSD [AU]', output_dir)
-    draw_PSDs_individual(log_psd_profiles_df, sample_freq,
-                         'normalized log PSD [AU]', output_dir, 'log-')
-    draw_PSDs_individual(percentage_psd_profiles_df, sample_freq,
-                         'normalized log PSD [AU]', output_dir, 'percentage-')
-
-    draw_PSDs_group(psd_profiles_df, sample_freq,
-                    'normalized PSD [AU]', output_dir)
-    draw_PSDs_group(log_psd_profiles_df, sample_freq,
-                    'normalized log PSD [AU]', output_dir, 'log-')
-    draw_PSDs_group(percentage_psd_profiles_df, sample_freq,
-                    'normalized percentage PSD [%]', output_dir, 'percentage-')
+    # Make PSD stats and plots
+    process_psd_profile(psd_info_list, log_psd_info,percentage_psd_info, 'norm')
 
     # PSD timeseries
     # assures frequency bins compatibe among different sampling frequencies
