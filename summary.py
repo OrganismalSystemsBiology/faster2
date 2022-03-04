@@ -30,7 +30,6 @@ DOMAIN_NAMES = ['Slow', 'Delta w/o slow', 'Delta', 'Theta']
 EPOCH_LEN_SEC = 8
 
 
-
 def initialize_logger(log_file):
     logger = getLogger(stage.FASTER2_NAME)
     logger.setLevel(logging.DEBUG)
@@ -696,23 +695,6 @@ def _set_common_features_swtrans_profile(ax, x_max):
     ax.set_ylim(-0.1, 0.5)
 
 
-def _set_common_features_delta_power_timeseries(ax, x_max, y_max):
-    y_tick_interval = np.power(10, np.ceil(np.log10(y_max))-1)
-    ax.set_yticks(np.arange(0, y_max, y_tick_interval))
-    ax.set_xticks(np.arange(0, x_max+1, 6))
-    ax.grid(dashes=(2, 2))
-
-    light_bar_base = matplotlib.patches.Rectangle(
-        xy=[0, -0.1*y_tick_interval], width=x_max, height=0.1*y_tick_interval, fill=True, color=stage.COLOR_DARK)
-    ax.add_patch(light_bar_base)
-    for day in range(int(x_max/24)):
-        light_bar_light = matplotlib.patches.Rectangle(
-            xy=[24*day, -0.1*y_tick_interval], width=12, height=0.1*y_tick_interval, fill=True, color=stage.COLOR_LIGHT)
-        ax.add_patch(light_bar_light)
-
-    ax.set_ylim(-0.15*y_tick_interval, y_max)
-
-
 def _set_common_features_domain_power_timeseries(ax, x_max, y_max):
     y_tick_interval = np.power(10, np.ceil(np.log10(y_max))-1)
     ax.set_yticks(np.arange(0, y_max, y_tick_interval))
@@ -750,7 +732,7 @@ def _set_common_features_stagetime_profile_rem(ax, x_max):
 def _savefig(output_dir, basefilename, fig):
     # JPG
     filename = f'{basefilename}.jpg'
-    fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
+    fig.savefig(os.path.join(output_dir, filename), pad_inches=0.01,
                 bbox_inches='tight', dpi=100, quality=85, optimize=True)
     # PDF
     filename = f'{basefilename}.pdf'
@@ -1485,7 +1467,7 @@ def draw_psd_domain_power_timeseries_individual(psd_domain_power_timeseries_df, 
         ax1.plot(x, profile, color=stage.COLOR_NREM)
 
         fig.suptitle(
-            f'Stage-time profile: {"  ".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}')
+            f'Power timeseries: {"  ".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}')
 
         filename = f'power-timeseries_{domain}_{opt_label}I_{"_".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}'
         _savefig(output_dir, filename, fig)
@@ -1554,7 +1536,7 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, y_l
                             y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
 
             fig.suptitle(
-                f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
+                f'Power timeseries: {mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
             filename = f'power-timeseries_{domain}_{opt_label}G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
             _savefig(output_dir, filename, fig)
     else:
@@ -1574,7 +1556,7 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, y_l
         ax1.set_ylabel(y_label)
         ax1.set_xlabel('Time (hours)')
 
-        fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
+        fig.suptitle(f'Power timeseries: {mouse_groups_set[g_idx]} (n={num})')
         filename = f'power-timeseries_{domain}_G_{opt_label}{mouse_groups_set[g_idx]}'
         _savefig(output_dir, filename, fig)
 
@@ -2281,14 +2263,14 @@ def make_target_psd_info(mouse_info_df, epoch_range, sample_freq, stage_ext, sta
     return psd_info_list
 
 
-def make_psd_timeseries_df(psd_info_list, epoch_range, bidx_freq, stage_bidx_key=None):
+def make_psd_timeseries_df(psd_info_list, epoch_range, bidx_freq, stage_bidx_key=None, psd_type='norm'):
     """make timeseries of PSD with a specified stage and freq domain
 
     Args:
         psd_info_list (list of psd_info): The list of object given by make_target_psd_info()
         epoch_range (slice): The epoch range of interest
         stage_bidx_key (str): The key of dict in the psd_info for a stage (e.g. 'bidx_nrem')
-        bidx_freq (array): The binary index of frequency domain in the PSD
+        psd_type (str): 'norm' or 'raw'
 
     Returns:
         [pd.dataframe]: The timeseries of PSD
@@ -2302,7 +2284,7 @@ def make_psd_timeseries_df(psd_info_list, epoch_range, bidx_freq, stage_bidx_key
         else:
             bidx_targeted_stage = bidx_target
 
-        conv_psd = psd_info['conv_psd']
+        conv_psd = psd_info[psd_type]
         psd_delta_timeseries = np.repeat(np.nan, epoch_range.stop - epoch_range.start)
         psd_delta_timeseries[bidx_targeted_stage[epoch_range]] = np.apply_along_axis(np.nanmean, 1, conv_psd[bidx_targeted_stage, :][:,bidx_freq])
         psd_timeseries_df = psd_timeseries_df.append(
@@ -2340,11 +2322,7 @@ def make_psd_profile(psd_info_list, sample_freq, psd_type='norm', mask=None):
         return psd_summary
 
 
-    # frequency bins
-    # assures frequency bins compatibe among different sampling frequencies
-    n_fft = int(256 * sample_freq/100)
-    # same frequency bins given by signal.welch()
-    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+    freq_bins = psd_freq_bins(sample_freq)
 
     psd_summary_df = pd.DataFrame()
     for psd_info in psd_info_list:
@@ -2382,10 +2360,7 @@ def make_psd_profile(psd_info_list, sample_freq, psd_type='norm', mask=None):
 
 
 def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_label=''):
-    # assures frequency bins compatibe among different sampling frequencies
-    n_fft = int(256 * sample_freq/100)
-    # same frequency bins given by signal.welch()
-    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+    freq_bins = psd_freq_bins(sample_freq)
 
     # mouse_set
     mouse_list = psd_profiles_df['Mouse ID'].tolist()
@@ -2395,7 +2370,7 @@ def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_
     # draw individual PSDs
     for m in mouse_set:
         fig = Figure(figsize=(16, 4))
-        fig.subplots_adjust(wspace=0.25)
+        fig.subplots_adjust(wspace=0.27)
         ax1 = fig.add_subplot(131)
         ax2 = fig.add_subplot(132)
         ax3 = fig.add_subplot(133)
@@ -2425,10 +2400,7 @@ def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_
 
 
 def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label=''):
-    # assures frequency bins compatibe among different sampling frequencies
-    n_fft = int(256 * sample_freq/100)
-    # same frequency bins given by signal.welch()
-    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+    freq_bins = psd_freq_bins(sample_freq)
 
     # mouse_group_set
     mouse_group_list = psd_profiles_df['Mouse group'].tolist()
@@ -2458,7 +2430,7 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
     if len(mouse_group_set)>1:
         for g_idx in range(1, len(mouse_group_set)):
             fig = Figure(figsize=(16, 4))
-            fig.subplots_adjust(wspace=0.25)
+            fig.subplots_adjust(wspace=0.27)
             ax1 = fig.add_subplot(131)
             ax2 = fig.add_subplot(132)
             ax3 = fig.add_subplot(133)
@@ -2531,7 +2503,7 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
         # single group
         g_idx = 0
         fig = Figure(figsize=(16, 4))
-        fig.subplots_adjust(wspace=0.25)
+        fig.subplots_adjust(wspace=0.27)
         ax1 = fig.add_subplot(131)
         ax2 = fig.add_subplot(132)
         ax3 = fig.add_subplot(133)
@@ -2940,11 +2912,7 @@ def pickle_psd_info_list(psd_info_list, output_dir, filename):
         pickle.dump(psd_info_list, pkl)
 
 
-def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, day_num, sample_freq, psd_output_dir, psd_type):
-    # make output dirs
-    output_dir = os.path.join(psd_output_dir, f'PSD_{psd_type}')
-    os.makedirs(os.path.join(output_dir, 'PDF'), exist_ok=True)
-    
+def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, day_num, sample_freq, output_dir, psd_type, vol_unit='V'):
     # Mask for the fist halfday
     epoch_num_halfday = int(12*60*60/EPOCH_LEN_SEC)
     mask_first_halfday = np.tile(
@@ -2980,72 +2948,148 @@ def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_li
     percentage_psd_profiles_second_halfday_df = make_psd_profile(
         percentage_psd_info_list, sample_freq, psd_type, mask_second_halfday)
 
+    psd_output_dir = os.path.join(output_dir, f'PSD_{psd_type}')
+
     # write a table of PSD (all day)
-    write_psd_stats(psd_profiles_df, output_dir, f'{psd_type}_allday_')
-    write_psd_stats(log_psd_profiles_df, output_dir, f'{psd_type}_allday_log-')
-    write_psd_stats(percentage_psd_profiles_df, output_dir, f'{psd_type}_allday_percentage-', np.sum)
+    write_psd_stats(psd_profiles_df, psd_output_dir, f'{psd_type}_allday_')
+    write_psd_stats(log_psd_profiles_df, psd_output_dir, f'{psd_type}_allday_log-')
+    write_psd_stats(percentage_psd_profiles_df, psd_output_dir, f'{psd_type}_allday_percentage-', np.sum)
 
     # write a table of PSD (first half-day)
-    write_psd_stats(psd_profiles_first_halfday_df, output_dir, f'{psd_type}_first-halfday_')
-    write_psd_stats(log_psd_profiles_first_halfday_df, output_dir, f'{psd_type}_first-halfday_log-')
-    write_psd_stats(percentage_psd_profiles_first_halfday_df, output_dir, f'{psd_type}_first-halfday_percentage-', np.sum)    
+    write_psd_stats(psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_')
+    write_psd_stats(log_psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_log-')
+    write_psd_stats(percentage_psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_percentage-', np.sum)    
 
     # write a table of PSD (second half-day)
-    write_psd_stats(psd_profiles_second_halfday_df, output_dir, f'{psd_type}_second-halfday_')
-    write_psd_stats(log_psd_profiles_second_halfday_df, output_dir, f'{psd_type}_second-halfday_log-')
-    write_psd_stats(percentage_psd_profiles_second_halfday_df, output_dir, f'{psd_type}_second-halfday_percentage-', np.sum)    
+    write_psd_stats(psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_')
+    write_psd_stats(log_psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_log-')
+    write_psd_stats(percentage_psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_percentage-', np.sum)    
 
     # draw PSDs (all day)
     print_log(f'Drawing the PSDs of type:{psd_type}')
     if psd_type == 'norm':
         unit = 'AU'
     elif psd_type == 'raw':
-        unit = '$V^{2}/Hz$'
+        unit = f'${vol_unit}^{2}/Hz$'
     else:
         unit = 'Unknown'
     draw_PSDs_individual(psd_profiles_df, sample_freq,
-                         f'{psd_type} PSD [{unit}]', output_dir, f'{psd_type}_allday_')
+                         f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_allday_')
     draw_PSDs_individual(log_psd_profiles_df, sample_freq,
-                         f'{psd_type} PSD [log {unit}]', output_dir, f'{psd_type}_allday_log-')
+                         f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_allday_log-')
     draw_PSDs_individual(percentage_psd_profiles_df, sample_freq,
-                         f'{psd_type} percentage PSD [%]', output_dir, f'{psd_type}_allday_percentage-')
+                         f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_allday_percentage-')
 
     draw_PSDs_group(psd_profiles_df, sample_freq,
-                    f'{psd_type} PSD [{unit}]', output_dir, f'{psd_type}_allday_')
+                    f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_allday_')
     draw_PSDs_group(log_psd_profiles_df, sample_freq,
-                    f'{psd_type} PSD [log {unit}]', output_dir, f'{psd_type}_allday_log-')
+                    f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_allday_log-')
     draw_PSDs_group(percentage_psd_profiles_df, sample_freq,
-                    f'{psd_type} percentage PSD [%]', output_dir, f'{psd_type}_allday_percentage-')
+                    f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_allday_percentage-')
 
     # draw PSDs (first halfday)
     draw_PSDs_individual(psd_profiles_first_halfday_df, sample_freq,
-                         f'{psd_type} PSD [{unit}]', output_dir, f'{psd_type}_first-halfday_')
+                         f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_first-halfday_')
     draw_PSDs_individual(log_psd_profiles_first_halfday_df, sample_freq,
-                         f'{psd_type} PSD [log {unit}]', output_dir, f'{psd_type}_first-halfday_log-')
+                         f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_first-halfday_log-')
     draw_PSDs_individual(percentage_psd_profiles_first_halfday_df, sample_freq,
-                         f'{psd_type} percentage PSD [%]', output_dir, f'{psd_type}_first-halfday_percentage-')
+                         f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_first-halfday_percentage-')
 
     draw_PSDs_group(psd_profiles_first_halfday_df, sample_freq,
-                    f'{psd_type} PSD [{unit}]', output_dir, f'{psd_type}_first-halfday_')
+                    f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_first-halfday_')
     draw_PSDs_group(log_psd_profiles_first_halfday_df, sample_freq,
-                    f'{psd_type} PSD [log {unit}]', output_dir, f'{psd_type}_first-halfday_log-')
+                    f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_first-halfday_log-')
     draw_PSDs_group(percentage_psd_profiles_first_halfday_df, sample_freq,
-                    f'{psd_type} percentage PSD [%]', output_dir, f'{psd_type}_first-halfday_percentage-')
+                    f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_first-halfday_percentage-')
 
     # draw PSDs (second halfday)
     draw_PSDs_individual(psd_profiles_second_halfday_df, sample_freq,
-                         f'{psd_type} PSD [{unit}]', output_dir, f'{psd_type}_second-halfday_')
+                         f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_second-halfday_')
     draw_PSDs_individual(log_psd_profiles_second_halfday_df, sample_freq,
-                         f'{psd_type} PSD [log {unit}]', output_dir, f'{psd_type}_second-halfday_log-')
+                         f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_second-halfday_log-')
     draw_PSDs_individual(percentage_psd_profiles_second_halfday_df, sample_freq,
-                         f'{psd_type} percentage PSD [%]', output_dir, f'{psd_type}_second-halfday_percentage-')
+                         f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_second-halfday_percentage-')
 
     draw_PSDs_group(psd_profiles_second_halfday_df, sample_freq,
-                    f'{psd_type} PSD [{unit}]', output_dir, f'{psd_type}_second-halfday_')
+                    f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_second-halfday_')
     draw_PSDs_group(log_psd_profiles_second_halfday_df, sample_freq,
-                    f'{psd_type} PSD [log {unit}]', output_dir, f'{psd_type}_second-halfday_log-')
+                    f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_second-halfday_log-')
     draw_PSDs_group(percentage_psd_profiles_second_halfday_df, sample_freq,
-                    f'{psd_type} percentage PSD [%]', output_dir, f'{psd_type}_second-halfday_percentage-')
+                    f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_second-halfday_percentage-')
+
+
+def psd_freq_bins(sample_freq):
+    # assures frequency bins compatibe among different sampling frequencies
+    n_fft = int(256 * sample_freq/100)
+    # same frequency bins given by signal.welch()
+    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
+
+    return freq_bins
+
+
+def process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range, sample_freq, output_dir, psd_type, vol_unit='V'):
+    freq_bins = psd_freq_bins(sample_freq)
+    bidx_delta_freq = (freq_bins<4) # 11 bins
+    bidx_all_freq = np.full(129, True)
+
+    print_log(f'Making the delta-power timeseries in all stages type:{psd_type}')
+    psd_delta_timeseries_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, None, psd_type)
+    print_log(f'Making the delta-power timeseries in NREM type:{psd_type}')
+    psd_delta_timeseries_nrem_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem', psd_type)
+    print_log(f'Making the delta-power timeseries in all stages (percentage) type:{psd_type}')
+    percentage_psd_delta_timeseries_df = make_psd_timeseries_df(percentage_psd_info_list, epoch_range,  bidx_delta_freq, None, psd_type)
+    print_log(f'Making the delta-power timeseries in NREM (percentage) type:{psd_type}')
+    percentage_psd_delta_timeseries_nrem_df = make_psd_timeseries_df(percentage_psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem', psd_type)
+    print_log(f'Making the total-power timeseries in Wake type:{psd_type}')
+    psd_total_timeseries_wake_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_all_freq, 'bidx_wake', psd_type)
+    print_log(f'Making the delta-power timeseries in Wake type:{psd_type}')
+    psd_delta_timeseries_wake_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_wake', psd_type)
+    print_log(f'Making the delta-power timeseries in Wake (percentage) type:{psd_type}')
+    percentage_psd_delta_timeseries_wake_df = make_psd_timeseries_df(percentage_psd_info_list, epoch_range, bidx_delta_freq, 'bidx_wake', psd_type)
+
+
+    # draw delta-power timeseries
+    print_log(f'Drawing the power timeseries type:{psd_type}')
+    psd_output_dir = os.path.join(output_dir, f'PSD_{psd_type}')
+    if psd_type == 'norm':
+        unit = 'AU'
+    elif psd_type == 'raw':
+        unit = f'${vol_unit}^{2}/Hz$'
+    else:
+        unit = 'Unknown'
+    # delta in all epoch
+    psd_delta_timeseries_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta.csv'), header=False)
+    draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_df, f'Hourly delta power [{unit}]', psd_output_dir, f'{psd_type}_delta')
+    draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_df, f'Hourly delta power [{unit}]', psd_output_dir, f'{psd_type}_delta')
+    # delta percentage in all epoch
+    percentage_psd_delta_timeseries_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta_percentage.csv'), header=False)
+    draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_df, 'Hourly delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage')
+    draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_df, 'Hourly delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage')
+    # delta in NREM 
+    psd_delta_timeseries_nrem_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta_NREM.csv'), header=False)
+    draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_nrem_df, f'Hourly NREM delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'NREM_')
+    draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_nrem_df, f'Hourly NREM delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'NREM_')
+    # delta percentage in NREM
+    percentage_psd_delta_timeseries_nrem_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta_percentage_NREM.csv'), header=False)
+    draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'NREM_')
+    draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'NREM_')
+    # total in Wake
+    psd_total_timeseries_wake_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_total_Wake.csv'), header=False)
+    draw_psd_domain_power_timeseries_individual(psd_total_timeseries_wake_df, f'Hourly Wake total power [{unit}]', psd_output_dir, f'{psd_type}_total', 'Wake_')
+    draw_psd_domain_power_timeseries_grouped(psd_total_timeseries_wake_df, f'Hourly Wake total power [{unit}]', psd_output_dir, f'{psd_type}_total', 'Wake_')
+    # delta in Wake
+    psd_delta_timeseries_wake_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta_Wake.csv'), header=False)
+    draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_wake_df, f'Hourly Wake delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'Wake_')
+    draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_wake_df, f'Hourly Wake delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'Wake_')
+    # delta percentage in Wake
+    percentage_psd_delta_timeseries_wake_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta_percentage_Wake.csv'), header=False)
+    draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_wake_df, 'Hourly Wake delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'Wake_')
+    draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_wake_df, 'Hourly Wake delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'Wake_')
+
+
+def make_psd_output_dirs(output_dir, psd_type):
+    output_dir = os.path.join(output_dir, f'PSD_{psd_type}')
+    os.makedirs(os.path.join(output_dir, 'PDF'), exist_ok=True)
 
 
 if __name__ == '__main__':
@@ -3059,6 +3103,7 @@ if __name__ == '__main__':
     parser.add_argument("-o", "--output_dir",
                         help="a path to the output files (default: the first FASTER2 directory)")
     parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
+    parser.add_argument("-u", "--unit_voltage", help="The unit of EEG voltage for the raw PSD (default: V)", default="V")
 
 
     args = parser.parse_args()
@@ -3070,6 +3115,7 @@ if __name__ == '__main__':
     else:
         output_dir = None
     stage_ext = args.stage_ext
+    vol_unit = args.unit_voltage
 
     # collect mouse_infos of the specified (multiple) FASTER dirs
     mouse_info_collected = collect_mouse_info_df(faster_dir_list)
@@ -3199,60 +3245,14 @@ if __name__ == '__main__':
     print_log('Saving the PSD information')
     pickle_psd_info_list(psd_info_list, output_dir, 'psd_info_list.pkl')
 
+    # make output dirs for PSDs
+    make_psd_output_dirs(output_dir, 'norm')
+    make_psd_output_dirs(output_dir, 'raw')
+
     # Make PSD stats and plots
-    process_psd_profile(psd_info_list, log_psd_info,percentage_psd_info, 'norm')
+    process_psd_profile(psd_info_list, log_psd_info, percentage_psd_info, day_num, sample_freq, output_dir, 'norm')
+    process_psd_profile(psd_info_list, log_psd_info, percentage_psd_info, day_num, sample_freq, output_dir, 'raw', vol_unit)
 
     # PSD timeseries
-    # assures frequency bins compatibe among different sampling frequencies
-    n_fft = int(256 * sample_freq/100)
-    # same frequency bins given by signal.welch()
-    freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
-    bidx_delta_freq = (freq_bins<4) # 11 bins
-    bidx_all_freq = np.full(129, True)
-
-    print_log('Making the delta-power timeseries in all stages')
-    psd_delta_timeseries_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq)
-    print_log('Making the delta-power timeseries in NREM')
-    psd_delta_timeseries_nrem_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem')
-    print_log('Making the delta-power timeseries in all stages (percentage)')
-    percentage_psd_delta_timeseries_df = make_psd_timeseries_df(percentage_psd_info_list, epoch_range,  bidx_delta_freq)
-    print_log('Making the delta-power timeseries in NREM (percentage)')
-    percentage_psd_delta_timeseries_nrem_df = make_psd_timeseries_df(percentage_psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem')
-    print_log('Making the total-power timeseries in Wake')
-    psd_total_timeseries_wake_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_all_freq, 'bidx_wake')
-    print_log('Making the delta-power timeseries in Wake')
-    psd_delta_timeseries_wake_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_wake')
-    print_log('Making the delta-power timeseries in Wake (percentage)')
-    percentage_psd_delta_timeseries_wake_df = make_psd_timeseries_df(percentage_psd_info_list, epoch_range, bidx_delta_freq, 'bidx_wake')
-
-
-    # draw delta-power timeseries
-    print_log('Drawing the power timeseries')
-    # delta in all epoch
-    psd_delta_timeseries_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta.csv'), header=False)
-    draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir, 'delta')
-    draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_df, 'Hourly delta power [AU]', output_dir, 'delta')
-    # delta percentage in all epoch
-    percentage_psd_delta_timeseries_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta_percentage.csv'), header=False)
-    draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_df, 'Hourly delta power [%]', output_dir, 'delta_percentage')
-    draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_df, 'Hourly delta power [%]', output_dir, 'delta_percentage')
-    # delta in NREM 
-    psd_delta_timeseries_nrem_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta_NREM.csv'), header=False)
-    draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [AU]', output_dir, 'delta', 'NREM_')
-    draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [AU]', output_dir, 'delta', 'NREM_')
-    # delta percentage in NREM
-    percentage_psd_delta_timeseries_nrem_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta_percentage_NREM.csv'), header=False)
-    draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [%]', output_dir, 'delta_percentage', 'NREM_')
-    draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [%]', output_dir, 'delta_percentage', 'NREM_')
-    # total in Wake
-    psd_total_timeseries_wake_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_total_Wake.csv'), header=False)
-    draw_psd_domain_power_timeseries_individual(psd_total_timeseries_wake_df, 'Hourly Wake total power [AU]', output_dir, 'total', 'Wake_')
-    draw_psd_domain_power_timeseries_grouped(psd_total_timeseries_wake_df, 'Hourly Wake total power [AU]', output_dir, 'total', 'Wake_')
-    # delta in Wake
-    psd_delta_timeseries_wake_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta_Wake.csv'), header=False)
-    draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_wake_df, 'Hourly Wake delta power [AU]', output_dir, 'delta', 'Wake_')
-    draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_wake_df, 'Hourly Wake delta power [AU]', output_dir, 'delta', 'Wake_')
-    # delta percentage in Wake
-    percentage_psd_delta_timeseries_wake_df.T.to_csv(os.path.join(output_dir, f'power-timeseries_delta_percentage_Wake.csv'), header=False)
-    draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_wake_df, 'Hourly Wake delta power [AU]', output_dir, 'delta_percentage', 'Wake_')
-    draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_wake_df, 'Hourly Wake delta power [AU]', output_dir, 'delta_percentage', 'Wake_')
+    process_psd_timeseries(psd_info_list, percentage_psd_info, epoch_range, sample_freq, output_dir, 'norm')
+    process_psd_timeseries(psd_info_list, percentage_psd_info, epoch_range, sample_freq, output_dir, 'raw', vol_unit)
