@@ -279,7 +279,7 @@ class  TestFunctions(unittest.TestCase):
         start_datetime = datetime.datetime(2019, 8, 15, 8, 0)
         psd_info_list = ps.make_target_psd_info(mif, slice(100,1800,None), self.sample_freq, 'faster2_1800', start_datetime)
         psd_info = psd_info_list[0]
-        ans_conv_psd = psd_info['conv_psd']
+        ans_conv_psd = psd_info['norm']
 
         # check 1: The length of stage_call is full length (not the targeted length) i.e. 1800
         np.testing.assert_equal(len(psd_info_list[0]['stage_call']), 1800)
