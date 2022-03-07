@@ -14,10 +14,9 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import textwrap
 
-from scipy import stats
-
 import faster2lib.eeg_tools as et
 import faster2lib.summary_psd as sp
+import faster2lib.summary_common as sc
 import stage
 
 from datetime import datetime
@@ -291,6 +290,7 @@ def swtrans_circadian_profile(stage_call):
         pws_sd = np.apply_along_axis(np.nanstd, 0, pws_mat)
 
     return np.array([[psw_mean, pws_mean], [psw_sd, pws_sd]])
+
 
 def transmat_from_stages(stages):
     """transition probability matrix among each stage
@@ -571,97 +571,9 @@ def filter_short_bout(stage_call, min_bout_len=2):
     return stage_call_filtered
 
 
-def test_two_sample(x, y):
-    # test.two.sample: Performs two-sample statistical tests according to our labratory's standard.
-    ##
-    # Arguments:
-    # x: first samples
-    # y: second samples
-    ##
-    # Return:
-    # A dict of (p.value=p.value, method=method (string))
-    ##
-
-    # remove nan
-    xx = np.array(x)
-    yy = np.array(y)
-    xx = xx[~np.isnan(xx)]
-    yy = yy[~np.isnan(yy)]
-
-    # If input data length < 2, any test is not applicable.
-    if (len(xx) < 2) or (len(yy) < 2):
-        p_value = np.nan
-        stars = ''
-        method = None
-    else:
-        # If input data length < 3, Shapiro test is not applicable,
-        # so we assume false normality of the distribution.
-        if (len(xx) < 3) or (len(yy) < 3):
-            # Forced rejection of distribution normality
-            normality_xx_p = 0
-            normality_yy_p = 0
-        elif np.var(xx) == 0 or np.var(yy) == 0:
-            # Forced rejection of distribution normality
-            normality_xx_p = 0
-            normality_yy_p = 0
-        else:
-            normality_xx_p = stats.shapiro(xx)[1]
-            normality_yy_p = stats.shapiro(yy)[1]
-
-        equal_variance_p = var_test(xx, yy)['p_value']
-
-        if not ((normality_xx_p < 0.05) or (normality_yy_p < 0.05) or (equal_variance_p < 0.05)):
-            # When any null-hypotheses of the normalities of x and of y,
-            # and the equal variance of (x,y) are NOT rejected,
-            # use Student's t-test
-            method = "Student's t-test"
-            p_value = stats.ttest_ind(xx, yy, equal_var=True)[1]
-        elif not ((normality_xx_p < 0.05) or (normality_yy_p < 0.05)) and (equal_variance_p < 0.05):
-            # When null-hypotheses of the normality of x and of y are NOT rejected,
-            # but that of the equal variance of (x,y) is rejected,
-            # use Welch's t-tet
-            method = "Welch's t-test"
-            p_value = stats.ttest_ind(xx, yy, equal_var=False)[1]
-        else:
-            # If none of above was satisfied, use Wilcoxon's ranksum test.
-            method = "Wilcoxon test"
-            # same as stats.mannwhitneyu() with alternative='two-sided', use_continuity=False
-            # or R's wilcox.test(x, y, exact=F, correct=F)
-            p_value = stats.ranksums(xx, yy)[1]
-
-        # stars
-        if not np.isnan(p_value) and p_value < 0.001:
-            stars = '***'
-        elif p_value < 0.01:
-            stars = '**'
-        elif p_value < 0.06:
-            stars = '*'
-        else:
-            stars = ''
-
-    res = {'p_value': p_value, 'stars': stars, 'method': method}
-    return res
 
 
-def var_test(x, y):
-    """ Performs an F test to compare the variances of two samples.
-        This function is same as R's var.test()
-    """
-    df1 = len(x) - 1
-    df2 = len(y) - 1
-    v1 = np.var(y, ddof=1)
-    v2 = np.var(x, ddof=1)
 
-    if v2 > 0:
-        F = v1/v2
-        if F > 1:
-            p_value = stats.f.sf(F, df2, df1)*2  # two-sided
-        else:
-            p_value = (1-stats.f.sf(F, df2, df1))*2  # two-sided
-    else:
-        F = np.nan
-        p_value = np.nan
-    return {'F': F, 'df1': df1, 'df2': df2, 'p_value': p_value}
 
 
 def _set_common_features_stagetime_profile(ax, x_max):
@@ -696,23 +608,6 @@ def _set_common_features_swtrans_profile(ax, x_max):
     ax.set_ylim(-0.1, 0.5)
 
 
-def _set_common_features_domain_power_timeseries(ax, x_max, y_max):
-    y_tick_interval = np.power(10, np.ceil(np.log10(y_max))-1)
-    ax.set_yticks(np.arange(0, y_max, y_tick_interval))
-    ax.set_xticks(np.arange(0, x_max+1, 6))
-    ax.grid(dashes=(2, 2))
-
-    light_bar_base = matplotlib.patches.Rectangle(
-        xy=[0, -0.1*y_tick_interval], width=x_max, height=0.1*y_tick_interval, fill=True, color=stage.COLOR_DARK)
-    ax.add_patch(light_bar_base)
-    for day in range(int(x_max/24)):
-        light_bar_light = matplotlib.patches.Rectangle(
-            xy=[24*day, -0.1*y_tick_interval], width=12, height=0.1*y_tick_interval, fill=True, color=stage.COLOR_LIGHT)
-        ax.add_patch(light_bar_light)
-
-    ax.set_ylim(-0.15*y_tick_interval, y_max)
-
-
 def _set_common_features_stagetime_profile_rem(ax, x_max):
     r = 4  # a scale factor for y-axis
     ax.set_yticks(np.array([0, 20, 40, 60])/r)
@@ -728,17 +623,6 @@ def _set_common_features_stagetime_profile_rem(ax, x_max):
         ax.add_patch(light_bar_light)
 
     ax.set_ylim(-10/r, 70/r)
-
-
-def _savefig(output_dir, basefilename, fig):
-    # JPG
-    filename = f'{basefilename}.jpg'
-    fig.savefig(os.path.join(output_dir, filename), pad_inches=0.01,
-                bbox_inches='tight', dpi=100, quality=85, optimize=True)
-    # PDF
-    filename = f'{basefilename}.pdf'
-    fig.savefig(os.path.join(output_dir, 'pdf', filename), pad_inches=0,
-                bbox_inches='tight', dpi=100)
 
 
 def draw_stagetime_profile_individual(stagetime_stats, output_dir):
@@ -768,7 +652,7 @@ def draw_stagetime_profile_individual(stagetime_stats, output_dir):
         fig.suptitle(
             f'Stage-time profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
         filename = f'stage-time_profile_I_{"_".join(stagetime_df.iloc[i,0:4].values)}'
-        _savefig(output_dir, filename, fig)
+        sc.savefig(output_dir, filename, fig)
 
 
 def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
@@ -874,7 +758,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
             fig.suptitle(
                 f'{mgs_c} (n={num_c}) v.s. {mgs_t} (n={num})')
             filename = f'stage-time_profile_G_{mgs_c}_vs_{mgs_t}'
-            _savefig(output_dir, filename, fig)
+            sc.savefig(output_dir, filename, fig)
             csv_df.to_csv(os.path.join(output_dir, f'{filename}.csv'), index=False)
     else:
         # single group
@@ -926,7 +810,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
 
         fig.suptitle(f'{mgs_t} (n={num})')
         filename = f'stage-time_profile_G_{mgs_t}'
-        _savefig(output_dir, filename, fig)
+        sc.savefig(output_dir, filename, fig)
         csv_df.to_csv(os.path.join(output_dir, f'{filename}.csv'), index=False)
 
 
@@ -953,7 +837,7 @@ def draw_swtrans_profile_individual(stagetime_stats, output_dir):
         fig.suptitle(
             f'Sleep-wake transition (Psw Pws) profile:\n{"  ".join(stagetime_df.iloc[i,0:4].values)}')
         filename = f'sleep-wake-transition_profile_I_{"_".join(stagetime_df.iloc[i,0:4].values)}'
-        _savefig(output_dir, filename, fig)
+        sc.savefig(output_dir, filename, fig)
 
 
 def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
@@ -1031,7 +915,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
             fig.suptitle(
                 f'Sleep-wake transition (Psw Pws) profile:\n{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
             filename = f'sleep-wake-transition_profile_G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
-            _savefig(output_dir, filename, fig)
+            sc.savefig(output_dir, filename, fig)
     else:
         # single group
         g_idx = 0
@@ -1064,7 +948,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
 
         fig.suptitle(f'Sleep-wake transition (Psw Pws) profile:\n{mouse_groups_set[g_idx]} (n={num})')
         filename = f'sleep-wake-transition_profile_G_{mouse_groups_set[g_idx]}'
-        _savefig(output_dir, filename, fig)
+        sc.savefig(output_dir, filename, fig)
 
 
 def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir):
@@ -1116,7 +1000,7 @@ def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir):
         fig.suptitle(
             f'Circadian stage-time profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
         filename = f'stage-time_circadian_profile_I_{"_".join(stagetime_df.iloc[i,0:4].values)}'
-        _savefig(output_dir, filename, fig)
+        sc.savefig(output_dir, filename, fig)
 
 
 def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
@@ -1217,7 +1101,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
             filename = f'stage-time_circadian_profile_G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
-            _savefig(output_dir, filename, fig)
+            sc.savefig(output_dir, filename, fig)
     else:
         # single group
         g_idx = 0
@@ -1261,7 +1145,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
 
         fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
         filename = f'stage-time_circadian_profile_G_{mouse_groups_set[g_idx]}'
-        _savefig(output_dir, filename, fig)
+        sc.savefig(output_dir, filename, fig)
 
 
 def draw_swtrans_circadian_profile_individual(stagetime_stats, output_dir):
@@ -1301,7 +1185,7 @@ def draw_swtrans_circadian_profile_individual(stagetime_stats, output_dir):
         fig.suptitle(
             f'Circadian sleep-wake-transition profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
         filename = f'sleep-wake-transition_circadian_profile_I_{"_".join(stagetime_df.iloc[i,0:4].values)}'
-        _savefig(output_dir, filename, fig)
+        sc.savefig(output_dir, filename, fig)
 
 
 def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
@@ -1385,7 +1269,7 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
             filename = f'sleep-wake-transition_circadian_profile_G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
-            _savefig(output_dir, filename, fig)
+            sc.savefig(output_dir, filename, fig)
     else:
         # single group
         g_idx = 0
@@ -1418,148 +1302,7 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
 
         fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
         filename = f'sleep-wake-transition_circadian_profile_G_{mouse_groups_set[g_idx]}'
-        _savefig(output_dir, filename, fig)
-
-
-def draw_psd_domain_power_timeseries_individual(psd_domain_power_timeseries_df, y_label, output_dir, domain, opt_label=''):
-    mouse_groups = psd_domain_power_timeseries_df['Mouse group'].values
-    mouse_groups_set = sorted(set(mouse_groups), key=list(
-        mouse_groups).index)  # unique elements with preseved order
-    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]  
-
-    hourly_ts_list = []
-    for _, ts in psd_domain_power_timeseries_df.iloc[:,4:].iterrows():
-        ts_mat = ts.to_numpy(dtype=np.float64).reshape(-1, int(3600/EPOCH_LEN_SEC))
-        # The rows with all nan needs to be avoided in np.nanmean
-        idx_all_nan = np.where([np.all(np.isnan(x)) for x in ts_mat])
-        ts_mat[idx_all_nan, :] = 0
-        hourly_ts = np.apply_along_axis(np.nanmean, 1, ts_mat)
-        hourly_ts[idx_all_nan] = np.nan # matplotlib can handle np.nan
-        hourly_ts_list.append(hourly_ts)
-
-    hourly_ts_mat = np.array(hourly_ts_list)
-
-    # this is just for deciding y_max
-    domain_power_timeseries_stats_list=[]
-    for bidx in bidx_group_list:
-        hourly_ts_mat_group = hourly_ts_mat[bidx]
-        idx_all_nan = np.where([np.all(np.isnan(r)) for r in hourly_ts_mat_group.T])
-        hourly_ts_mat_group[:, idx_all_nan] = 0 # this is for np.nanmean and np.nanstd
-        domain_power_timeseries_mean = np.apply_along_axis(
-            np.nanmean, 0, hourly_ts_mat_group)
-        domain_power_timeseries_sd = np.apply_along_axis(
-            np.nanstd, 0, hourly_ts_mat_group)
-        domain_power_timeseries_mean[idx_all_nan] = np.nan
-        domain_power_timeseries_sd[idx_all_nan] = np.nan
-        domain_power_timeseries_stats_list.append(
-            np.array([domain_power_timeseries_mean, domain_power_timeseries_sd]))
-    y_max = np.nanmax(np.array([ts_stats[0] for ts_stats in domain_power_timeseries_stats_list])) * 1.1
-
-    x_max = ts_mat.shape[0]
-    x = np.arange(x_max)
-    for i, profile in enumerate(hourly_ts_list):
-        fig = Figure(figsize=(13, 6))
-        ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
-        _set_common_features_domain_power_timeseries(ax1, x_max, y_max)
-
-        ax1.set_ylabel(y_label)
-        ax1.set_xlabel('Time (hours)')
-
-        ax1.plot(x, profile, color=stage.COLOR_NREM)
-
-        fig.suptitle(
-            f'Power timeseries: {"  ".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}')
-
-        filename = f'power-timeseries_{domain}_{opt_label}I_{"_".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}'
-        _savefig(output_dir, filename, fig)
-
-
-def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, y_label, output_dir, domain, opt_label=''):
-    mouse_groups = psd_domain_power_timeseries_df['Mouse group'].values
-    mouse_groups_set = sorted(set(mouse_groups), key=list(
-        mouse_groups).index)  # unique elements with preseved order
-    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]  
-
-    hourly_ts_list = []
-    for _, ts in psd_domain_power_timeseries_df.iloc[:,4:].iterrows():
-        ts_mat = ts.to_numpy().reshape(-1, int(3600/EPOCH_LEN_SEC))
-        # The rows with all nan needs to be avoided in np.nanmean
-        idx_all_nan = np.where([np.all(np.isnan(x)) for x in ts_mat])
-        ts_mat[idx_all_nan, :] = 0
-        hourly_ts = np.apply_along_axis(np.nanmean, 1, ts_mat)
-        hourly_ts[idx_all_nan] = np.nan # matplotlib can handle np.nan
-        hourly_ts_list.append(hourly_ts)
-    hourly_ts_mat = np.array(hourly_ts_list)
-
-    domain_power_timeseries_stats_list=[]
-    for bidx in bidx_group_list:
-        hourly_ts_mat_group = hourly_ts_mat[bidx]
-        idx_all_nan = np.where([np.all(np.isnan(r)) for r in hourly_ts_mat_group.T])
-        hourly_ts_mat_group[:, idx_all_nan] = 0 # this is for np.nanmean and np.nanstd
-        domain_power_timeseries_mean = np.apply_along_axis(
-            np.nanmean, 0, hourly_ts_mat_group)
-        domain_power_timeseries_sd = np.apply_along_axis(
-            np.nanstd, 0, hourly_ts_mat_group)
-        domain_power_timeseries_mean[idx_all_nan] = np.nan
-        domain_power_timeseries_sd[idx_all_nan] = np.nan
-        domain_power_timeseries_stats_list.append(
-            np.array([domain_power_timeseries_mean, domain_power_timeseries_sd]))
-
-    # pylint: disable=E1136  # pylint/issues/3139
-    x_max = hourly_ts_mat.shape[1]
-    y_max = np.nanmax(np.array([ts_stats[0] for ts_stats in domain_power_timeseries_stats_list])) * 1.1
-    x = np.arange(x_max)
-    if len(mouse_groups_set) > 1:
-        # contrast to group index = 0
-        for g_idx in range(1, len(mouse_groups_set)):
-            num = np.sum(bidx_group_list[g_idx])
-            fig = Figure(figsize=(13, 6))
-            ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
-
-            _set_common_features_domain_power_timeseries(ax1, x_max, y_max)
-
-            # Control (always the first group)
-            num_c = np.sum(bidx_group_list[0])
-            y = domain_power_timeseries_stats_list[0][0, :]
-            y_sem = domain_power_timeseries_stats_list[0][1, :]/np.sqrt(num_c)
-            ax1.plot(x, y, color='grey')
-            ax1.fill_between(x, y - y_sem,
-                            y + y_sem, color='grey', alpha=0.3)
-            ax1.set_ylabel(y_label)
-            ax1.set_xlabel('Time (hours)')
-
-            # Treatment
-            num = np.sum(bidx_group_list[g_idx])
-            y = domain_power_timeseries_stats_list[g_idx][0, :]
-            y_sem = domain_power_timeseries_stats_list[g_idx][1, :]/np.sqrt(num)
-            ax1.plot(x, y, color=stage.COLOR_NREM)
-            ax1.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
-
-            fig.suptitle(
-                f'Power timeseries: {mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'power-timeseries_{domain}_{opt_label}G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
-            _savefig(output_dir, filename, fig)
-    else:
-        # single group
-        g_idx = 0
-        num = np.sum(bidx_group_list[g_idx])
-        fig = Figure(figsize=(13, 6))
-        ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
-
-        _set_common_features_domain_power_timeseries(ax1, x_max, y_max)
-
-        y = domain_power_timeseries_stats_list[g_idx][0, :]
-        y_sem = domain_power_timeseries_stats_list[g_idx][1, :]/np.sqrt(num)
-        ax1.plot(x, y, color=stage.COLOR_NREM)
-        ax1.fill_between(x, y - y_sem,
-                        y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
-        ax1.set_ylabel(y_label)
-        ax1.set_xlabel('Time (hours)')
-
-        fig.suptitle(f'Power timeseries: {mouse_groups_set[g_idx]} (n={num})')
-        filename = f'power-timeseries_{domain}_G_{opt_label}{mouse_groups_set[g_idx]}'
-        _savefig(output_dir, filename, fig)
+        sc.savefig(output_dir, filename, fig)
 
 
 def x_shifts(values, y_min, y_max, width):
@@ -1694,7 +1437,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
 
     fig.suptitle('Stage-times')
     filename = 'stage-time_barchart'
-    _savefig(output_dir, filename, fig)
+    sc.savefig(output_dir, filename, fig)
 
 
 def _draw_transition_barchart(mouse_groups, transmat_mat):
@@ -1964,7 +1707,7 @@ def draw_transition_barchart_prob(stagetime_stats, output_dir):
     axes[3].set_ylabel('prob. to transit from Wake')
     fig.suptitle('transition probability')
     filename = f'stage-transition_probability_barchart_{"_".join(mouse_groups_set)}'
-    _savefig(output_dir, filename, fig)
+    sc.savefig(output_dir, filename, fig)
 
 
 def _odd(p, epoch_num):
@@ -1991,7 +1734,7 @@ def draw_transition_barchart_logodds(stagetime_stats, output_dir):
     axes[3].set_ylabel('log odds to transit from Wake')
     fig.suptitle('transition probability (log odds)')
     filename = f'stage-transition_probability_barchart_logodds_{"_".join(mouse_groups_set)}'
-    _savefig(output_dir, filename, fig)
+    sc.savefig(output_dir, filename, fig)
 
 
 def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
@@ -2080,7 +1823,7 @@ def draw_swtransition_barchart_prob(stagetime_stats, output_dir):
     axes[0].set_ylabel('prob. to transit\n between sleep and wake')
     fig.suptitle('sleep/wake trantision probability')
     filename = f'sleep-wake-transition_probability_barchart_{"_".join(mouse_groups_set)}'
-    _savefig(output_dir, filename, fig)
+    sc.savefig(output_dir, filename, fig)
 
 
 def draw_swtransition_barchart_logodds(stagetime_stats, output_dir):
@@ -2097,7 +1840,7 @@ def draw_swtransition_barchart_logodds(stagetime_stats, output_dir):
     axes[0].set_ylabel('log odds to transit\n between sleep and wake')
     fig.suptitle('sleep/wake trantision probability (log odds)')
     filename = f'sleep-wake-transition_probability_barchart_logodds_{"_".join(mouse_groups_set)}'
-    _savefig(output_dir, filename, fig)
+    sc.savefig(output_dir, filename, fig)
 
 
 def log_psd_inv(y, normalizing_fac, normalizing_mean):
@@ -2141,237 +1884,6 @@ def conv_PSD_from_snorm_PSD(spec_norm):
     return psd_mat
 
 
-def make_psd_timeseries_df(psd_info_list, epoch_range, bidx_freq, stage_bidx_key=None, psd_type='norm'):
-    """make timeseries of PSD with a specified stage and freq domain
-
-    Args:
-        psd_info_list (list of psd_info): The list of object given by make_target_psd_info()
-        epoch_range (slice): The epoch range of interest
-        stage_bidx_key (str): The key of dict in the psd_info for a stage (e.g. 'bidx_nrem')
-        psd_type (str): 'norm' or 'raw'
-
-    Returns:
-        [pd.dataframe]: The timeseries of PSD
-    """
-    psd_timeseries_df = pd.DataFrame()
-    for psd_info in psd_info_list:
-        bidx_target = psd_info['bidx_target']
-        if stage_bidx_key:
-            bidx_stage = psd_info[stage_bidx_key]
-            bidx_targeted_stage = bidx_target & bidx_stage
-        else:
-            bidx_targeted_stage = bidx_target
-
-        conv_psd = psd_info[psd_type]
-        psd_delta_timeseries = np.repeat(np.nan, epoch_range.stop - epoch_range.start)
-        psd_delta_timeseries[bidx_targeted_stage[epoch_range]] = np.apply_along_axis(np.nanmean, 1, conv_psd[bidx_targeted_stage, :][:,bidx_freq])
-        psd_timeseries_df = psd_timeseries_df.append(
-            [[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_delta_timeseries.tolist()], ignore_index=True)
-
-    epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
-    column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns
-    psd_timeseries_df.columns = column_names
-
-    return psd_timeseries_df
-
-
-def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_label=''):
-    freq_bins = sp.psd_freq_bins(sample_freq)
-
-    # mouse_set
-    mouse_list = psd_profiles_df['Mouse ID'].tolist()
-    # unique elements with preseved order
-    mouse_set = sorted(set(mouse_list), key=mouse_list.index)
-
-    # draw individual PSDs
-    for m in mouse_set:
-        fig = Figure(figsize=(16, 4))
-        fig.subplots_adjust(wspace=0.27)
-        ax1 = fig.add_subplot(131)
-        ax2 = fig.add_subplot(132)
-        ax3 = fig.add_subplot(133)
-        ax1.set_xlabel('freq. [Hz]')
-        ax1.set_ylabel(f'REM\n{y_label}')
-        ax2.set_xlabel('freq. [Hz]')
-        ax2.set_ylabel(f'NREM\n{y_label}')
-        ax3.set_xlabel('freq. [Hz]')
-        ax3.set_ylabel(f'Wake\n{y_label}')
-
-        x = freq_bins
-        df = psd_profiles_df.loc[psd_profiles_df['Mouse ID'] == m]
-        y = df.loc[df['Stage'] == 'REM'].iloc[0].values[6:]
-        ax1.plot(x, y, color=stage.COLOR_REM)
-
-        y = df.loc[df['Stage'] == 'NREM'].iloc[0].values[6:]
-        ax2.plot(x, y, color=stage.COLOR_NREM)
-
-        y = df.loc[df['Stage'] == 'Wake'].iloc[0].values[6:]
-        ax3.plot(x, y, color=stage.COLOR_WAKE)
-
-        mouse_tag_list = [str(x) for x in df.iloc[0, 0:4]]
-        fig.suptitle(
-            f'Powerspectrum density: {"  ".join(mouse_tag_list)}')
-        filename = f'PSD_{opt_label}profile_I_{"_".join(mouse_tag_list)}'
-        _savefig(output_dir, filename, fig)
-
-
-def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label=''):
-    freq_bins = sp.psd_freq_bins(sample_freq)
-
-    # mouse_group_set
-    mouse_group_list = psd_profiles_df['Mouse group'].tolist()
-    # unique elements with preseved order
-    mouse_group_set = sorted(set(mouse_group_list), key=mouse_group_list.index)
-
-    # draw gropued PSD
-    # _c of Control (assuming index = 0 is a control mouse)
-    df = psd_profiles_df[psd_profiles_df['Mouse group'] == mouse_group_set[0]]
-
-    psd_mean_mat_rem_c = df[df['Stage'] == 'REM'].iloc[:, 6:].values
-    psd_mean_mat_nrem_c = df[df['Stage'] == 'NREM'].iloc[:, 6:].values
-    psd_mean_mat_wake_c = df[df['Stage'] == 'Wake'].iloc[:, 6:].values
-    num_c = psd_mean_mat_wake_c.shape[0]
-
-    psd_mean_rem_c = np.apply_along_axis(np.mean, 0, psd_mean_mat_rem_c)
-    psd_sem_rem_c = np.apply_along_axis(
-        np.std, 0, psd_mean_mat_rem_c)/np.sqrt(num_c)
-    psd_mean_nrem_c = np.apply_along_axis(np.mean, 0, psd_mean_mat_nrem_c)
-    psd_sem_nrem_c = np.apply_along_axis(
-        np.std, 0, psd_mean_mat_nrem_c)/np.sqrt(num_c)
-    psd_mean_wake_c = np.apply_along_axis(np.mean, 0, psd_mean_mat_wake_c)
-    psd_sem_wake_c = np.apply_along_axis(
-        np.std, 0, psd_mean_mat_wake_c)/np.sqrt(num_c)
-
-    x = freq_bins
-    if len(mouse_group_set)>1:
-        for g_idx in range(1, len(mouse_group_set)):
-            fig = Figure(figsize=(16, 4))
-            fig.subplots_adjust(wspace=0.27)
-            ax1 = fig.add_subplot(131)
-            ax2 = fig.add_subplot(132)
-            ax3 = fig.add_subplot(133)
-            ax1.set_xlabel('freq. [Hz]')
-            ax1.set_ylabel(f'REM\n{y_label}')
-            ax2.set_xlabel('freq. [Hz]')
-            ax2.set_ylabel(f'NREM\n{y_label}')
-            ax3.set_xlabel('freq. [Hz]')
-            ax3.set_ylabel(f'Wake\n{y_label}')
-
-            # _t of Treatment
-            df = psd_profiles_df[psd_profiles_df['Mouse group']
-                                == mouse_group_set[g_idx]]
-            psd_mean_mat_rem_t = df[df['Stage'] == 'REM'].iloc[:, 6:].values
-            psd_mean_mat_nrem_t = df[df['Stage'] == 'NREM'].iloc[:, 6:].values
-            psd_mean_mat_wake_t = df[df['Stage'] == 'Wake'].iloc[:, 6:].values
-            num_t = psd_mean_mat_wake_t.shape[0]
-
-            psd_mean_rem_t = np.apply_along_axis(np.mean, 0, psd_mean_mat_rem_t)
-            psd_sem_rem_t = np.apply_along_axis(
-                np.std, 0, psd_mean_mat_rem_t)/np.sqrt(num_t)
-            psd_mean_nrem_t = np.apply_along_axis(np.mean, 0, psd_mean_mat_nrem_t)
-            psd_sem_nrem_t = np.apply_along_axis(
-                np.std, 0, psd_mean_mat_nrem_t)/np.sqrt(num_t)
-            psd_mean_wake_t = np.apply_along_axis(np.mean, 0, psd_mean_mat_wake_t)
-            psd_sem_wake_t = np.apply_along_axis(
-                np.std, 0, psd_mean_mat_wake_t)/np.sqrt(num_t)
-
-            y = psd_mean_rem_c
-            y_sem = psd_sem_rem_c
-            ax1.plot(x, y, color='grey')
-            ax1.fill_between(x, y - y_sem,
-                            y + y_sem, color='grey', alpha=0.3)
-
-            y = psd_mean_rem_t
-            y_sem = psd_sem_rem_t
-            ax1.plot(x, y, color=stage.COLOR_REM)
-            ax1.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_REM, alpha=0.3)
-
-            y = psd_mean_nrem_c
-            y_sem = psd_sem_nrem_c
-            ax2.plot(x, y, color='grey')
-            ax2.fill_between(x, y - y_sem,
-                            y + y_sem, color='grey', alpha=0.3)
-
-            y = psd_mean_nrem_t
-            y_sem = psd_sem_nrem_t
-            ax2.plot(x, y, color=stage.COLOR_NREM)
-            ax2.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
-
-            y = psd_mean_wake_c
-            y_sem = psd_sem_wake_c
-            ax3.plot(x, y, color='grey')
-            ax3.fill_between(x, y - y_sem,
-                            y + y_sem, color='grey', alpha=0.3)
-
-            y = psd_mean_wake_t
-            y_sem = psd_sem_wake_t
-            ax3.plot(x, y, color=stage.COLOR_WAKE)
-            ax3.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
-
-            fig.suptitle(
-                f'Powerspectrum density: {mouse_group_set[0]} (n={num_c}) v.s. {mouse_group_set[g_idx]} (n={num_t})')
-            filename = f'PSD_{opt_label}profile_G_{mouse_group_set[0]}_vs_{mouse_group_set[g_idx]}'
-            _savefig(output_dir, filename, fig)
-    else:
-        # single group
-        g_idx = 0
-        fig = Figure(figsize=(16, 4))
-        fig.subplots_adjust(wspace=0.27)
-        ax1 = fig.add_subplot(131)
-        ax2 = fig.add_subplot(132)
-        ax3 = fig.add_subplot(133)
-        ax1.set_xlabel('freq. [Hz]')
-        ax1.set_ylabel(f'REM\n{y_label}')
-        ax2.set_xlabel('freq. [Hz]')
-        ax2.set_ylabel(f'NREM\n{y_label}')
-        ax3.set_xlabel('freq. [Hz]')
-        ax3.set_ylabel(f'Wake\n{y_label}')
-
-        # _t of Treatment
-        df = psd_profiles_df[psd_profiles_df['Mouse group']
-                            == mouse_group_set[g_idx]]
-        psd_mean_mat_rem_t = df[df['Stage'] == 'REM'].iloc[:, 6:].values
-        psd_mean_mat_nrem_t = df[df['Stage'] == 'NREM'].iloc[:, 6:].values
-        psd_mean_mat_wake_t = df[df['Stage'] == 'Wake'].iloc[:, 6:].values
-        num_t = psd_mean_mat_wake_t.shape[0]
-
-        psd_mean_rem_t = np.apply_along_axis(np.mean, 0, psd_mean_mat_rem_t)
-        psd_sem_rem_t = np.apply_along_axis(
-            np.std, 0, psd_mean_mat_rem_t)/np.sqrt(num_t)
-        psd_mean_nrem_t = np.apply_along_axis(np.mean, 0, psd_mean_mat_nrem_t)
-        psd_sem_nrem_t = np.apply_along_axis(
-            np.std, 0, psd_mean_mat_nrem_t)/np.sqrt(num_t)
-        psd_mean_wake_t = np.apply_along_axis(np.mean, 0, psd_mean_mat_wake_t)
-        psd_sem_wake_t = np.apply_along_axis(
-            np.std, 0, psd_mean_mat_wake_t)/np.sqrt(num_t)
-
-        y = psd_mean_rem_t
-        y_sem = psd_sem_rem_t
-        ax1.plot(x, y, color=stage.COLOR_REM)
-        ax1.fill_between(x, y - y_sem,
-                        y + y_sem, color=stage.COLOR_REM, alpha=0.3)
-
-        y = psd_mean_nrem_t
-        y_sem = psd_sem_nrem_t
-        ax2.plot(x, y, color=stage.COLOR_NREM)
-        ax2.fill_between(x, y - y_sem,
-                        y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
-
-        y = psd_mean_wake_t
-        y_sem = psd_sem_wake_t
-        ax3.plot(x, y, color=stage.COLOR_WAKE)
-        ax3.fill_between(x, y - y_sem,
-                        y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
-
-        fig.suptitle(
-            f'Powerspectrum density: {mouse_group_set[g_idx]} (n={num_t})')
-        filename = f'PSD_{opt_label}G_{mouse_group_set[g_idx]}'
-        _savefig(output_dir, filename, fig)
-
-
 def write_sleep_stats(stagetime_stats, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     mouse_groups = stagetime_df['Mouse group'].values
@@ -2407,9 +1919,9 @@ def write_sleep_stats(stagetime_stats, output_dir):
         nrem_values_t = stagetime_df['NREM'].values[bidx]
         wake_values_t = stagetime_df['Wake'].values[bidx]
 
-        tr = test_two_sample(rem_values_c,  rem_values_t)  # test for REM
-        tn = test_two_sample(nrem_values_c, nrem_values_t)  # test for NREM
-        tw = test_two_sample(wake_values_c, wake_values_t)  # test for Wake
+        tr = sc.test_two_sample(rem_values_c,  rem_values_t)  # test for REM
+        tn = sc.test_two_sample(nrem_values_c, nrem_values_t)  # test for NREM
+        tw = sc.test_two_sample(wake_values_c, wake_values_t)  # test for Wake
         row1 = [mg, 'REM',  num, np.mean(rem_values_t),  np.std(
             rem_values_t),  tr['p_value'], tr['stars'], tr['method']]
         row2 = [mg, 'NREM', num, np.mean(nrem_values_t), np.std(
@@ -2483,15 +1995,15 @@ def write_stagetrans_stats(stagetime_stats, output_dir):
         nr_vals_t = transmat_mat[bidx][:, 2, 0]
         nw_vals_t = transmat_mat[bidx][:, 2, 1]
 
-        trr = test_two_sample(rr_vals_c, rr_vals_t)   
-        tnn = test_two_sample(nn_vals_c, nn_vals_t)  
-        tww = test_two_sample(ww_vals_c, ww_vals_t)  
-        trw = test_two_sample(rw_vals_c, rw_vals_t)  
-        trn = test_two_sample(rn_vals_c, rn_vals_t)  
-        twr = test_two_sample(wr_vals_c, wr_vals_t)  
-        twn = test_two_sample(wn_vals_c, wn_vals_t)  
-        tnr = test_two_sample(nr_vals_c, nr_vals_t)  
-        tnw = test_two_sample(nw_vals_c, nw_vals_t)  
+        trr = sc.test_two_sample(rr_vals_c, rr_vals_t)   
+        tnn = sc.test_two_sample(nn_vals_c, nn_vals_t)  
+        tww = sc.test_two_sample(ww_vals_c, ww_vals_t)  
+        trw = sc.test_two_sample(rw_vals_c, rw_vals_t)  
+        trn = sc.test_two_sample(rn_vals_c, rn_vals_t)  
+        twr = sc.test_two_sample(wr_vals_c, wr_vals_t)  
+        twn = sc.test_two_sample(wn_vals_c, wn_vals_t)  
+        tnr = sc.test_two_sample(nr_vals_c, nr_vals_t)  
+        tnw = sc.test_two_sample(nw_vals_c, nw_vals_t)  
 
         row1 = [mg, 'RR', num, np.mean(rr_vals_t), np.std(rr_vals_t), trr['p_value'], trr['stars'], trr['method']]
         row2 = [mg, 'NN', num, np.mean(nn_vals_t), np.std(nn_vals_t), tnn['p_value'], tnn['stars'], tnn['method']]
@@ -2551,8 +2063,8 @@ def write_swtrans_stats(stagetime_stats, output_dir):
         psw_values_t = swtrans_mat[bidx, 0]
         pws_values_t = swtrans_mat[bidx, 1]
 
-        t_psw = test_two_sample(psw_values_c,  psw_values_t)  # test for Psw
-        t_pws = test_two_sample(pws_values_c,  pws_values_t)  # test for Pws
+        t_psw = sc.test_two_sample(psw_values_c,  psw_values_t)  # test for Psw
+        t_pws = sc.test_two_sample(pws_values_c,  pws_values_t)  # test for Pws
         row1 = [mg, 'Psw',  num, np.mean(psw_values_t),  np.std(
             psw_values_t),  t_psw['p_value'], t_psw['stars'], t_psw['method']]
         row2 = [mg, 'Pws', num, np.mean(pws_values_t), np.std(
@@ -2571,145 +2083,6 @@ def write_swtrans_stats(stagetime_stats, output_dir):
         output_dir, 'sleep-wake-transition_probability_stats_table.csv'), index=False)
     swtrans_df.to_csv(os.path.join(
         output_dir, 'sleep-wake-transition_probability_table.csv'), index=False)
-
-
-def make_psd_domain(psd_profiles_df, summary_func=np.mean):
-    """ makes PSD power averaged within frequency domains of each stage for each mice
-
-    Arguments:
-        psd_profiles_df {pd.DataFrame} -- a dataframe given by make_psd_profile()
-        summary_func {function} -- a function for summarizing PSD
-
-    Returns:
-        [pd.DataFrame] -- Experiment label, Mouse group, Mouse ID, 
-            Device label, Stage, Slow, Delta w/o slow, Delta, Theta
-    """
-    # get freq_bins from column names
-    freq_bin_columns = psd_profiles_df.columns[6:].tolist()
-    freq_bins = np.array([float(x.strip().split('@')[1])
-                          for x in freq_bin_columns])
-
-    # frequency domains
-    bidx_theta_freq = (freq_bins >= 4) & (freq_bins < 10)  # 15 bins
-    bidx_delta_freq = (freq_bins < 4)  # 11 bins
-    bidx_delta_wo_slow_freq = (1 <= freq_bins) & (
-        freq_bins < 4)  # 8 bins (delta without slow)
-    bidx_slow_freq = (freq_bins < 1)  # 3 bins
-
-    # make psd_domain_df
-    row_list = []
-    for _, r in psd_profiles_df.iterrows():
-        infos = r[:6]
-        powers = r[6:]
-        powers_slow = powers[bidx_slow_freq]
-        powers_delta_wo_slow = powers[bidx_delta_wo_slow_freq]
-        powers_delta = powers[bidx_delta_freq]
-        powers_theta = powers[bidx_theta_freq]
-
-        slow_p = summary_func(powers_slow)
-        delta_wo_slow_p = summary_func(powers_delta_wo_slow)
-        delta_p = summary_func(powers_delta)
-        theta_p = summary_func(powers_theta)
-        domain_powers = pd.Series(
-            [slow_p, delta_wo_slow_p, delta_p, theta_p], index=DOMAIN_NAMES)
-
-        row = pd.concat([infos, domain_powers])
-        row_list.append(row)
-
-    psd_domain_df = pd.DataFrame(row_list)
-    return psd_domain_df
-
-
-def make_psd_stats(psd_domain_df):
-    """ makes a table of statistical tests for each frequency domains between groups 
-
-    Arguments:
-        psd_domain_df {pd.DataFrame} -- a dataframe given by make_psd_domain()
-
-    Returns:
-        [pd.DataFrame] -- # mouse_group, stage_type, wave_type, num, 
-                            mean, SD, pvalue, star, method
-    """
-    def _domain_powers_by_group(psd_domain_df, group):
-        bidx_group = (psd_domain_df['Mouse group'] == group)
-        bidx_rem = (psd_domain_df['Stage'] == 'REM')
-        bidx_nrem = (psd_domain_df['Stage'] == 'NREM')
-        bidx_wake = (psd_domain_df['Stage'] == 'Wake')
-
-        domain_powers_rem = psd_domain_df.loc[bidx_group &
-                                              bidx_rem][DOMAIN_NAMES]
-        domain_powers_nrem = psd_domain_df.loc[bidx_group &
-                                               bidx_nrem][DOMAIN_NAMES]
-        domain_powers_wake = psd_domain_df.loc[bidx_group &
-                                               bidx_wake][DOMAIN_NAMES]
-
-        return [domain_powers_rem, domain_powers_nrem, domain_powers_wake]
-
-    psd_stats_df = pd.DataFrame()
-    # mouse_group_set
-    mouse_group_list = psd_domain_df['Mouse group'].tolist()
-    # unique elements with preseved order
-    mouse_group_set = sorted(set(mouse_group_list), key=mouse_group_list.index)
-
-    # control
-    group_c = mouse_group_set[0]  # index=0 should be always control group
-
-    # There are 3 powers_domains_[stages] where [stages] are [REM, NREM, Wake].
-    # Each powers_domains_[stage] contains 4 Series of domain powers:
-    # [slow x mice, delta wo slow x mice, delta x mice, theta x mice]
-    # Therefore, the following loop results in 12 rows.
-    stage_names = ['REM', 'NREM', 'Wake']
-    powers_domains_stages_c = _domain_powers_by_group(psd_domain_df, group_c)
-
-    rows = []
-    for stage_name, powers_domains in zip(stage_names, powers_domains_stages_c):
-        for domain_name in DOMAIN_NAMES:
-            powers = powers_domains[domain_name]
-            num = np.sum(~np.isnan(powers)) # conunt effective N
-            rows.append([group_c, stage_name, domain_name, num,
-                         np.mean(powers),  np.std(powers), np.nan, None, None])
-
-    psd_stats_df = psd_stats_df.append(rows)
-
-    # treatment
-    for group_t in mouse_group_set[1:]:
-        rows = []
-        powers_domains_stages_t = _domain_powers_by_group(
-            psd_domain_df, group_t)
-        for stage_name, powers_domains_c, powers_domains_t in zip(stage_names, powers_domains_stages_c, powers_domains_stages_t):
-            for domain_name in DOMAIN_NAMES:
-                powers_c = powers_domains_c[domain_name]
-                powers_t = powers_domains_t[domain_name]
-                test = test_two_sample(powers_c, powers_t)
-                num = np.sum(~np.isnan(powers_t)) # conunt effective N
-                rows.append([group_t, stage_name, domain_name, num,
-                             np.nanmean(powers_t),  np.nanstd(powers_t), test['p_value'], test['stars'], test['method']])
-
-        psd_stats_df = psd_stats_df.append(rows)
-
-    psd_stats_df.columns = ['Mouse group', 'Stage type',
-                            'Wake type', 'N', 'Mean', 'SD', 'Pvalue', 'Stars', 'Method']
-
-    return psd_stats_df
-
-
-def write_psd_stats(psd_profiles_df, output_dir, opt_label='', summary_func=np.mean):
-    """ writes three PSD tables:
-        1. psd_profile.csv: mean PSD profile of each stage for each mice
-        2. psd_freq_domain_table.csv: PSD power averaged within frequency domains of each stage for each mice 
-        3. psd_stats_table.csv: statistical tests for each frequency domains between groups 
-    """
-
-    psd_domain_df = make_psd_domain(psd_profiles_df, summary_func)
-    psd_stats_df = make_psd_stats(psd_domain_df)
-
-    # write tabels
-    psd_profiles_df.to_csv(os.path.join(
-        output_dir, f'PSD_{opt_label}profile.csv'), index=False)
-    psd_domain_df.to_csv(os.path.join(
-        output_dir, f'PSD_{opt_label}profile_freq_domain_table.csv'), index=False)
-    psd_stats_df.to_csv(os.path.join(
-        output_dir, f'PSD_{opt_label}profile_stats_table.csv'), index=False)
 
 
 def pickle_psd_info_list(psd_info_list, output_dir, filename):
@@ -2767,19 +2140,19 @@ def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_li
     psd_output_dir = os.path.join(output_dir, f'PSD_{psd_type}')
 
     # write a table of PSD (all day)
-    write_psd_stats(psd_profiles_df, psd_output_dir, f'{psd_type}_allday_')
-    write_psd_stats(log_psd_profiles_df, psd_output_dir, f'{psd_type}_allday_log-')
-    write_psd_stats(percentage_psd_profiles_df, psd_output_dir, f'{psd_type}_allday_percentage-', np.sum)
+    sp.write_psd_stats(psd_profiles_df, psd_output_dir, f'{psd_type}_allday_')
+    sp.write_psd_stats(log_psd_profiles_df, psd_output_dir, f'{psd_type}_allday_log-')
+    sp.write_psd_stats(percentage_psd_profiles_df, psd_output_dir, f'{psd_type}_allday_percentage-', np.sum)
 
     # write a table of PSD (first half-day)
-    write_psd_stats(psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_')
-    write_psd_stats(log_psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_log-')
-    write_psd_stats(percentage_psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_percentage-', np.sum)    
+    sp.write_psd_stats(psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_')
+    sp.write_psd_stats(log_psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_log-')
+    sp.write_psd_stats(percentage_psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_percentage-', np.sum)    
 
     # write a table of PSD (second half-day)
-    write_psd_stats(psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_')
-    write_psd_stats(log_psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_log-')
-    write_psd_stats(percentage_psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_percentage-', np.sum)    
+    sp.write_psd_stats(psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_')
+    sp.write_psd_stats(log_psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_log-')
+    sp.write_psd_stats(percentage_psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_percentage-', np.sum)    
 
     # draw PSDs (all day)
     print_log(f'Drawing the PSDs of type:{psd_type}')
@@ -2789,48 +2162,48 @@ def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_li
         unit = f'${vol_unit}^{2}/Hz$'
     else:
         unit = 'Unknown'
-    draw_PSDs_individual(psd_profiles_df, sample_freq,
+    sp.draw_PSDs_individual(psd_profiles_df, sample_freq,
                          f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_allday_')
-    draw_PSDs_individual(log_psd_profiles_df, sample_freq,
+    sp.draw_PSDs_individual(log_psd_profiles_df, sample_freq,
                          f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_allday_log-')
-    draw_PSDs_individual(percentage_psd_profiles_df, sample_freq,
+    sp.draw_PSDs_individual(percentage_psd_profiles_df, sample_freq,
                          f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_allday_percentage-')
 
-    draw_PSDs_group(psd_profiles_df, sample_freq,
+    sp.draw_PSDs_group(psd_profiles_df, sample_freq,
                     f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_allday_')
-    draw_PSDs_group(log_psd_profiles_df, sample_freq,
+    sp.draw_PSDs_group(log_psd_profiles_df, sample_freq,
                     f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_allday_log-')
-    draw_PSDs_group(percentage_psd_profiles_df, sample_freq,
+    sp.draw_PSDs_group(percentage_psd_profiles_df, sample_freq,
                     f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_allday_percentage-')
 
     # draw PSDs (first halfday)
-    draw_PSDs_individual(psd_profiles_first_halfday_df, sample_freq,
+    sp.draw_PSDs_individual(psd_profiles_first_halfday_df, sample_freq,
                          f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_first-halfday_')
-    draw_PSDs_individual(log_psd_profiles_first_halfday_df, sample_freq,
+    sp.draw_PSDs_individual(log_psd_profiles_first_halfday_df, sample_freq,
                          f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_first-halfday_log-')
-    draw_PSDs_individual(percentage_psd_profiles_first_halfday_df, sample_freq,
+    sp.draw_PSDs_individual(percentage_psd_profiles_first_halfday_df, sample_freq,
                          f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_first-halfday_percentage-')
 
-    draw_PSDs_group(psd_profiles_first_halfday_df, sample_freq,
+    sp.draw_PSDs_group(psd_profiles_first_halfday_df, sample_freq,
                     f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_first-halfday_')
-    draw_PSDs_group(log_psd_profiles_first_halfday_df, sample_freq,
+    sp.draw_PSDs_group(log_psd_profiles_first_halfday_df, sample_freq,
                     f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_first-halfday_log-')
-    draw_PSDs_group(percentage_psd_profiles_first_halfday_df, sample_freq,
+    sp.draw_PSDs_group(percentage_psd_profiles_first_halfday_df, sample_freq,
                     f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_first-halfday_percentage-')
 
     # draw PSDs (second halfday)
-    draw_PSDs_individual(psd_profiles_second_halfday_df, sample_freq,
+    sp.draw_PSDs_individual(psd_profiles_second_halfday_df, sample_freq,
                          f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_second-halfday_')
-    draw_PSDs_individual(log_psd_profiles_second_halfday_df, sample_freq,
+    sp.draw_PSDs_individual(log_psd_profiles_second_halfday_df, sample_freq,
                          f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_second-halfday_log-')
-    draw_PSDs_individual(percentage_psd_profiles_second_halfday_df, sample_freq,
+    sp.draw_PSDs_individual(percentage_psd_profiles_second_halfday_df, sample_freq,
                          f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_second-halfday_percentage-')
 
-    draw_PSDs_group(psd_profiles_second_halfday_df, sample_freq,
+    sp.draw_PSDs_group(psd_profiles_second_halfday_df, sample_freq,
                     f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_second-halfday_')
-    draw_PSDs_group(log_psd_profiles_second_halfday_df, sample_freq,
+    sp.draw_PSDs_group(log_psd_profiles_second_halfday_df, sample_freq,
                     f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_second-halfday_log-')
-    draw_PSDs_group(percentage_psd_profiles_second_halfday_df, sample_freq,
+    sp.draw_PSDs_group(percentage_psd_profiles_second_halfday_df, sample_freq,
                     f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_second-halfday_percentage-')
 
 
@@ -2840,19 +2213,19 @@ def process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range,
     bidx_all_freq = np.full(129, True)
 
     print_log(f'Making the delta-power timeseries in all stages type:{psd_type}')
-    psd_delta_timeseries_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, None, psd_type)
+    psd_delta_timeseries_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, None, psd_type)
     print_log(f'Making the delta-power timeseries in NREM type:{psd_type}')
-    psd_delta_timeseries_nrem_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem', psd_type)
+    psd_delta_timeseries_nrem_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem', psd_type)
     print_log(f'Making the delta-power timeseries in all stages (percentage) type:{psd_type}')
-    percentage_psd_delta_timeseries_df = make_psd_timeseries_df(percentage_psd_info_list, epoch_range,  bidx_delta_freq, None, psd_type)
+    percentage_psd_delta_timeseries_df = sp.make_psd_timeseries_df(percentage_psd_info_list, epoch_range,  bidx_delta_freq, None, psd_type)
     print_log(f'Making the delta-power timeseries in NREM (percentage) type:{psd_type}')
-    percentage_psd_delta_timeseries_nrem_df = make_psd_timeseries_df(percentage_psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem', psd_type)
+    percentage_psd_delta_timeseries_nrem_df = sp.make_psd_timeseries_df(percentage_psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem', psd_type)
     print_log(f'Making the total-power timeseries in Wake type:{psd_type}')
-    psd_total_timeseries_wake_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_all_freq, 'bidx_wake', psd_type)
+    psd_total_timeseries_wake_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_all_freq, 'bidx_wake', psd_type)
     print_log(f'Making the delta-power timeseries in Wake type:{psd_type}')
-    psd_delta_timeseries_wake_df = make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_wake', psd_type)
+    psd_delta_timeseries_wake_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_wake', psd_type)
     print_log(f'Making the delta-power timeseries in Wake (percentage) type:{psd_type}')
-    percentage_psd_delta_timeseries_wake_df = make_psd_timeseries_df(percentage_psd_info_list, epoch_range, bidx_delta_freq, 'bidx_wake', psd_type)
+    percentage_psd_delta_timeseries_wake_df = sp.make_psd_timeseries_df(percentage_psd_info_list, epoch_range, bidx_delta_freq, 'bidx_wake', psd_type)
 
 
     # draw delta-power timeseries
@@ -2866,32 +2239,32 @@ def process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range,
         unit = 'Unknown'
     # delta in all epoch
     psd_delta_timeseries_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta.csv'), header=False)
-    draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_df, f'Hourly delta power [{unit}]', psd_output_dir, f'{psd_type}_delta')
-    draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_df, f'Hourly delta power [{unit}]', psd_output_dir, f'{psd_type}_delta')
+    sp.draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_df, epoch_len_sec, f'Hourly delta power [{unit}]', psd_output_dir, f'{psd_type}_delta')
+    sp.draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_df, epoch_len_sec, f'Hourly delta power [{unit}]', psd_output_dir, f'{psd_type}_delta')
     # delta percentage in all epoch
     percentage_psd_delta_timeseries_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta_percentage.csv'), header=False)
-    draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_df, 'Hourly delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage')
-    draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_df, 'Hourly delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage')
+    sp.draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_df, epoch_len_sec, 'Hourly delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage')
+    sp.draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_df, epoch_len_sec, 'Hourly delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage')
     # delta in NREM 
     psd_delta_timeseries_nrem_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta_NREM.csv'), header=False)
-    draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_nrem_df, f'Hourly NREM delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'NREM_')
-    draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_nrem_df, f'Hourly NREM delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'NREM_')
+    sp.draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_nrem_df, epoch_len_sec, f'Hourly NREM delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'NREM_')
+    sp.draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_nrem_df, epoch_len_sec, f'Hourly NREM delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'NREM_')
     # delta percentage in NREM
     percentage_psd_delta_timeseries_nrem_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta_percentage_NREM.csv'), header=False)
-    draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'NREM_')
-    draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_nrem_df, 'Hourly NREM delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'NREM_')
+    sp.draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_nrem_df, epoch_len_sec, 'Hourly NREM delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'NREM_')
+    sp.draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_nrem_df, epoch_len_sec, 'Hourly NREM delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'NREM_')
     # total in Wake
     psd_total_timeseries_wake_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_total_Wake.csv'), header=False)
-    draw_psd_domain_power_timeseries_individual(psd_total_timeseries_wake_df, f'Hourly Wake total power [{unit}]', psd_output_dir, f'{psd_type}_total', 'Wake_')
-    draw_psd_domain_power_timeseries_grouped(psd_total_timeseries_wake_df, f'Hourly Wake total power [{unit}]', psd_output_dir, f'{psd_type}_total', 'Wake_')
+    sp.draw_psd_domain_power_timeseries_individual(psd_total_timeseries_wake_df, epoch_len_sec, f'Hourly Wake total power [{unit}]', psd_output_dir, f'{psd_type}_total', 'Wake_')
+    sp.draw_psd_domain_power_timeseries_grouped(psd_total_timeseries_wake_df, epoch_len_sec, f'Hourly Wake total power [{unit}]', psd_output_dir, f'{psd_type}_total', 'Wake_')
     # delta in Wake
     psd_delta_timeseries_wake_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta_Wake.csv'), header=False)
-    draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_wake_df, f'Hourly Wake delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'Wake_')
-    draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_wake_df, f'Hourly Wake delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'Wake_')
+    sp.draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_wake_df, epoch_len_sec, f'Hourly Wake delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'Wake_')
+    sp.draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_wake_df, epoch_len_sec, f'Hourly Wake delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'Wake_')
     # delta percentage in Wake
     percentage_psd_delta_timeseries_wake_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta_percentage_Wake.csv'), header=False)
-    draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_wake_df, 'Hourly Wake delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'Wake_')
-    draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_wake_df, 'Hourly Wake delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'Wake_')
+    sp.draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_wake_df, epoch_len_sec, 'Hourly Wake delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'Wake_')
+    sp.draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_wake_df, epoch_len_sec, 'Hourly Wake delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'Wake_')
 
 
 def make_psd_output_dirs(output_dir, psd_type):
