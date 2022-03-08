@@ -163,6 +163,9 @@ def run_main():
     """The main function
     """
     if __name__ == '__main__':
+        dt_now = datetime.now()
+        print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Started')
+
         parser = argparse.ArgumentParser()
         parser.add_argument("-d", "--data_dir", required=True,
                             help="path to the directory of input voltage data")

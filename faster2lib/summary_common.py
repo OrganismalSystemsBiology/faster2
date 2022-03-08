@@ -1,8 +1,10 @@
 """ Basic functions for making summary
 """
 import os
+import matplotlib
 import numpy as np
 from scipy import stats
+import stage
 
 
 def test_two_sample(x, y):
@@ -122,7 +124,7 @@ def savefig(output_dir, basefilename, fig):
                 bbox_inches='tight', dpi=100, quality=85, optimize=True)
     # PDF
     filename = f'{basefilename}.pdf'
-    fig.savefig(os.path.join(output_dir, 'pdf', filename), pad_inches=0,
+    fig.savefig(os.path.join(output_dir, 'pdf', filename), pad_inches=0.01,
                 bbox_inches='tight', dpi=100)    
 
 

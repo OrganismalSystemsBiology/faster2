@@ -25,10 +25,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 
 import warnings
 
-
 DOMAIN_NAMES = ['Slow', 'Delta w/o slow', 'Delta', 'Theta']
-EPOCH_LEN_SEC = 8
-
 
 def initialize_logger(log_file):
     logger = getLogger()
@@ -51,12 +48,12 @@ def initialize_logger(log_file):
 
 def print_log(msg):
     if 'log' in globals():
-        log.debug(msg)
+        log.info(msg)
     else:
         print(msg)
 
 
-def collect_mouse_info_df(faster_dir_list):
+def collect_mouse_info_df(faster_dir_list, epoch_len_sec):
     """ collects multiple mouse info
 
     Arguments:
@@ -77,7 +74,7 @@ def collect_mouse_info_df(faster_dir_list):
         # not used variable: rack_label, start_datetime, end_datetime
         # pylint: disable=unused-variable
         (epoch_num, sample_freq, exp_label, rack_label, \
-            start_datetime, end_datetime) = stage.interpret_exp_info(exp_info_df, EPOCH_LEN_SEC)
+            start_datetime, end_datetime) = stage.interpret_exp_info(exp_info_df, epoch_len_sec)
         if (epoch_num_stored != None) and epoch_num != epoch_num_stored:
             raise ValueError('epoch number must be equal among the all dataset')
         else:
@@ -94,7 +91,7 @@ def collect_mouse_info_df(faster_dir_list):
     return ({'mouse_info': mouse_info_df, 'epoch_num': epoch_num, 'sample_freq': sample_freq, 'start_datetime': start_datetime})
 
 
-def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
+def make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext):
     """ make summary statics of each mouse:
             stagetime in a day: how many minuites of stages each mouse spent in a day
             stage time profile: hourly profiles of stages over the recording
@@ -105,6 +102,7 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
     Arguments:
         mouse_info_df {pd.DataFram} -- a dataframe returned by collect_mouse_info_df()
         epoch_range {slice} -- target eopchs to be summarized
+        epoch_len_sec {int} -- epoch length in seconds
         stage_ext {str} -- the sub-extention of stage files
 
     Returns:
@@ -150,11 +148,11 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
               rem, nrem, wake, unknown, stats_report, note]], ignore_index=True)
 
         # stagetime profile
-        stagetime_profile_list.append(stagetime_profile(stage_call))
+        stagetime_profile_list.append(stagetime_profile(stage_call, epoch_len_sec))
 
         # stage circadian profile
         stagetime_circadian_profile_list.append(
-            stagetime_circadian_profile(stage_call))
+            stagetime_circadian_profile(stage_call, epoch_len_sec))
 
         # transition matrix
         transmat_list.append(transmat_from_stages(stage_call))
@@ -163,7 +161,7 @@ def make_summary_stats(mouse_info_df, epoch_range, stage_ext):
         swtrans_list.append(swtrans_from_stages(stage_call))
 
         # sw transition profile
-        swtrans_profile_list.append(swtrans_profile(stage_call))
+        swtrans_profile_list.append(swtrans_profile(stage_call, epoch_len_sec))
 
         # sw transition profile
         swtrans_circadian_profile_list.append(swtrans_circadian_profile(stage_call))
@@ -205,7 +203,7 @@ def stagetime_in_a_day(stage_call):
     return (rem, nrem, wake, unknown)
 
 
-def stagetime_profile(stage_call):
+def stagetime_profile(stage_call, epoch_len_sec):
     """ hourly profiles of stages over the recording
 
     Arguments:
@@ -216,19 +214,19 @@ def stagetime_profile(stage_call):
         [np.array(3, len(stage_calls))] -- each row corrensponds the
         hourly profiles of stages over the recording (rem, nrem, wake)
     """
-    sm = stage_call.reshape(-1, int(3600/EPOCH_LEN_SEC)
+    sm = stage_call.reshape(-1, int(3600/epoch_len_sec)
                             )  # 60 min(3600 sec) bin
-    rem = np.array([np.sum(s == 'REM')*EPOCH_LEN_SEC /
+    rem = np.array([np.sum(s == 'REM')*epoch_len_sec /
                     60 for s in sm])  # unit minuite
-    nrem = np.array([np.sum(s == 'NREM')*EPOCH_LEN_SEC /
+    nrem = np.array([np.sum(s == 'NREM')*epoch_len_sec /
                      60 for s in sm])  # unit minuite
-    wake = np.array([np.sum(s == 'WAKE')*EPOCH_LEN_SEC /
+    wake = np.array([np.sum(s == 'WAKE')*epoch_len_sec /
                      60 for s in sm])  # unit minuite
 
     return np.array([rem, nrem, wake])
 
 
-def stagetime_circadian_profile(stage_call):
+def stagetime_circadian_profile(stage_call, epoch_len_sec):
     """hourly profiles of stages over a day (circadian profile)
 
     Arguments:
@@ -241,12 +239,12 @@ def stagetime_circadian_profile(stage_call):
                             x 3rd axis [24 hours]
     """
     # 60 min(3600 sec) bin
-    sm = stage_call.reshape(-1, int(3600/EPOCH_LEN_SEC))
-    rem = np.array([np.sum(s == 'REM')*EPOCH_LEN_SEC /
+    sm = stage_call.reshape(-1, int(3600/epoch_len_sec))
+    rem = np.array([np.sum(s == 'REM')*epoch_len_sec /
                     60 for s in sm])  # unit minuite
-    nrem = np.array([np.sum(s == 'NREM')*EPOCH_LEN_SEC /
+    nrem = np.array([np.sum(s == 'NREM')*epoch_len_sec /
                      60 for s in sm])  # unit minuite
-    wake = np.array([np.sum(s == 'WAKE')*EPOCH_LEN_SEC /
+    wake = np.array([np.sum(s == 'WAKE')*epoch_len_sec /
                      60 for s in sm])  # unit minuite
 
     rem_mat = rem.reshape(-1, 24)
@@ -276,7 +274,7 @@ def swtrans_circadian_profile(stage_call):
                             x 3rd axis [24 hours]
     """
     # 60 min(3600 sec) bin
-    sw = swtrans_profile(stage_call) # 1st axis [Psw, Pws] x 2nd axis [recordec hours e.g. 72 hours]
+    sw = swtrans_profile(stage_call, epoch_len_sec) # 1st axis [Psw, Pws] x 2nd axis [recordec hours e.g. 72 hours]
 
     psw_mat = sw[0].reshape(-1, 24)
     pws_mat = sw[1].reshape(-1, 24)
@@ -368,7 +366,7 @@ def swtrans_from_stages(stages):
     return swtrans
 
 
-def swtrans_from_stage_sss_style(stage_call):
+def swtrans_from_stage_sss_style(stage_call, epoch_len_sec):
     # filter the stage call
     stage_call_f = filter_short_bout(stage_call)
 
@@ -390,15 +388,15 @@ def swtrans_from_stage_sss_style(stage_call):
 
     # transition binary matrix
     ## 24 hours(86400 sec) bin
-    tsw_mat_day = tsw.reshape(-1, int(86400/EPOCH_LEN_SEC))
-    tss_mat_day = tss.reshape(-1, int(86400/EPOCH_LEN_SEC))
-    tws_mat_day = tws.reshape(-1, int(86400/EPOCH_LEN_SEC))
-    tww_mat_day = tww.reshape(-1, int(86400/EPOCH_LEN_SEC))
+    tsw_mat_day = tsw.reshape(-1, int(86400/epoch_len_sec))
+    tss_mat_day = tss.reshape(-1, int(86400/epoch_len_sec))
+    tws_mat_day = tws.reshape(-1, int(86400/epoch_len_sec))
+    tww_mat_day = tww.reshape(-1, int(86400/epoch_len_sec))
     ## 12 hours(43200 sec) bin
-    tsw_mat_halfday = tsw.reshape(-1, int(43200/EPOCH_LEN_SEC))
-    tss_mat_halfday = tss.reshape(-1, int(43200/EPOCH_LEN_SEC))
-    tws_mat_halfday = tws.reshape(-1, int(43200/EPOCH_LEN_SEC))
-    tww_mat_halfday = tww.reshape(-1, int(43200/EPOCH_LEN_SEC))
+    tsw_mat_halfday = tsw.reshape(-1, int(43200/epoch_len_sec))
+    tss_mat_halfday = tss.reshape(-1, int(43200/epoch_len_sec))
+    tws_mat_halfday = tws.reshape(-1, int(43200/epoch_len_sec))
+    tww_mat_halfday = tww.reshape(-1, int(43200/epoch_len_sec))
 
     # first & second halfday
     n_halfday = tsw_mat_halfday.shape[0]
@@ -427,19 +425,19 @@ def swtrans_from_stage_sss_style(stage_call):
 
     # time matrix
     ## 24 hours(86400 sec) bin
-    sleep_epoch_mat_day = (sw_call == 'SLEEP').reshape(-1, int(86400/EPOCH_LEN_SEC))
-    wake_epoch_mat_day = (sw_call == 'WAKE').reshape(-1, int(86400/EPOCH_LEN_SEC))
+    sleep_epoch_mat_day = (sw_call == 'SLEEP').reshape(-1, int(86400/epoch_len_sec))
+    wake_epoch_mat_day = (sw_call == 'WAKE').reshape(-1, int(86400/epoch_len_sec))
     ## 12 hours(43200 sec) bin
-    sleep_epoch_mat_halfday = (sw_call == 'SLEEP').reshape(-1, int(43200/EPOCH_LEN_SEC))
-    wake_epoch_mat_halfday = (sw_call == 'WAKE').reshape(-1, int(43200/EPOCH_LEN_SEC))
+    sleep_epoch_mat_halfday = (sw_call == 'SLEEP').reshape(-1, int(43200/epoch_len_sec))
+    wake_epoch_mat_halfday = (sw_call == 'WAKE').reshape(-1, int(43200/epoch_len_sec))
 
     # daily and halfdaily time
-    daily_sleep_time = np.apply_along_axis(np.sum, 1, sleep_epoch_mat_day*EPOCH_LEN_SEC/60)
-    daily_wake_time = np.apply_along_axis(np.sum, 1, wake_epoch_mat_day*EPOCH_LEN_SEC/60)
+    daily_sleep_time = np.apply_along_axis(np.sum, 1, sleep_epoch_mat_day*epoch_len_sec/60)
+    daily_wake_time = np.apply_along_axis(np.sum, 1, wake_epoch_mat_day*epoch_len_sec/60)
     halfdaily_sleep_time = np.apply_along_axis(
-        np.sum, 1, sleep_epoch_mat_halfday*EPOCH_LEN_SEC/60)
+        np.sum, 1, sleep_epoch_mat_halfday*epoch_len_sec/60)
     halfdaily_wake_time = np.apply_along_axis(
-        np.sum, 1, wake_epoch_mat_halfday*EPOCH_LEN_SEC/60)
+        np.sum, 1, wake_epoch_mat_halfday*epoch_len_sec/60)
     halfdaily_first_sleep_time = halfdaily_sleep_time[np.arange(0, n_halfday, 2)]
     halfdaily_first_wake_time = halfdaily_wake_time[np.arange(0, n_halfday, 2)]
     halfdaily_second_sleep_time = halfdaily_sleep_time[np.arange(1, n_halfday, 2)]
@@ -475,7 +473,7 @@ def _calc_sss_style_trans(nsw, nss, nws, nww, st, wt):
     return (psw, pws)
 
 
-def swtrans_profile(stage_call):
+def swtrans_profile(stage_call, epoch_len_sec):
     """ Profile (two timeseries) of the hourly Psw and Psw
 
     Args:
@@ -497,10 +495,10 @@ def swtrans_profile(stage_call):
     tws = np.append(tws, 0)
     tww = np.append(tww, 0)
 
-    tsw_mat = tsw.reshape(-1, int(3600/EPOCH_LEN_SEC))  # 60 min(3600 sec) bin
-    tss_mat = tss.reshape(-1, int(3600/EPOCH_LEN_SEC))
-    tws_mat = tws.reshape(-1, int(3600/EPOCH_LEN_SEC))
-    tww_mat = tww.reshape(-1, int(3600/EPOCH_LEN_SEC))
+    tsw_mat = tsw.reshape(-1, int(3600/epoch_len_sec))  # 60 min(3600 sec) bin
+    tss_mat = tss.reshape(-1, int(3600/epoch_len_sec))
+    tws_mat = tws.reshape(-1, int(3600/epoch_len_sec))
+    tww_mat = tww.reshape(-1, int(3600/epoch_len_sec))
 
     hourly_tsw = np.apply_along_axis(np.sum, 1, tsw_mat) 
     hourly_tss = np.apply_along_axis(np.sum, 1, tss_mat) 
@@ -571,11 +569,6 @@ def filter_short_bout(stage_call, min_bout_len=2):
     return stage_call_filtered
 
 
-
-
-
-
-
 def _set_common_features_stagetime_profile(ax, x_max):
     ax.set_yticks([0, 20, 40, 60])
     ax.set_xticks(np.arange(0, x_max+1, 6))
@@ -625,11 +618,11 @@ def _set_common_features_stagetime_profile_rem(ax, x_max):
     ax.set_ylim(-10/r, 70/r)
 
 
-def draw_stagetime_profile_individual(stagetime_stats, output_dir):
+def draw_stagetime_profile_individual(stagetime_stats, epoch_len_sec, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     stagetime_profile_list = stagetime_stats['stagetime_profile']
     epoch_num = stagetime_stats['epoch_num_in_range']
-    x_max = epoch_num*EPOCH_LEN_SEC/3600
+    x_max = epoch_num*epoch_len_sec/3600
     x = np.arange(x_max)
     for i, profile in enumerate(stagetime_profile_list):
         fig = Figure(figsize=(13, 6))
@@ -655,7 +648,7 @@ def draw_stagetime_profile_individual(stagetime_stats, output_dir):
         sc.savefig(output_dir, filename, fig)
 
 
-def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
+def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     stagetime_profile_list = stagetime_stats['stagetime_profile']
 
@@ -676,7 +669,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
         stagetime_profile_stats_list.append(
             np.array([stagetime_profile_mean, stagetime_profile_sd]))
     epoch_num = stagetime_stats['epoch_num_in_range']
-    x_max = epoch_num*EPOCH_LEN_SEC/3600
+    x_max = epoch_num*epoch_len_sec/3600
     x = np.arange(x_max)
     if len(mouse_groups_set) > 1:
         # contrast to group index = 0
@@ -767,7 +760,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
         csv_df = pd.DataFrame()
         mgs_t = mouse_groups_set[g_idx] # treatment
         num = np.sum(bidx_group_list[g_idx])
-        x_max = epoch_num*EPOCH_LEN_SEC/3600
+        x_max = epoch_num*epoch_len_sec/3600
         x = np.arange(x_max)
         fig = Figure(figsize=(13, 6))
         ax1 = fig.add_subplot(311, xmargin=0, ymargin=0)
@@ -814,11 +807,11 @@ def draw_stagetime_profile_grouped(stagetime_stats, output_dir):
         csv_df.to_csv(os.path.join(output_dir, f'{filename}.csv'), index=False)
 
 
-def draw_swtrans_profile_individual(stagetime_stats, output_dir):
+def draw_swtrans_profile_individual(stagetime_stats, epoch_len_sec, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     swtrans_profile_list = stagetime_stats['swtrans_profile']
     epoch_num = stagetime_stats['epoch_num_in_range']
-    x_max = epoch_num*EPOCH_LEN_SEC/3600
+    x_max = epoch_num*epoch_len_sec/3600
     x = np.arange(x_max)
     for i, profile in enumerate(swtrans_profile_list):
         fig = Figure(figsize=(13, 6))
@@ -840,7 +833,7 @@ def draw_swtrans_profile_individual(stagetime_stats, output_dir):
         sc.savefig(output_dir, filename, fig)
 
 
-def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
+def draw_swtrans_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     swtrans_profile_list = stagetime_stats['swtrans_profile']
 
@@ -864,7 +857,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
             swtrans_profile_stats_list.append(
                 np.array([swtrans_profile_mean, swtrans_profile_sd]))
     epoch_num = stagetime_stats['epoch_num_in_range']
-    x_max = epoch_num*EPOCH_LEN_SEC/3600
+    x_max = epoch_num*epoch_len_sec/3600
     x = np.arange(x_max)
     if len(mouse_groups_set) > 1:
         # contrast to group index = 0
@@ -921,7 +914,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
         g_idx = 0
 
         num = np.sum(bidx_group_list[g_idx])
-        x_max = epoch_num*EPOCH_LEN_SEC/3600
+        x_max = epoch_num*epoch_len_sec/3600
         x = np.arange(x_max)
         fig = Figure(figsize=(13, 6))
         ax1 = fig.add_subplot(211, xmargin=0, ymargin=0)
@@ -951,7 +944,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, output_dir):
         sc.savefig(output_dir, filename, fig)
 
 
-def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir):
+def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, epoch_len_sec, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     stagetime_circadian_list = stagetime_stats['stagetime_circadian']
     epoch_num = stagetime_stats['epoch_num_in_range']
@@ -974,7 +967,7 @@ def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir):
         ax2.set_ylabel('Hourly NREM\n duration (min)')
         ax3.set_ylabel('Hourly wake\n duration (min)')
 
-        num = epoch_num*EPOCH_LEN_SEC/3600/24
+        num = epoch_num*epoch_len_sec/3600/24
 
         # REM
         y = circadian[0, 0, :]
@@ -1148,7 +1141,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
         sc.savefig(output_dir, filename, fig)
 
 
-def draw_swtrans_circadian_profile_individual(stagetime_stats, output_dir):
+def draw_swtrans_circadian_profile_individual(stagetime_stats, epoch_len_sec, output_dir):
     stagetime_df = stagetime_stats['stagetime']
     swtrans_circadian_list = stagetime_stats['swtrans_circadian']
     epoch_num = stagetime_stats['epoch_num_in_range']
@@ -1167,7 +1160,7 @@ def draw_swtrans_circadian_profile_individual(stagetime_stats, output_dir):
         ax1.set_ylabel('Hourly Psw')
         ax2.set_ylabel('Hourly Pws')
 
-        num = epoch_num*EPOCH_LEN_SEC/3600/24
+        num = epoch_num*epoch_len_sec/3600/24
 
         # Psw
         y = circadian[0, 0, :]
@@ -1454,6 +1447,7 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
     ax4 = fig.add_subplot(224)
 
     w = 0.8  # bar width
+    w_sf = 2 / num_groups # scale factor for the bar width
     ax1.set_xticks([0, 2, 4])
     ax2.set_xticks([0, 2])
     ax3.set_xticks([0, 2])
@@ -1483,23 +1477,23 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
     if num_groups > 1:
         # staying
         # control
-        x_pos = 0 - w/2
+        x_pos = 0 - w + w*w_sf/2 # w*w_sf/2 is just for aligning the bar center
         ax1.bar(x_pos,
                 height=np.mean(rr_vals_c),
                 yerr=np.std(rr_vals_c)/num_c,
-                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+                align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
         scatter_datapoints(ax1, w, x_pos, rr_vals_c)
-        x_pos = 2 - w/2
+        x_pos = 2 - w + w*w_sf/2
         ax1.bar(x_pos,
                 height=np.mean(nn_vals_c),
                 yerr=np.std(nn_vals_c)/num_c,
-                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+                align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
         scatter_datapoints(ax1, w, x_pos, nn_vals_c)
-        x_pos = 4 - w/2
+        x_pos = 4 - w + w*w_sf/2 
         ax1.bar(x_pos,
                 height=np.mean(ww_vals_c),
                 yerr=np.std(ww_vals_c)/num_c,
-                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+                align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
         scatter_datapoints(ax1, w, x_pos, ww_vals_c)
 
         # tests.
@@ -1508,38 +1502,39 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
             rr_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 0, 0]
             ww_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 1, 1]
             nn_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 2, 2]
-            x_pos = 0 + g_idx*w/2
+            x_pos = 0 + w*w_sf/2 - w + g_idx*w*w_sf
+
             ax1.bar(x_pos,
                     height=np.mean(rr_vals_t),
                     yerr=np.std(rr_vals_t)/num_t,
-                    align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
+                    align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_REM, alpha=0.6)
             scatter_datapoints(ax1, w, x_pos, rr_vals_t)
-            x_pos = 2 + g_idx*w/2
+            x_pos = 2 + w*w_sf/2 - w + g_idx*w*w_sf
             ax1.bar(x_pos,
                     height=np.mean(nn_vals_t),
                     yerr=np.std(nn_vals_t)/num_t,
-                    align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
+                    align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
             scatter_datapoints(ax1, w, x_pos, nn_vals_t)
-            x_pos = 4 + g_idx*w/2
+            x_pos = 4 + w*w_sf/2 - w + g_idx*w*w_sf
             ax1.bar(x_pos,
                     height=np.mean(ww_vals_t),
                     yerr=np.std(ww_vals_t)/num_t,
-                    align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
+                    align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
             scatter_datapoints(ax1, w, x_pos, ww_vals_t)
 
         # Trnsitions from REM
         # control
-        x_pos = 0 - w/2
+        x_pos = 0 - w + w*w_sf/2
         ax2.bar(x_pos,
                 height=np.mean(rn_vals_c),
                 yerr=np.std(rn_vals_c)/num_c,
-                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+                align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
         scatter_datapoints(ax2, w, x_pos, rn_vals_c)
-        x_pos = 2 - w/2
+        x_pos = 2 - w + w*w_sf/2
         ax2.bar(x_pos,
                 height=np.mean(rw_vals_c),
                 yerr=np.std(rw_vals_c)/num_c,
-                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+                align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
         scatter_datapoints(ax2, w, x_pos, rw_vals_c)
 
         # tests.
@@ -1547,32 +1542,32 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
             num_t = np.sum(bidx_group_list[g_idx])
             rw_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 0, 1]
             rn_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 0, 2]
-            x_pos = 0 + g_idx*w/2
+            x_pos = 0 + w*w_sf/2 - w + g_idx*w*w_sf
             ax2.bar(x_pos,
                     height=np.mean(rn_vals_t),
                     yerr=np.std(rn_vals_t)/num_t,
-                    align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
+                    align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_REM, alpha=0.6)
             scatter_datapoints(ax2, w, x_pos, rn_vals_t)
-            x_pos = 2 + g_idx*w/2
+            x_pos = 2 + w*w_sf/2 - w + g_idx*w*w_sf
             ax2.bar(x_pos,
                     height=np.mean(rw_vals_t),
                     yerr=np.std(rw_vals_t)/num_t,
-                    align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
+                    align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_REM, alpha=0.6)
             scatter_datapoints(ax2, w, x_pos, rw_vals_t)
 
         # Trnsitions from NREM
         # control
-        x_pos = 0 - w/2
+        x_pos = 0 - w + w*w_sf/2
         ax3.bar(x_pos,
                 height=np.mean(nr_vals_c),
                 yerr=np.std(nr_vals_c)/num_c,
-                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+                align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
         scatter_datapoints(ax3, w, x_pos, nr_vals_c)
-        x_pos = 2 - w/2
+        x_pos = 2 - w + w*w_sf/2
         ax3.bar(x_pos,
                 height=np.mean(nw_vals_c),
                 yerr=np.std(nw_vals_c)/num_c,
-                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+                align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
         scatter_datapoints(ax3, w, x_pos, nw_vals_c)
 
         # tests.
@@ -1580,32 +1575,32 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
             num_t = np.sum(bidx_group_list[g_idx])
             nr_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 2, 0]
             nw_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 2, 1]
-            x_pos = 0 + g_idx*w/2
+            x_pos = 0 + w*w_sf/2 - w + g_idx*w*w_sf
             ax3.bar(x_pos,
                     height=np.mean(nr_vals_t),
                     yerr=np.std(nr_vals_t)/num_t,
-                    align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
+                    align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
             scatter_datapoints(ax3, w, x_pos, nr_vals_t)
-            x_pos = 2 + g_idx*w/2
+            x_pos = 2 + w*w_sf/2 - w + g_idx*w*w_sf
             ax3.bar(x_pos,
                     height=np.mean(nw_vals_t),
                     yerr=np.std(nw_vals_t)/num_t,
-                    align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
+                    align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
             scatter_datapoints(ax3, w, x_pos, nw_vals_t)
 
         # Trnsitions from Wake
         # control
-        x_pos = 0 - w/2
+        x_pos = 0 - w + w*w_sf/2
         ax4.bar(x_pos,
                 height=np.mean(wr_vals_c),
                 yerr=np.std(wr_vals_c)/num_c,
-                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+                align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
         scatter_datapoints(ax4, w, x_pos, wr_vals_c)
-        x_pos = 2 - w/2
+        x_pos = 2 - w + w*w_sf/2
         ax4.bar(x_pos,
                 height=np.mean(wn_vals_c),
                 yerr=np.std(wn_vals_c)/num_c,
-                align='center', width=w, capsize=6, color='grey', alpha=0.6)
+                align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
         scatter_datapoints(ax4, w, x_pos, wn_vals_c)
 
         # tests.
@@ -1613,17 +1608,17 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
             num_t = np.sum(bidx_group_list[g_idx])
             wr_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 1, 0]
             wn_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 1, 2]
-            x_pos = 0 + g_idx*w/2
+            x_pos = 0 + w*w_sf/2 - w + g_idx*w*w_sf
             ax4.bar(x_pos,
                     height=np.mean(wr_vals_t),
                     yerr=np.std(wr_vals_t)/num_t,
-                    align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
+                    align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
             scatter_datapoints(ax4, w, x_pos, wr_vals_t)
-            x_pos = 2 + g_idx*w/2
+            x_pos = 2 + w*w_sf/2 - w + g_idx*w*w_sf
             ax4.bar(x_pos,
                     height=np.mean(wn_vals_t),
                     yerr=np.std(wn_vals_t)/num_t,
-                    align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
+                    align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
             scatter_datapoints(ax4, w, x_pos, wn_vals_t)
     else:
         # staying
@@ -1747,6 +1742,7 @@ def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
     ax = fig.add_subplot(111)
 
     w = 0.8  # bar width
+    w_sf = 2 / num_groups # scale factor for the bar width
     ax.set_xticks([0, 2, 4])
     ax.set_xticklabels(['Psw', 'Pws'])
 
@@ -1757,36 +1753,36 @@ def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
         ws_vals_c = swtrans_mat[bidx_group_list[0]][:, 1]
 
         ## Psw and Pws
-        x_pos = 0 - w/2
+        x_pos = 0 - w + w*w_sf/2 # w*w_sf/2 is just for aligning the bar center
         ax.bar(x_pos,
             height=np.mean(sw_vals_c),
             yerr=np.std(sw_vals_c)/num_c,
-            align='center', width=w, capsize=6, color='gray', alpha=0.6)
+            align='center', width=w*w_sf*0.9, capsize=6, color='gray', alpha=0.6)
         scatter_datapoints(ax, w, x_pos, sw_vals_c)
-        x_pos = 2 - w/2
+        x_pos = 2 - w + w*w_sf/2 # w*w_sf/2 is just for aligning the bar center
         ax.bar(x_pos,
             height=np.mean(ws_vals_c),
             yerr=np.std(ws_vals_c)/num_c,
-            align='center', width=w, capsize=6, color='gray', alpha=0.6)
+            align='center', width=w*w_sf*0.9, capsize=6, color='gray', alpha=0.6)
         scatter_datapoints(ax, w, x_pos, ws_vals_c)
 
         # test group index: g_idx.
         for g_idx in range(1, num_groups):
             num_t = np.sum(bidx_group_list[g_idx])
             sw_vals_t = swtrans_mat[bidx_group_list[g_idx]][:, 0]
-            x_pos = 0 + g_idx*w/2
+            x_pos = 0 + w*w_sf/2 - w + g_idx*w*w_sf
             ax.bar(x_pos,
                 height=np.mean(sw_vals_t),
                 yerr=np.std(sw_vals_t)/num_t,
-                align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
+                align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
             scatter_datapoints(ax, w, x_pos, sw_vals_t)
 
             ws_vals_t = swtrans_mat[bidx_group_list[g_idx]][:, 1]
-            x_pos = 2 + g_idx*w/2
+            x_pos = 2 + w*w_sf/2 - w + g_idx*w*w_sf
             ax.bar(x_pos,
                 height=np.mean(ws_vals_t),
                 yerr=np.std(ws_vals_t)/num_t,
-                align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
+                align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
             scatter_datapoints(ax, w, x_pos, ws_vals_t)
     else:
         # single group
@@ -2101,9 +2097,9 @@ def pickle_psd_info_list(psd_info_list, output_dir, filename):
         pickle.dump(psd_info_list, pkl)
 
 
-def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, day_num, sample_freq, output_dir, psd_type, vol_unit='V'):
+def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, psd_type, vol_unit='V'):
     # Mask for the fist halfday
-    epoch_num_halfday = int(12*60*60/EPOCH_LEN_SEC)
+    epoch_num_halfday = int(12*60*60/epoch_len_sec)
     mask_first_halfday = np.tile(
         np.hstack([np.full(epoch_num_halfday, True), 
         np.full(epoch_num_halfday, False)]), 
@@ -2155,7 +2151,7 @@ def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_li
     sp.write_psd_stats(percentage_psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_percentage-', np.sum)    
 
     # draw PSDs (all day)
-    print_log(f'Drawing the PSDs of type:{psd_type}')
+    print_log(f'Drawing the PSDs (type:{psd_type})')
     if psd_type == 'norm':
         unit = 'AU'
     elif psd_type == 'raw':
@@ -2212,24 +2208,24 @@ def process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range,
     bidx_delta_freq = (freq_bins<4) # 11 bins
     bidx_all_freq = np.full(129, True)
 
-    print_log(f'Making the delta-power timeseries in all stages type:{psd_type}')
+    print_log(f'Making the delta-power timeseries in all stages (type:{psd_type})')
     psd_delta_timeseries_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, None, psd_type)
-    print_log(f'Making the delta-power timeseries in NREM type:{psd_type}')
+    print_log(f'Making the delta-power timeseries in NREM (type:{psd_type})')
     psd_delta_timeseries_nrem_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem', psd_type)
-    print_log(f'Making the delta-power timeseries in all stages (percentage) type:{psd_type}')
+    print_log(f'Making the delta-power timeseries in all stages (percentage) (type:{psd_type})')
     percentage_psd_delta_timeseries_df = sp.make_psd_timeseries_df(percentage_psd_info_list, epoch_range,  bidx_delta_freq, None, psd_type)
-    print_log(f'Making the delta-power timeseries in NREM (percentage) type:{psd_type}')
+    print_log(f'Making the delta-power timeseries in NREM (percentage) (type:{psd_type})')
     percentage_psd_delta_timeseries_nrem_df = sp.make_psd_timeseries_df(percentage_psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem', psd_type)
-    print_log(f'Making the total-power timeseries in Wake type:{psd_type}')
+    print_log(f'Making the total-power timeseries in Wake (type:{psd_type})')
     psd_total_timeseries_wake_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_all_freq, 'bidx_wake', psd_type)
-    print_log(f'Making the delta-power timeseries in Wake type:{psd_type}')
+    print_log(f'Making the delta-power timeseries in Wake (type:{psd_type})')
     psd_delta_timeseries_wake_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_wake', psd_type)
-    print_log(f'Making the delta-power timeseries in Wake (percentage) type:{psd_type}')
+    print_log(f'Making the delta-power timeseries in Wake (percentage) (type:{psd_type})')
     percentage_psd_delta_timeseries_wake_df = sp.make_psd_timeseries_df(percentage_psd_info_list, epoch_range, bidx_delta_freq, 'bidx_wake', psd_type)
 
 
     # draw delta-power timeseries
-    print_log(f'Drawing the power timeseries type:{psd_type}')
+    print_log(f'Drawing the power timeseries (type:{psd_type})')
     psd_output_dir = os.path.join(output_dir, f'PSD_{psd_type}')
     if psd_type == 'norm':
         unit = 'AU'
@@ -2273,6 +2269,10 @@ def make_psd_output_dirs(output_dir, psd_type):
 
 
 if __name__ == '__main__':
+
+    dt_now = datetime.now()
+    print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Started')
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--faster2_dirs", required=True, nargs="*",
                         help="paths to the FASTER2 directories")
@@ -2288,7 +2288,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     epoch_len_sec = int(args.epoch_len_sec)
-    EPOCH_LEN_SEC = epoch_len_sec # to be deleted in the future
 
     faster_dir_list = [os.path.abspath(x) for x in args.faster2_dirs]
     if args.output_dir:
@@ -2299,14 +2298,14 @@ if __name__ == '__main__':
     vol_unit = args.unit_voltage
 
     # collect mouse_infos of the specified (multiple) FASTER dirs
-    mouse_info_collected = collect_mouse_info_df(faster_dir_list)
+    mouse_info_collected = collect_mouse_info_df(faster_dir_list, epoch_len_sec)
     mouse_info_df = mouse_info_collected['mouse_info']
     epoch_num = mouse_info_collected['epoch_num']
     sample_freq = mouse_info_collected['sample_freq']
     start_datetime = mouse_info_collected['start_datetime']
 
     # number of days in the data
-    day_num = epoch_num * EPOCH_LEN_SEC / 60 / 60 / 24
+    day_num = epoch_num * epoch_len_sec / 60 / 60 / 24
     if day_num != int(day_num):
         raise ValueError(f'The number of days: {day_num} must be an integer.')
     else:
@@ -2345,7 +2344,7 @@ if __name__ == '__main__':
     log = initialize_logger(os.path.join(output_dir, 'log', f'summary.{dt_str}.log'))
 
     # prepare stagetime statistics
-    stagetime_stats = make_summary_stats(mouse_info_df, epoch_range, stage_ext)
+    stagetime_stats = make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext)
 
     # write tables of sleeptime stats 
     write_sleep_stats(stagetime_stats, output_dir)
@@ -2357,13 +2356,13 @@ if __name__ == '__main__':
     write_stagetrans_stats(stagetime_stats, output_dir)
 
     # draw stagetime profile of individual mice
-    draw_stagetime_profile_individual(stagetime_stats, output_dir)
+    draw_stagetime_profile_individual(stagetime_stats, epoch_len_sec, output_dir)
 
     # draw stagetime profile of grouped mice
-    draw_stagetime_profile_grouped(stagetime_stats, output_dir)
+    draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir)
 
     # draw stagetime circadian profile of individual mice
-    draw_stagetime_circadian_profile_indiviudal(stagetime_stats, output_dir)
+    draw_stagetime_circadian_profile_indiviudal(stagetime_stats, epoch_len_sec, output_dir)
 
     # draw stagetime circadian profile of groups
     draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir)
@@ -2372,13 +2371,13 @@ if __name__ == '__main__':
     draw_stagetime_barchart(stagetime_stats, output_dir)
 
     # draw stagetime profile of individual mice
-    draw_swtrans_profile_individual(stagetime_stats, output_dir)
+    draw_swtrans_profile_individual(stagetime_stats, epoch_len_sec, output_dir)
 
     # draw stagetime profile of grouped mice
-    draw_swtrans_profile_grouped(stagetime_stats, output_dir)
+    draw_swtrans_profile_grouped(stagetime_stats, epoch_len_sec, output_dir)
 
     # draw stagetime profile of individual mice
-    draw_swtrans_circadian_profile_individual(stagetime_stats, output_dir)
+    draw_swtrans_circadian_profile_individual(stagetime_stats, epoch_len_sec, output_dir)
 
     # draw stagetime profile of individual mice
     draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir)
@@ -2430,9 +2429,12 @@ if __name__ == '__main__':
     make_psd_output_dirs(output_dir, 'raw')
 
     # Make PSD stats and plots
-    process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, day_num, sample_freq, output_dir, 'norm')
-    process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, day_num, sample_freq, output_dir, 'raw', vol_unit)
+    process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, 'norm')
+    process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, 'raw', vol_unit)
 
     # PSD timeseries
     process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range, sample_freq, output_dir, 'norm')
     process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range, sample_freq, output_dir, 'raw', vol_unit)
+
+    dt_now = datetime.now()
+    print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Ended')

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
 import argparse
 import pandas as pd
 import numpy as np
@@ -1309,6 +1310,10 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
 
 
 if __name__ == '__main__':
+
+    dt_now = datetime.now()
+    print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Started')
+
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--data_dir", required=True,
                         help="path to the directory of input data")
@@ -1320,6 +1325,7 @@ if __name__ == '__main__':
     parser.add_argument("-f", "--heart_beat_filter", help="Boolean switch for the heart beat filter", action='store_true')
 
 
+
     args = parser.parse_args()
 
     result_dir = os.path.abspath(args.result_dir)
@@ -1329,3 +1335,6 @@ if __name__ == '__main__':
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     log = initialize_logger(os.path.join(result_dir, f'stage.{dt_str}.log'))
     main(args.data_dir, result_dir, args.pickle_input_data, int(args.epoch_len_sec), args.heart_beat_filter)
+
+    dt_now = datetime.now()
+    print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Ended')
