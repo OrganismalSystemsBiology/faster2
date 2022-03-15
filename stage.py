@@ -1311,9 +1311,6 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
 
 if __name__ == '__main__':
 
-    dt_now = datetime.now()
-    print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Started')
-
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--data_dir", required=True,
                         help="path to the directory of input data")
@@ -1324,9 +1321,11 @@ if __name__ == '__main__':
     parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
     parser.add_argument("-f", "--heart_beat_filter", help="Boolean switch for the heart beat filter", action='store_true')
 
-
-
     args = parser.parse_args()
+
+    dt_now = datetime.now()
+    print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Started')
+    print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] {os.path.dirname(args.data_dir)}')
 
     result_dir = os.path.abspath(args.result_dir)
     pickle_input_data = args.pickle_input_data
