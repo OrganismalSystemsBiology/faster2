@@ -120,11 +120,11 @@ def set_common_features_domain_power_timeseries(ax, x_max, y_max):
 def savefig(output_dir, basefilename, fig):
     # JPG
     filename = f'{basefilename}.jpg'
-    fig.savefig(os.path.join(output_dir, filename), pad_inches=0.01,
+    fig.savefig(os.path.join(output_dir, filename), pad_inches=0.02,
                 bbox_inches='tight', dpi=100, quality=85, optimize=True)
     # PDF
     filename = f'{basefilename}.pdf'
-    fig.savefig(os.path.join(output_dir, 'pdf', filename), pad_inches=0.01,
+    fig.savefig(os.path.join(output_dir, 'pdf', filename), pad_inches=0.02,
                 bbox_inches='tight', dpi=100)    
 
 
