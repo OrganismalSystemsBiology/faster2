@@ -1324,7 +1324,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     dt_now = datetime.now()
-    print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Started: {os.path.dirname(args.data_dir)}')
+    print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Started in : {os.path.dirname(os.path.abspath(args.data_dir))}')
 
     result_dir = os.path.abspath(args.result_dir)
     pickle_input_data = args.pickle_input_data
