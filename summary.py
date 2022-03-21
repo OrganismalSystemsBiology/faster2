@@ -2270,9 +2270,6 @@ def make_psd_output_dirs(output_dir, psd_type):
 
 if __name__ == '__main__':
 
-    dt_now = datetime.now()
-    print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Started')
-
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--faster2_dirs", required=True, nargs="*",
                         help="paths to the FASTER2 directories")
@@ -2290,6 +2287,9 @@ if __name__ == '__main__':
     epoch_len_sec = int(args.epoch_len_sec)
 
     faster_dir_list = [os.path.abspath(x) for x in args.faster2_dirs]
+    dt_now = datetime.now()
+    print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Started in: {os.path.abspath(faster_dir_list[0])}')
+
     if args.output_dir:
         output_dir = os.path.abspath(args.output_dir)
     else:
