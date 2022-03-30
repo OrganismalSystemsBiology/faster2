@@ -1,22 +1,13 @@
 # -*- coding: utf-8 -*-
-from pptx import Presentation
-from pptx.util import Cm
-from pptx.shapes.graphfrm import GraphicFrame
-import pandas as pd
 import os
 import glob
 import argparse
-
-from pptx import Presentation
-from pptx.util import Inches
-from pptx.chart.data import ChartData, CategoryChartData, XyChartData, BubbleChartData
-from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION, XL_LABEL_POSITION
-from pptx.enum.text import PP_ALIGN
-from pptx.util import Cm, Pt
-from datetime import datetime
-
 import logging
+from datetime import datetime
 from logging import getLogger, StreamHandler, FileHandler, Formatter
+from pptx import Presentation
+from pptx.util import Cm
+import pandas as pd
 
 def initialize_logger(log_file):
     logger = getLogger()
@@ -61,7 +52,7 @@ def map_table_label(table_list):
     # Returns a dict of {label: table}
     # notice:The label is capitalized
     table_map = {}
-    for idx, tbl in enumerate(table_list):
+    for tbl in table_list:
         label = get_table_label(tbl)
         table_map[label.strip().upper()] = tbl
     return table_map
@@ -70,7 +61,7 @@ def map_table_label(table_list):
 def set_dataframe_to_table(df, tbl):
     # set the items of the dataframe to the cells of the table
     rows_iter = iter(tbl.rows)
-    next(rows_iter) # skip the header row
+    next(rows_iter)  # skip the header row
     for row_idx, row in enumerate(rows_iter):
         for col_idx, cell in enumerate(row.cells):
             item = df.iloc[row_idx, col_idx]
@@ -85,8 +76,9 @@ def set_dataframe_to_table(df, tbl):
 def select_wanted_path(summary_dir, part_of_filename):
     # Find the only one wanted filepath from similar ones
     candidate_str = os.path.join(summary_dir, f'{part_of_filename}_*.jpg')
-    candidates = glob.glob(os.path.join(summary_dir, f'{part_of_filename}_*.jpg'))
-    selected_paths =  [c for c in candidates if 'logodds' not in c]
+    candidates = glob.glob(os.path.join(
+        summary_dir, f'{part_of_filename}_*.jpg'))
+    selected_paths = [c for c in candidates if 'logodds' not in c]
     try:
         slected_path = selected_paths[0]
     except IndexError:
@@ -97,12 +89,13 @@ def select_wanted_path(summary_dir, part_of_filename):
 def get_text_frames_in_slide(slide, tag_str=''):
     # returns the text frames in the slide
     # returns the text frames with the specified str
-    shapes = slide.shapes 
+    shapes = slide.shapes
     text_frames = [shp.text_frame for shp in shapes if shp.has_text_frame]
-    
+
     if tag_str != '':
-        text_frames = [tf for tf in text_frames if tf.paragraphs[0].runs[0].text.strip().upper() == tag_str]
-    
+        text_frames = [
+            tf for tf in text_frames if tf.paragraphs[0].runs[0].text.strip().upper() == tag_str]
+
     return text_frames
 
 
@@ -115,7 +108,8 @@ def make_summary_label(summary_dir):
     Returns:
         str: a string for the summary label
     """
-    stage_time_df = pd.read_csv(os.path.join(summary_dir, 'stage-time_table.csv'))
+    stage_time_df = pd.read_csv(os.path.join(
+        summary_dir, 'stage-time_table.csv'))
     sum_label = '_'.join(stage_time_df.iloc[:, 0].unique())
     return sum_label
 
@@ -143,9 +137,12 @@ def prep_table_of_stage_stats(prs, summary_dir):
         prs (Presentation): The slide object
         summary_dir (str): The path to the summary directory
     """
-    df_stage_time = pd.read_csv(os.path.join(summary_dir, 'stage-time_stats_table.csv'))
-    df_sw_trans = pd.read_csv(os.path.join(summary_dir, 'sleep-wake-transition_probability_stats_table.csv'))
-    df_stage_trans = pd.read_csv(os.path.join(summary_dir, 'stage-transition_probability_stats_table.csv'))
+    df_stage_time = pd.read_csv(os.path.join(
+        summary_dir, 'stage-time_stats_table.csv'))
+    df_sw_trans = pd.read_csv(os.path.join(
+        summary_dir, 'sleep-wake-transition_probability_stats_table.csv'))
+    df_stage_trans = pd.read_csv(os.path.join(
+        summary_dir, 'stage-transition_probability_stats_table.csv'))
 
     slide = prs.slides[0]
     table_list = get_tables_in_slide(slide)
@@ -167,19 +164,27 @@ def prep_table_of_psd(prs, summary_dir):
     slide_idx = [2, 3, 4]
 
     for td, si in zip(time_domains, slide_idx):
-        df_psd_ff = pd.read_csv(os.path.join(summary_dir, 'PSD_raw', f'PSD_raw_{td}_profile_stats_table.csv'))
-        df_psd_ft = pd.read_csv(os.path.join(summary_dir, 'PSD_norm', f'PSD_norm_{td}_profile_stats_table.csv'))
-        df_psd_tf = pd.read_csv(os.path.join(summary_dir, 'PSD_raw', f'PSD_raw_{td}_percentage-profile_stats_table.csv'))
-        df_psd_tt = pd.read_csv(os.path.join(summary_dir, 'PSD_norm', f'PSD_norm_{td}_percentage-profile_stats_table.csv'))
+        df_psd_ff = pd.read_csv(os.path.join(
+            summary_dir, 'PSD_raw', f'PSD_raw_{td}_profile_stats_table.csv'))
+        df_psd_ft = pd.read_csv(os.path.join(
+            summary_dir, 'PSD_norm', f'PSD_norm_{td}_profile_stats_table.csv'))
+        df_psd_tf = pd.read_csv(os.path.join(
+            summary_dir, 'PSD_raw', f'PSD_raw_{td}_percentage-profile_stats_table.csv'))
+        df_psd_tt = pd.read_csv(os.path.join(
+            summary_dir, 'PSD_norm', f'PSD_norm_{td}_percentage-profile_stats_table.csv'))
 
         slide = prs.slides[si]
         table_list = get_tables_in_slide(slide)
         table_map = map_table_label(table_list)
-        
-        set_dataframe_to_table(df_psd_ff.iloc[16:20,:].fillna(' '), table_map['PSD-FF'])
-        set_dataframe_to_table(df_psd_ft.iloc[16:20,:].fillna(' '), table_map['PSD-FT'])
-        set_dataframe_to_table(df_psd_tf.iloc[16:20,:].fillna(' '), table_map['PSD-TF'])
-        set_dataframe_to_table(df_psd_tt.iloc[16:20,:].fillna(' '), table_map['PSD-TT'])
+
+        set_dataframe_to_table(
+            df_psd_ff.iloc[16:20, :].fillna(' '), table_map['PSD-FF'])
+        set_dataframe_to_table(
+            df_psd_ft.iloc[16:20, :].fillna(' '), table_map['PSD-FT'])
+        set_dataframe_to_table(
+            df_psd_tf.iloc[16:20, :].fillna(' '), table_map['PSD-TF'])
+        set_dataframe_to_table(
+            df_psd_tt.iloc[16:20, :].fillna(' '), table_map['PSD-TT'])
 
 
 def prep_fig_of_stage_stats(prs, summary_dir):
@@ -192,16 +197,24 @@ def prep_fig_of_stage_stats(prs, summary_dir):
     slide = prs.slides[0]
 
     path_stage_time = os.path.join(summary_dir, f'stage-time_barchart.jpg')
-    path_sw_trans_bar = select_wanted_path(summary_dir, 'sleep-wake-transition_probability_barchart')
-    path_sw_trans_circ = select_wanted_path(summary_dir, 'sleep-wake-transition_circadian_profile_G')
+    path_sw_trans_bar = select_wanted_path(
+        summary_dir, 'sleep-wake-transition_probability_barchart')
+    path_sw_trans_circ = select_wanted_path(
+        summary_dir, 'sleep-wake-transition_circadian_profile_G')
     path_stage_prof = select_wanted_path(summary_dir, 'stage-time_profile_G')
-    path_stage_trans_bar = select_wanted_path(summary_dir, 'stage-transition_probability_barchart')
+    path_stage_trans_bar = select_wanted_path(
+        summary_dir, 'stage-transition_probability_barchart')
 
-    slide.shapes.add_picture(path_stage_time, Cm(0.95), Cm(3.4), Cm(11.05), Cm(5))
-    slide.shapes.add_picture(path_sw_trans_bar, Cm(14.2), Cm(3.4), Cm(5.3), Cm(5))
-    slide.shapes.add_picture(path_sw_trans_circ, Cm(19.6), Cm(3.4), Cm(13.6), Cm(5))
-    slide.shapes.add_picture(path_stage_prof, Cm(0.42), Cm(11.42), Cm(14.52), Cm(7.6))
-    slide.shapes.add_picture(path_stage_trans_bar, Cm(14.74), Cm(10.73), Cm(11.34), Cm(8.1))
+    slide.shapes.add_picture(path_stage_time, Cm(0.95),
+                             Cm(3.4), Cm(11.05), Cm(5))
+    slide.shapes.add_picture(
+        path_sw_trans_bar, Cm(14.2), Cm(3.4), Cm(5.3), Cm(5))
+    slide.shapes.add_picture(path_sw_trans_circ, Cm(
+        19.6), Cm(3.4), Cm(13.6), Cm(5))
+    slide.shapes.add_picture(path_stage_prof, Cm(
+        0.42), Cm(11.42), Cm(14.52), Cm(7.6))
+    slide.shapes.add_picture(path_stage_trans_bar, Cm(
+        14.74), Cm(10.73), Cm(11.34), Cm(8.1))
 
 
 def prep_fig_of_power_timeseries(prs, summary_dir):
@@ -215,19 +228,25 @@ def prep_fig_of_power_timeseries(prs, summary_dir):
 
     # (voltage normalization, spectrum normalization, left, top)
     parm_list = [('raw', '', 1.98, 4.2),
-                ('raw', 'percentage_', 1.98, 11.5),
-                ('norm', '', 18.0, 4.2),
-                ('norm', 'percentage_', 18.0, 11.5)]
+                 ('raw', 'percentage_', 1.98, 11.5),
+                 ('norm', '', 18.0, 4.2),
+                 ('norm', 'percentage_', 18.0, 11.5)]
 
     for vol_norm_type, spec_norm_type, left, top in parm_list:
-        path_pwr_ts_delta_wake =  select_wanted_path(os.path.join(summary_dir, f'PSD_{vol_norm_type}'), f'power-timeseries_{vol_norm_type}_delta_{spec_norm_type}Wake_G')
-        path_pwr_ts_delta_nrem =  select_wanted_path(os.path.join(summary_dir, f'PSD_{vol_norm_type}'), f'power-timeseries_{vol_norm_type}_delta_{spec_norm_type}NREM_G')
-        path_pwr_ts_delta_all =  select_wanted_path(os.path.join(summary_dir, f'PSD_{vol_norm_type}'), f'power-timeseries_{vol_norm_type}_delta_{spec_norm_type}G')    
+        path_pwr_ts_delta_wake = select_wanted_path(os.path.join(
+            summary_dir, f'PSD_{vol_norm_type}'), f'power-timeseries_{vol_norm_type}_delta_{spec_norm_type}Wake_G')
+        path_pwr_ts_delta_nrem = select_wanted_path(os.path.join(
+            summary_dir, f'PSD_{vol_norm_type}'), f'power-timeseries_{vol_norm_type}_delta_{spec_norm_type}NREM_G')
+        path_pwr_ts_delta_all = select_wanted_path(os.path.join(
+            summary_dir, f'PSD_{vol_norm_type}'), f'power-timeseries_{vol_norm_type}_delta_{spec_norm_type}G')
 
-        picture1 = slide.shapes.add_picture(path_pwr_ts_delta_wake, Cm(left), Cm(top), Cm(15.26), Cm(2.44))
-        picture2 = slide.shapes.add_picture(path_pwr_ts_delta_nrem, Cm(left), Cm(top+2.47), Cm(15.26), Cm(2.44))
-        picture3 = slide.shapes.add_picture(path_pwr_ts_delta_all, Cm(left), Cm(top+2.47*2), Cm(15.26), Cm(2.44))
-        
+        picture1 = slide.shapes.add_picture(
+            path_pwr_ts_delta_wake, Cm(left), Cm(top), Cm(15.26), Cm(2.44))
+        picture2 = slide.shapes.add_picture(
+            path_pwr_ts_delta_nrem, Cm(left), Cm(top+2.47), Cm(15.26), Cm(2.44))
+        picture3 = slide.shapes.add_picture(path_pwr_ts_delta_all, Cm(
+            left), Cm(top+2.47*2), Cm(15.26), Cm(2.44))
+
         # put the pictures at the bottom of z-order
         # https://stackoverflow.com/questions/58601247/how-to-set-picture-to-bottom-layer-in-ppt
         # pylint: disable = protected-access
@@ -245,16 +264,18 @@ def prep_fig_of_pds(prs, summary_dir):
     time_domains = ['allday', 'first-halfday', 'second-halfday']
     slide_idx = [2, 3, 4]
     # voltage normalization, spectrum normalization, left, top
-    parm_list = [('raw', '', 1.98, 4.65), 
-                ('norm', '', 18.2, 4.65), 
-                ('raw', 'percentage-', 1.98, 12.23),
-                ('norm', 'percentage-', 18.2, 12.23)]
+    parm_list = [('raw', '', 1.98, 4.65),
+                 ('norm', '', 18.2, 4.65),
+                 ('raw', 'percentage-', 1.98, 12.23),
+                 ('norm', 'percentage-', 18.2, 12.23)]
 
     for si, td in zip(slide_idx, time_domains):
         slide = prs.slides[si]
         for vol_norm_type, spec_norm_type, left, top in parm_list:
-            path_psd = select_wanted_path(os.path.join(summary_dir, f'PSD_{vol_norm_type}'), f'PSD_{vol_norm_type}_{td}_{spec_norm_type}profile_G')
-            slide.shapes.add_picture(path_psd, Cm(left), Cm(top), Cm(14.84), Cm(4.5))
+            path_psd = select_wanted_path(os.path.join(
+                summary_dir, f'PSD_{vol_norm_type}'), f'PSD_{vol_norm_type}_{td}_{spec_norm_type}profile_G')
+            slide.shapes.add_picture(path_psd, Cm(
+                left), Cm(top), Cm(14.84), Cm(4.5))
 
 
 def make_slide(args):
@@ -266,11 +287,9 @@ def make_slide(args):
     """
     summary_dir = args.summary_dir
 
-    dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
-    LOGGER = initialize_logger(os.path.join(summary_dir, 'log', f'summary.{dt_str}.log'))
-
     print_log(f'Making summary slides of {summary_dir}')
-    path2template = os.path.join(os.path.dirname(summary_dir), r'faster2lib/EEG_power_specrum_template.pptx')
+    path2template = os.path.join(os.path.dirname(
+        summary_dir), r'faster2lib/EEG_power_specrum_template.pptx')
     print_log(f'The template pptx:{path2template}')
 
     prs = Presentation(path2template)
@@ -300,9 +319,15 @@ def make_slide(args):
 
 
 if __name__ == '__main__':
-    
+
     PARSER = argparse.ArgumentParser()
     PARSER.add_argument("-s", "--summary_dir", required=True,
                         help="paths to the summary directory")
 
-    make_slide(PARSER.parse_args())
+    ARGS = PARSER.parse_args()
+
+    DT_STR = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    LOGGER = initialize_logger(os.path.join(
+        ARGS.summary_dir, 'log', f'summary.{DT_STR}.log'))
+
+    make_slide(ARGS)
