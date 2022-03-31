@@ -148,9 +148,9 @@ def prep_table_of_stage_stats(prs, summary_dir):
     table_list = get_tables_in_slide(slide)
     table_map = map_table_label(table_list)
 
-    set_dataframe_to_table(df_stage_time, table_map['STAGE-TIME'])
-    set_dataframe_to_table(df_sw_trans, table_map['SW-TRANS'])
-    set_dataframe_to_table(df_stage_trans, table_map['STAGE-TRANS'])
+    set_dataframe_to_table(df_stage_time.fillna(' '), table_map['STAGE-TIME'])
+    set_dataframe_to_table(df_sw_trans.fillna(' '), table_map['SW-TRANS'])
+    set_dataframe_to_table(df_stage_trans.fillna(' '), table_map['STAGE-TRANS'])
 
 
 def prep_table_of_psd(prs, summary_dir):
