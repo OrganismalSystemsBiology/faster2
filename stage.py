@@ -1147,9 +1147,9 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
 
     mouse_info_df = read_mouse_info(data_dir)
     for i, r in mouse_info_df.iterrows():
-        device_id = r[0]
-        mouse_group = r[1]
-        mouse_id = r[2]
+        device_id = r[0].strip()
+        mouse_group = r[1].strip()
+        mouse_id = r[2].strip()
         dob = r[3]
         note = r[4]
 
