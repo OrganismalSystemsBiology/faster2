@@ -162,7 +162,7 @@ def make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext):
         swtrans_profile_list.append(swtrans_profile(stage_call, epoch_len_sec))
 
         # sw transition profile
-        swtrans_circadian_profile_list.append(swtrans_circadian_profile(stage_call))
+        swtrans_circadian_profile_list.append(swtrans_circadian_profile(stage_call, epoch_len_sec))
 
     stagetime_df.columns = ['Experiment label', 'Mouse group', 'Mouse ID',
                             'Device label', 'REM', 'NREM', 'Wake', 'Unknown',
@@ -259,7 +259,7 @@ def stagetime_circadian_profile(stage_call, epoch_len_sec):
     return np.array([[rem_mean, nrem_mean, wake_mean], [rem_sd, nrem_sd, wake_sd]])
 
 
-def swtrans_circadian_profile(stage_call):
+def swtrans_circadian_profile(stage_call, epoch_len_sec):
     """hourly sleep-wake transitions (Psw and Pws) over a day (circadian profile)
 
     Arguments:
@@ -2201,7 +2201,7 @@ def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_li
                     f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_second-halfday_percentage-')
 
 
-def process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range, sample_freq, output_dir, psd_type, vol_unit='V'):
+def process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range, epoch_len_sec, sample_freq, output_dir, psd_type, vol_unit='V'):
     freq_bins = sp.psd_freq_bins(sample_freq)
     bidx_delta_freq = (freq_bins<4) # 11 bins
     bidx_all_freq = np.full(129, True)
@@ -2266,22 +2266,7 @@ def make_psd_output_dirs(output_dir, psd_type):
     os.makedirs(os.path.join(output_dir, 'PDF'), exist_ok=True)
 
 
-if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--faster2_dirs", required=True, nargs="*",
-                        help="paths to the FASTER2 directories")
-    parser.add_argument("-e", "--epoch_range",
-                        help="a range of epochs to be summaried (default: '0:epoch_num'")
-    parser.add_argument("-s", "--stage_ext",
-                        help="the sub-extention of the stage file (default: faster2)")
-    parser.add_argument("-o", "--output_dir",
-                        help="a path to the output files (default: the first FASTER2 directory)")
-    parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
-    parser.add_argument("-u", "--unit_voltage", help="The unit of EEG voltage for the raw PSD (default: V)", default="V")
-
-
-    args = parser.parse_args()
+def main(args):
     epoch_len_sec = int(args.epoch_len_sec)
 
     faster_dir_list = [os.path.abspath(x) for x in args.faster2_dirs]
@@ -2431,8 +2416,27 @@ if __name__ == '__main__':
     process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, 'raw', vol_unit)
 
     # PSD timeseries
-    process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range, sample_freq, output_dir, 'norm')
-    process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range, sample_freq, output_dir, 'raw', vol_unit)
+    process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range, epoch_len_sec, sample_freq, output_dir, 'norm')
+    process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range, epoch_len_sec, sample_freq, output_dir, 'raw', vol_unit)
 
     dt_now = datetime.now()
     print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Ended')
+
+
+if __name__ == '__main__':
+
+    PARSER = argparse.ArgumentParser()
+    PARSER.add_argument("-f", "--faster2_dirs", required=True, nargs="*",
+                        help="paths to the FASTER2 directories")
+    PARSER.add_argument("-e", "--epoch_range",
+                        help="a range of epochs to be summaried (default: '0:epoch_num'")
+    PARSER.add_argument("-s", "--stage_ext",
+                        help="the sub-extention of the stage file (default: faster2)")
+    PARSER.add_argument("-o", "--output_dir",
+                        help="a path to the output files (default: the first FASTER2 directory)")
+    PARSER.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
+    PARSER.add_argument("-u", "--unit_voltage", help="The unit of EEG voltage for the raw PSD (default: V)", default="V")
+
+
+    args = PARSER.parse_args()
+    main(args)
