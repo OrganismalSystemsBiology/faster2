@@ -1190,12 +1190,12 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
     bidx_group_list = [mouse_groups == g for g in mouse_groups_set]
 
     # make stats of stagetime circadian profile: mean and sd over each group
-    # mouse x [mean of REM, NREM, Wake] x 24 hours
+    # mouse x [mean of Psw, Pws] x 24 hours
     swtrans_circadian_profile_mat = np.array(
         [ms[0] for ms in swtrans_circadian_profile_list])
     swtrans_circadian_profile_stats_list = []
     for bidx in bidx_group_list:
-        # "RuntimeWarning: Mean of empty slice" may occure here and safely ignorable
+        # "RuntimeWarning: Mean of empty slice" may occur here and safely ignorable
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
             swtrans_circadian_profile_mean = np.apply_along_axis(
