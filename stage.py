@@ -24,7 +24,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.3.8'
+FASTER2_NAME = 'FASTER2 version 0.3.9'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
@@ -1168,6 +1168,14 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
                 eeg_vm_org, emg_vm_org, data_dir, device_id)
 
         print_log('Preprocessing and calculating PSD')
+
+        # Put NaN to no-signal epochs of EEG
+        mat_sd = np.nanstd(eeg_vm_org)
+        epoch_sd = np.apply_along_axis(np.nanstd, 1 ,eeg_vm_org)
+        bidx_no_eeg_signal = (epoch_sd / mat_sd) < 0.01 # A definition of "NO signal of EEG"
+        eeg_vm_org[bidx_no_eeg_signal, :] = np.nan
+        print_log(f'The number of epochs with no EEG signal: {np.sum(bidx_no_eeg_signal)}')
+
         # recover nans in the data if possible
         nan_ratio_eeg = np.apply_along_axis(et.patch_nan, 1, eeg_vm_org)
         nan_ratio_emg = np.apply_along_axis(et.patch_nan, 1, emg_vm_org)
@@ -1323,16 +1331,16 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    dt_now = datetime.now()
-    print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Started in : {os.path.dirname(os.path.abspath(args.data_dir))}')
-
     result_dir = os.path.abspath(args.result_dir)
     pickle_input_data = args.pickle_input_data
-
     os.makedirs(result_dir, exist_ok=True)
+
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     log = initialize_logger(os.path.join(result_dir, f'stage.{dt_str}.log'))
+
+    print_log(f'[{dt_str} - {sys.modules[__name__].__file__}] Started in : {os.path.dirname(os.path.abspath(args.data_dir))}')
+
     main(args.data_dir, result_dir, args.pickle_input_data, int(args.epoch_len_sec), args.heart_beat_filter)
 
-    dt_now = datetime.now()
-    print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Ended')
+    dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    print_log(f'[{dt_str} - {sys.modules[__name__].__file__}] Ended')
