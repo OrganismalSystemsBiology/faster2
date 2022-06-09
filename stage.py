@@ -606,7 +606,7 @@ def plot_hist_on_separation_axis(path2figures, d, means, covars, weights, draw_p
     ax.set_xlabel('', fontsize=10)
     ax.set_ylabel('', fontsize=10)
 
-    _savefig(path2figures, 'histogram_on_separation_axis', fig, draw_pdf_plot))
+    _savefig(path2figures, 'histogram_on_separation_axis', fig, draw_pdf_plot)
 
     return fig
 
@@ -1017,7 +1017,7 @@ def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, c_pred
     points = stage_coord[:, np.r_[axes]]
     fig = plot_scatter2D(points, pred2, means2, covars2,
                          colors, XLABEL, YLABEL, diag_line=True)
-    _savefig(path2figures, 'ScatterPlot2D_LowFreq-HighFreq_Axes_Active-NREM', fig)
+    _savefig(path2figures, 'ScatterPlot2D_LowFreq-HighFreq_Axes_Active-NREM', fig, draw_pdf_plot)
 
     points_active = stage_coord[((c_pred3 == 0) | (c_pred3 == 1)), :]
     pred_active = c_pred3[((c_pred3 == 0) | (c_pred3 == 1))]
@@ -1030,7 +1030,7 @@ def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, c_pred
                    for c in c_covars[np.r_[0, 1, 2]]])
     fig = plot_scatter2D(points_prj, c_pred3, mm,
                          cc, colors, XLABEL, ZLABEL)
-    _savefig(path2figures, 'ScatterPlot2D_LowFreq-REM_axes', fig)
+    _savefig(path2figures, 'ScatterPlot2D_LowFreq-REM_axes', fig, draw_pdf_plot)
 
     axes = [1, 2]  # High-freq axis & REM axis
     points_prj = stage_coord[:, np.r_[axes]]
@@ -1039,7 +1039,7 @@ def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, c_pred
                    for c in c_covars[np.r_[0, 1, 2]]])
     fig = plot_scatter2D(points_prj, c_pred3, mm,
                          cc, colors, YLABEL, ZLABEL)
-    _savefig(path2figures, 'ScatterPlot2D_HighFreq-REM_axes', fig)
+    _savefig(path2figures, 'ScatterPlot2D_HighFreq-REM_axes', fig, draw_pdf_plot)
 
     axes = [0, 1]  # Low-freq axis & High-freq axis
     points_prj = stage_coord[:, np.r_[axes]]
@@ -1049,7 +1049,7 @@ def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, c_pred
                         for c in c_covars[np.r_[0, 1, 2]]])
     fig = plot_scatter2D(points_prj, c_pred3, mm_proj,
                          cc_proj, colors, XLABEL, YLABEL, diag_line=True)
-    _savefig(path2figures, 'ScatterPlot2D_LowFreq-HighFreq_axes_Wake_REM_NREM', fig)
+    _savefig(path2figures, 'ScatterPlot2D_LowFreq-HighFreq_axes_Wake_REM_NREM', fig, draw_pdf_plot)
 
     colors = [COLOR_WAKE, COLOR_REM, COLOR_NREM]
     colors_light = [lighten_color(c) for c in colors]
