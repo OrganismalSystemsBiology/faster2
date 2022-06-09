@@ -61,7 +61,7 @@ def map_table_label(table_list):
 def set_dataframe_to_table(df, tbl):
     # set the items of the dataframe to the cells of the table
     rows_iter = iter(tbl.rows)
-    next(rows_iter)  # skip the header row
+    next(rows_iter) # skip the header row
     for row_idx, row in enumerate(rows_iter):
         for col_idx, cell in enumerate(row.cells):
             item = df.iloc[row_idx, col_idx]
@@ -70,7 +70,15 @@ def set_dataframe_to_table(df, tbl):
             except ValueError:
                 str_value = str(item)
             # Notice: All cells in the template table cannot be empty to have at least one 'run'.
-            cell.text_frame.paragraphs[0].runs[0].text = str_value
+            runs = cell.text_frame.paragraphs[0].runs
+            runs_num = len(runs)
+            if runs_num > 1:
+                runs[0].text = str_value
+                # clear the redundant runs
+                for i in range(1, runs_num):
+                    runs[i].text = ''
+            else:
+                runs[0].text = str_value
 
 
 def select_wanted_path(summary_dir, part_of_filename):

@@ -24,7 +24,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.3.9'
+FASTER2_NAME = 'FASTER2 version 0.4.0'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
@@ -158,7 +158,6 @@ class CustomedGHMM(hmm.GaussianHMM):
 
         w = 2 * np.sqrt(w)  # 95% confidence (2SD) area
         prn_ax = v@np.diag(w)  # 3x3 matrix: each column is the principal axis
-        
         # confine above diagonal line
         for i in range(3):
             arr_hd = wake_mean + prn_ax[:, i]  # the arrow head from the mean
@@ -579,7 +578,7 @@ def psd(y, n_fft, sample_freq):
     return signal.welch(y, nfft=n_fft, fs=sample_freq)[1][0:129]
 
 
-def plot_hist_on_separation_axis(path2figures, d, means, covars, weights):
+def plot_hist_on_separation_axis(path2figures, d, means, covars, weights, draw_pdf_plot=False):
 
     if means[0] > means[1]:
         # reverse the order
@@ -607,7 +606,7 @@ def plot_hist_on_separation_axis(path2figures, d, means, covars, weights):
     ax.set_xlabel('', fontsize=10)
     ax.set_ylabel('', fontsize=10)
 
-    _savefig(path2figures, 'histogram_on_separation_axis', fig)
+    _savefig(path2figures, 'histogram_on_separation_axis', fig, draw_pdf_plot))
 
     return fig
 
@@ -790,8 +789,8 @@ def cancel_weight_bias(stage_coord_2D):
     print_log('Estimate the bias of the two cluster means')
     d = stage_coord_2D@np.array([1, -1]).T  # project onto the separation axis
     d = d.reshape(-1, 1)
-    # active, stative, intermediate
-    gmm = mixture.GaussianMixture(n_components=2, n_init=10)
+    # Two states: active and quiet
+    gmm = mixture.BayesianGaussianMixture(n_components=2, n_init=10)
     gmm.fit(d)
     weights = gmm.weights_
     means = gmm.means_.flatten()
@@ -1010,7 +1009,7 @@ def classification_process(stage_coord, rem_floor):
     return pred_2D, pred_2D_proba, mm_2D, cc_2D, pred_3D, pred_3D_proba, mm_3D, cc_3D
 
 
-def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, c_pred3, c_means, c_covars):
+def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, c_pred3, c_means, c_covars, draw_pdf_plot=False):
     print_log('Drawing scatter plots')
 
     colors = [COLOR_WAKE, COLOR_NREM]
@@ -1079,18 +1078,19 @@ def draw_scatter_plots(path2figures, stage_coord, pred2, means2, covars2, c_pred
         ax.scatter3D(t_points[:, 0], t_points[:, 1],
                      t_points[:, 2], s=0.01, color=colors[c])
 
-    _savefig(path2figures, 'ScatterPlot3D', fig)
+    _savefig(path2figures, 'ScatterPlot3D', fig, draw_pdf_plot)
 
 
-def _savefig(output_dir, basefilename, fig):
+def _savefig(output_dir, basefilename, fig, draw_pdf_plot):
     # PNG
     filename = f'{basefilename}.png'
     fig.savefig(os.path.join(output_dir, filename), pad_inches=0,
                 bbox_inches='tight', dpi=100)
     # PDF
-    filename = f'{basefilename}.pdf'
-    fig.savefig(os.path.join(output_dir, 'pdf', filename), pad_inches=0,
-                bbox_inches='tight', dpi=100)
+    if draw_pdf_plot:
+        filename = f'{basefilename}.pdf'
+        fig.savefig(os.path.join(output_dir, 'pdf', filename), pad_inches=0,
+                    bbox_inches='tight', dpi=100)
 
 
 def lighten_color(hex):
@@ -1119,14 +1119,14 @@ def voltage_normalize(v_mat):
     return v_mat_norm
 
 
-def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filter=False):
+def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filter=False, draw_pdf_plot=False):
     """ main """
 
     exp_info_df = read_exp_info(data_dir)
     (epoch_num, sample_freq, exp_label, rack_label, start_datetime,
      end_datetime) = interpret_exp_info(exp_info_df, epoch_len_sec)
 
-    # assures frequency bins compatibe among different sampleling frequencies
+    # assures frequency bins compatibe among different sampling frequencies
     n_fft = int(256 * sample_freq/100)
     # same frequency bins given by signal.welch()
     freq_bins = 1/(n_fft/sample_freq)*np.arange(0, 129)
@@ -1300,15 +1300,16 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
 
         path2figures = os.path.join(result_dir, 'figure', f'{device_id}')
         os.makedirs(path2figures, exist_ok=True)
-        os.makedirs(os.path.join(path2figures, 'pdf'), exist_ok=True)
+        if draw_pdf_plot:
+            os.makedirs(os.path.join(path2figures, 'pdf'), exist_ok=True)
 
         # draw the bias histogram
         plot_hist_on_separation_axis(
-            path2figures, cwb['proj_data'], cwb['means'], cwb['covars'], cwb['weights'])
+            path2figures, cwb['proj_data'], cwb['means'], cwb['covars'], cwb['weights'], draw_pdf_plot) 
 
         # draw scatter plots
         draw_scatter_plots(path2figures, stage_coord, pred_2D,
-                           means_2D, covars_2D, pred_3D, means_3D, covars_3D)
+                           means_2D, covars_2D, pred_3D, means_3D, covars_3D, draw_pdf_plot)
 
         # pickle cluster parameters
         pickle_cluster_params(means_2D, covars_2D, means_3D,
@@ -1326,6 +1327,7 @@ if __name__ == '__main__':
                         help="path to the directory of staging result")
     parser.add_argument("-p", "--pickle_input_data",
                         help="flag to pickle input data", action='store_true')
+    parser.add_argument("-D", "--draw_pdf_plot", help="flag to draw PDF plots", action='store_true')
     parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
     parser.add_argument("-f", "--heart_beat_filter", help="Boolean switch for the heart beat filter", action='store_true')
 
@@ -1340,7 +1342,7 @@ if __name__ == '__main__':
 
     print_log(f'[{dt_str} - {sys.modules[__name__].__file__}] Started in : {os.path.dirname(os.path.abspath(args.data_dir))}')
 
-    main(args.data_dir, result_dir, args.pickle_input_data, int(args.epoch_len_sec), args.heart_beat_filter)
+    main(args.data_dir, result_dir, args.pickle_input_data, int(args.epoch_len_sec), args.heart_beat_filter, args.draw_pdf_plot)
 
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     print_log(f'[{dt_str} - {sys.modules[__name__].__file__}] Ended')
