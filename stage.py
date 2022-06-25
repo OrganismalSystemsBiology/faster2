@@ -1172,7 +1172,8 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
         # Put NaN to no-signal epochs of EEG
         mat_sd = np.nanstd(eeg_vm_org)
         epoch_sd = np.apply_along_axis(np.nanstd, 1 ,eeg_vm_org)
-        bidx_no_eeg_signal = (epoch_sd / mat_sd) < 0.01 # A definition of "NO signal of EEG"
+        med_sd = np.median(epoch_sd)
+        bidx_no_eeg_signal = (epoch_sd / med_sd) < 0.3 # A definition of "NO signal of EEG"
         eeg_vm_org[bidx_no_eeg_signal, :] = np.nan
         print_log(f'The number of epochs with no EEG signal: {np.sum(bidx_no_eeg_signal)}')
 
