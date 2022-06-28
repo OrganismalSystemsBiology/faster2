@@ -51,6 +51,13 @@ def print_log(msg):
         print(msg)
 
 
+def print_log_exception(msg):
+    if 'log' in globals():
+        log.exception(msg)
+    else:
+        print(msg)
+
+
 def collect_mouse_info_df(faster_dir_list, epoch_len_sec):
     """ collects multiple mouse info
 
@@ -2270,8 +2277,6 @@ def main(args):
     epoch_len_sec = int(args.epoch_len_sec)
 
     faster_dir_list = [os.path.abspath(x) for x in args.faster2_dirs]
-    dt_now = datetime.now()
-    print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Started in: {os.path.abspath(faster_dir_list[0])}')
 
     if args.output_dir:
         output_dir = os.path.abspath(args.output_dir)
@@ -2323,8 +2328,10 @@ def main(args):
     os.makedirs(os.path.join(output_dir, 'pdf'), exist_ok=True)
     os.makedirs(os.path.join(output_dir, 'log'), exist_ok=True)
 
+    global log
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     log = initialize_logger(os.path.join(output_dir, 'log', f'summary.{dt_str}.log'))
+    print_log(f'[{dt_str} - {stage.FASTER2_NAME} - {sys.modules[__name__].__file__}] Started in: {os.path.abspath(faster_dir_list[0])}')
 
     # prepare stagetime statistics
     stagetime_stats = make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext)
@@ -2439,4 +2446,7 @@ if __name__ == '__main__':
 
 
     args = PARSER.parse_args()
-    main(args)
+    try:
+        main(args)
+    except Exception as e:
+        print_log_exception('Unhandled exception occured')

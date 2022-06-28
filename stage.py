@@ -24,7 +24,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.4.0'
+FASTER2_NAME = 'FASTER2 version 0.4.1'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
@@ -34,7 +34,7 @@ SCATTER_PLOT_FIG_HEIGHT = 6  # inch
 FIG_DPI = 100  # dot per inch
 COLOR_WAKE = '#DC267F'
 COLOR_NREM = '#648FFF'
-COLOR_REM = '#FFB000'  
+COLOR_REM = '#FFB000'
 COLOR_LIGHT = '#FFD700'  # 'gold'
 COLOR_DARK = '#696969'  # 'dimgray'
 COLOR_DARKLIGHT = 'lightgray'  # light hours in DD condition
@@ -302,6 +302,13 @@ def initialize_logger(log_file):
 def print_log(msg):
     if 'log' in globals():
         log.debug(msg)
+    else:
+        print(msg)
+
+
+def print_log_exception(msg):
+    if 'log' in globals():
+        log.exception(msg)
     else:
         print(msg)
 
@@ -1119,7 +1126,7 @@ def voltage_normalize(v_mat):
     return v_mat_norm
 
 
-def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filter=False, draw_pdf_plot=False):
+def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filter=False, no_signal_filter=False, draw_pdf_plot=False):
     """ main """
 
     exp_info_df = read_exp_info(data_dir)
@@ -1153,7 +1160,6 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
         dob = r[3]
         note = r[4]
 
-        print_log('\n')
         print_log(f'#### {FASTER2_NAME} ###################################')
         print_log(f'#### [{i+1}] Device_id: {device_id}')
         print_log(f'Reading voltages')
@@ -1170,12 +1176,13 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
         print_log('Preprocessing and calculating PSD')
 
         # Put NaN to no-signal epochs of EEG
-        mat_sd = np.nanstd(eeg_vm_org)
-        epoch_sd = np.apply_along_axis(np.nanstd, 1 ,eeg_vm_org)
-        med_sd = np.median(epoch_sd)
-        bidx_no_eeg_signal = (epoch_sd / med_sd) < 0.3 # A definition of "NO signal of EEG"
-        eeg_vm_org[bidx_no_eeg_signal, :] = np.nan
-        print_log(f'The number of epochs with no EEG signal: {np.sum(bidx_no_eeg_signal)}')
+        if no_signal_filter:
+            print_log('Applying the optional filter on the EEG signal')
+            epoch_sd = np.apply_along_axis(np.nanstd, 1 ,eeg_vm_org)
+            med_sd = np.median(epoch_sd)
+            bidx_no_eeg_signal = (epoch_sd / med_sd) < 0.3 # A definition of "NO signal of EEG"
+            eeg_vm_org[bidx_no_eeg_signal, :] = np.nan
+            print_log(f'The number of epochs with no EEG signal: {np.sum(bidx_no_eeg_signal)}')
 
         # recover nans in the data if possible
         nan_ratio_eeg = np.apply_along_axis(et.patch_nan, 1, eeg_vm_org)
@@ -1326,11 +1333,12 @@ if __name__ == '__main__':
                         help="path to the directory of input data")
     parser.add_argument("-r", "--result_dir", required=True,
                         help="path to the directory of staging result")
+    parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
     parser.add_argument("-p", "--pickle_input_data",
                         help="flag to pickle input data", action='store_true')
     parser.add_argument("-D", "--draw_pdf_plot", help="flag to draw PDF plots", action='store_true')
-    parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
-    parser.add_argument("-f", "--heart_beat_filter", help="Boolean switch for the heart beat filter", action='store_true')
+    parser.add_argument("-f", "--heart_beat_filter", help="flag to apply the heart beat filter", action='store_true')
+    parser.add_argument("-n", "--no_signal_filter", help="flag to apply no signal filter", action='store_true')
 
     args = parser.parse_args()
 
@@ -1341,9 +1349,12 @@ if __name__ == '__main__':
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     log = initialize_logger(os.path.join(result_dir, f'stage.{dt_str}.log'))
 
-    print_log(f'[{dt_str} - {sys.modules[__name__].__file__}] Started in : {os.path.dirname(os.path.abspath(args.data_dir))}')
+    print_log(f'[{dt_str} - {FASTER2_NAME} - {sys.modules[__name__].__file__}] Started in : {os.path.dirname(os.path.abspath(args.data_dir))}')
 
-    main(args.data_dir, result_dir, args.pickle_input_data, int(args.epoch_len_sec), args.heart_beat_filter, args.draw_pdf_plot)
+    try:
+        main(args.data_dir, result_dir, args.pickle_input_data, int(args.epoch_len_sec), args.heart_beat_filter, args.no_signal_filter, args.draw_pdf_plot)
+    except Exception as e:
+        print_log_exception('Unhandled exception occured')
 
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     print_log(f'[{dt_str} - {sys.modules[__name__].__file__}] Ended')
