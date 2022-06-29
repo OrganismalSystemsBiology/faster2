@@ -313,12 +313,13 @@ def print_log_exception(msg):
         print(msg)
 
 
-def read_mouse_info(data_dir):
+def read_mouse_info(data_dir, mouse_info_ext=None):
     """This function reads the mouse.info.csv file
     and returns a DataFrame with fixed column names.
 
     Args:
         data_dir (str): A path to the data directory that contains the mouse.info.csv
+        mouse_info_ext (str): A sub-extention of the mouse.info.[HERE].csv
 
 
         The data directory should include two information files:
@@ -330,7 +331,11 @@ def read_mouse_info(data_dir):
         DataFrame: A dataframe with a fixed column names
     """
 
-    filepath = os.path.join(data_dir, "mouse.info.csv")
+    if mouse_info_ext:
+        sub_ext = f'{mouse_info_ext}.'
+    else:
+        sub_ext = ''
+    filepath = os.path.join(data_dir, f"mouse.info.{sub_ext}csv")
 
     try:
         codename = et.encode_lookup(filepath)

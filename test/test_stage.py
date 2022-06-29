@@ -29,6 +29,20 @@ class  TestStage(unittest.TestCase):
 
         np.testing.assert_array_equal(res, exp)
 
+
+    def test_read_mouse_info_with_sub_ext(self):
+        mouse_info = stage.read_mouse_info("../test/data/FASTER2_20200206_EEG_2019-023/data", "part_of_other_exp")
+
+        exp = np.array(["ID46770",
+                        "ID45764",
+                        "ID47313",
+                        "ID37963"]
+                       )
+
+        res = mouse_info['Device label']
+
+        np.testing.assert_array_equal(res, exp)
+
     
     def test_read_exp_info(self):
         exp_info = stage.read_exp_info("../test/data/FASTER2_20200206_EEG_2019-023/data")

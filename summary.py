@@ -58,11 +58,13 @@ def print_log_exception(msg):
         print(msg)
 
 
-def collect_mouse_info_df(faster_dir_list, epoch_len_sec):
+def collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext=None):
     """ collects multiple mouse info
 
     Arguments:
         faster_dir_list [str] -- a list of paths for FASTER directories
+        epoch_len_sec -- The epoch length in the second
+        mouse_info_ext -- a sub-extention of the mouse.info.csv
 
     Returns:
         {'mouse_info':pd.DataFrame, 'epoch_num':int, 'sample_freq':np.float} -- A dict of
@@ -89,7 +91,7 @@ def collect_mouse_info_df(faster_dir_list, epoch_len_sec):
         else:
             sample_freq_stored = sample_freq
 
-        m_info = stage.read_mouse_info(data_dir)
+        m_info = stage.read_mouse_info(data_dir, mouse_info_ext)
         m_info['Experiment label'] = exp_label
         m_info['FASTER_DIR'] = faster_dir
         mouse_info_df = pd.concat([mouse_info_df, m_info])
@@ -2284,9 +2286,10 @@ def main(args):
         output_dir = None
     stage_ext = args.stage_ext
     vol_unit = args.unit_voltage
+    mouse_info_ext = args.mouse_info_ext
 
     # collect mouse_infos of the specified (multiple) FASTER dirs
-    mouse_info_collected = collect_mouse_info_df(faster_dir_list, epoch_len_sec)
+    mouse_info_collected = collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext)
     mouse_info_df = mouse_info_collected['mouse_info']
     epoch_num = mouse_info_collected['epoch_num']
     sample_freq = mouse_info_collected['sample_freq']
@@ -2439,6 +2442,8 @@ if __name__ == '__main__':
                         help="a range of epochs to be summaried (default: '0:epoch_num'")
     PARSER.add_argument("-s", "--stage_ext",
                         help="the sub-extention of the stage file (default: faster2)")
+    PARSER.add_argument("-m", "--mouse_info_ext",
+                        help="the sub-extention of the mouse.info.csv (default: none)")
     PARSER.add_argument("-o", "--output_dir",
                         help="a path to the output files (default: the first FASTER2 directory)")
     PARSER.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)

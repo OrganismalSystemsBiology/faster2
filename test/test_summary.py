@@ -4,9 +4,10 @@ import numpy as np
 import pandas as pd
 import sys
 import datetime
-import pickle
 sys.path.append('../')
 import summary as ps
+import faster2lib.summary_psd as summary_psd
+import faster2lib.summary_common as summary_common
 import stage
 import faster2lib.eeg_tools as et
 import os
@@ -78,7 +79,7 @@ class  TestFunctions(unittest.TestCase):
                       -0.95247291, 1.27389145,  0.08989706, 0.91369910,
                       1.41455185, 0.37031156, -1.38824560, -0.48298429])
         exp = 0.4444081 # calculated in R by t.test(x,y, var.equal=T)$p.value
-        ans = ps.test_two_sample(x,y)
+        ans = summary_common.test_two_sample(x,y)
         np.testing.assert_almost_equal(exp, ans['p_value'])
         np.testing.assert_equal("Student's t-test", ans['method'])
         np.testing.assert_equal("", ans['stars'])
@@ -99,7 +100,7 @@ class  TestFunctions(unittest.TestCase):
                       -2.4053616, 2.5806931, 6.8943658, 1.5190817,  6.1774943])
 
         exp = 0.08442955 # calculated in R by t.test(x,y)$p.value
-        ans = ps.test_two_sample(x,y)
+        ans = summary_common.test_two_sample(x,y)
         np.testing.assert_almost_equal(exp, ans['p_value'])
         np.testing.assert_equal("Welch's t-test", ans['method'])
         np.testing.assert_equal("", ans['stars'])
@@ -121,7 +122,7 @@ class  TestFunctions(unittest.TestCase):
                       -0.06509925 - 2.11578914, 0.70092554 - 1.08215608])
 
         exp = 0.9734088 # calculated in R by wilcox.test(x,y,exact=F, correct=F)$p.value
-        ans = ps.test_two_sample(x,y)
+        ans = summary_common.test_two_sample(x,y)
         np.testing.assert_almost_equal(exp, ans['p_value'])
         np.testing.assert_equal("Wilcoxon test", ans['method'])
         np.testing.assert_equal("", ans['stars'])
@@ -136,7 +137,7 @@ class  TestFunctions(unittest.TestCase):
         y = np.array([np.nan, np.nan, np.nan, 0.3164970, 0.1842207])
 
         exp = 0.4297953 # calculated in R by wilcox.test(x,y,exact=F, correct=F)$p.value
-        ans = ps.test_two_sample(x,y)
+        ans = summary_common.test_two_sample(x,y)
 
         np.testing.assert_almost_equal(exp, ans['p_value'])
         np.testing.assert_equal("Wilcoxon test", ans['method'])
@@ -152,7 +153,22 @@ class  TestFunctions(unittest.TestCase):
                         'ID47567', 'ID46890', 'ID42046', 'ID51292',
                         'ID47395', 'ID46501', 'ID47248', 'ID47348']
                        )
-        mouse_info_collected = ps.collect_mouse_info_df(faster_dir_list)
+        mouse_info_collected = ps.collect_mouse_info_df(faster_dir_list, 8)
+        mouse_info_df = mouse_info_collected['mouse_info']
+
+        res = mouse_info_df['Device label']
+
+        np.testing.assert_array_equal(res, exp)
+
+
+    def test_collect_mouse_info_with_sub_ext(self):
+        faster_dir_list = ['../test/data/FASTER2_20200206_EEG_2019-023',
+                           '../test/data/FASTER2_20200213_EEG_2019-024']
+
+        exp = np.array(['ID46770', 'ID45764', 'ID47313', 'ID37963',
+                        'ID47395', 'ID46501', 'ID47248', 'ID47348']
+                       )
+        mouse_info_collected = ps.collect_mouse_info_df(faster_dir_list, 8, 'part_of_other_exp')
         mouse_info_df = mouse_info_collected['mouse_info']
 
         res = mouse_info_df['Device label']
@@ -182,7 +198,7 @@ class  TestFunctions(unittest.TestCase):
             [0, 0, 60,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
         ])
 
-        ans = ps.stagetime_profile(self.stage_call_dummy)
+        ans = ps.stagetime_profile(self.stage_call_dummy, 8)
 
         np.testing.assert_array_equal(exp, ans)
 
@@ -199,7 +215,7 @@ class  TestFunctions(unittest.TestCase):
                 [0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
             ]])
         
-        ans = ps.stagetime_circadian_profile(self.stage_call_dummy)
+        ans = ps.stagetime_circadian_profile(self.stage_call_dummy, 8)
 
         np.testing.assert_array_equal(exp, ans)
 
@@ -234,11 +250,11 @@ class  TestFunctions(unittest.TestCase):
                         'ID47567', 'ID46890', 'ID42046', 'ID51292',
                         'ID47395', 'ID46501', 'ID47248', 'ID47348']
                        )
-        mouse_info_collected = ps.collect_mouse_info_df(faster_dir_list)
+        mouse_info_collected = ps.collect_mouse_info_df(faster_dir_list, 8)
         mouse_info_df = mouse_info_collected['mouse_info']
         epoch_num = mouse_info_collected['epoch_num']
         
-        stagetime_df = ps.make_summary_stats(mouse_info_df, slice(0, epoch_num, None), 'faster2')['stagetime']
+        stagetime_df = ps.make_summary_stats(mouse_info_df, slice(0, epoch_num, None), 8, 'faster2')['stagetime']
         ans = stagetime_df['Device label']
 
         np.testing.assert_array_equal(ans, exp)
@@ -277,7 +293,7 @@ class  TestFunctions(unittest.TestCase):
 
         # TEST
         start_datetime = datetime.datetime(2019, 8, 15, 8, 0)
-        psd_info_list = ps.make_target_psd_info(mif, slice(100,1800,None), self.sample_freq, 'faster2_1800', start_datetime)
+        psd_info_list = summary_psd.make_target_psd_info(mif, slice(100,1800,None), 8, self.sample_freq, 'faster2_1800', start_datetime)
         psd_info = psd_info_list[0]
         ans_conv_psd = psd_info['norm']
 
@@ -321,7 +337,7 @@ class  TestFunctions(unittest.TestCase):
         psd_profile_df = pd.read_csv("../test/data/FASTER2_20200306_EEG_2019-025/summary/psd_profile.csv")
         
         # test
-        ans_df = ps.make_psd_domain(psd_profile_df)
+        ans_df = summary_psd.make_psd_domain(psd_profile_df)
 
         ans_slow = ans_df.iloc[0]['Slow']
         ans_delta_wo_slow = ans_df.iloc[0]['Delta w/o slow']
@@ -342,10 +358,10 @@ class  TestFunctions(unittest.TestCase):
     
     def test_make_psd_stats(self):
         psd_profile_df = pd.read_csv("../test/data/FASTER2_20200306_EEG_2019-025/summary/psd_profile.csv")
-        psd_domain_df = ps.make_psd_domain(psd_profile_df)
+        psd_domain_df = summary_psd.make_psd_domain(psd_profile_df)
 
         # test
-        ans_df = ps.make_psd_stats(psd_domain_df)
+        ans_df = summary_psd.make_psd_stats(psd_domain_df)
         ans_n = ans_df.iloc[0]['N']
         ans_mean = ans_df.iloc[0]['Mean']
         ans_sd = ans_df.iloc[0]['SD']
