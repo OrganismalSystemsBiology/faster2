@@ -18,6 +18,9 @@ class Timeseries_plot:
             device_id (str): a string of device ID
             start_datetime (datetime): datetime of the first epoch
             sample_freq (int): sampling frequency
+
+        Note: 
+            # The length of a row is ~70 seconds
         """
         self.eeg_vm = eeg_vm
         self.emg_vm = emg_vm
@@ -27,7 +30,8 @@ class Timeseries_plot:
         self.sample_freq = sample_freq
         self.epoch_num = self.eeg_vm.shape[0]
         self.epoch_len_sec = int(self.eeg_vm.shape[1]/self.sample_freq)
-        self.page_num = int(np.ceil(self.epoch_num*self.epoch_len_sec/360)+1) #360s per page
+        self.row_len_sec = row_len_sec(self.epoch_len_sec)
+        self.page_num = int(np.ceil(self.epoch_num*self.epoch_len_sec/(self.row_len_sec*5))) 
         self.lines_eeg = []
         self.lines_emg = []
         self.lines_score = []
@@ -58,9 +62,10 @@ class Timeseries_plot:
         self.fig.set_size_inches(20.64516129032258, 15.58687563423159) # 1600 x 1200 px
        
         # pad extra data to fill a page
-        if self.epoch_num % 45 > 0:
-            r = self.epoch_num % 45
-            r_vm = np.zeros((r, 8*self.sample_freq))
+        epoch_num_apage = int(5*self.row_len_sec/self.epoch_len_sec)
+        if self.epoch_num % epoch_num_apage > 0:
+            r = self.epoch_num % epoch_num_apage
+            r_vm = np.zeros((r, self.epoch_len_sec * self.sample_freq))
             self.eeg_vm = np.vstack([eeg_vm, r_vm])
             self.emg_vm = np.vstack([emg_vm, r_vm])
 
@@ -82,9 +87,9 @@ class Timeseries_plot:
         Args:
             ax (matplotlib.axes.Axes): axes given by add_subplot()
         """
-        ax.set_xlim(0, 72)
+        ax.set_xlim(0, self.row_len_sec)
         ax.grid(dashes=(2,2))
-        ax.set_xticks(np.arange(0, 72, self.epoch_len_sec))
+        ax.set_xticks(np.arange(0, self.row_len_sec, self.epoch_len_sec))
         ax.set_xticklabels([])
         ax.set_yticklabels([])
         ax.spines['right'].set_visible(False)
@@ -128,10 +133,10 @@ class Timeseries_plot:
         ax5_3 = fig.add_subplot(gs[34:35, :], xmargin=0, ymargin=0)
 
         axes = np.array([[ax1_1, ax1_2, ax1_3],
-                [ax2_1, ax2_2, ax2_3],
-                [ax3_1, ax3_2, ax3_3],
-                [ax4_1, ax4_2, ax4_3],
-                [ax5_1, ax5_2, ax5_3]])
+                         [ax2_1, ax2_2, ax2_3],
+                         [ax3_1, ax3_2, ax3_3],
+                         [ax4_1, ax4_2, ax4_3],
+                         [ax5_1, ax5_2, ax5_3]])
     
         return axes
         
@@ -153,13 +158,15 @@ class Timeseries_plot:
             epoch_len_sec: epoch length in seconds
         """
         axes = self.axes[row_index,:]
+        epoch_num_arow = int(self.row_len_sec / self.epoch_len_sec)
         
-        score_x = np.linspace(0, 72, 450) # 72 sec per row. 50 points per 8 sec.
+        score_x = np.linspace(0, self.row_len_sec, 
+                              50 * epoch_num_arow) # 50 points for an epoch.
 
         base_curve = np.ones(len(score_x))
-        score_rem = base_curve*np.repeat(p_rem, 50/(8/self.epoch_len_sec)) # 50 points for 8 sec epoch
-        score_nrem = base_curve*np.repeat(p_nrem, 50/(8/self.epoch_len_sec))
-        score_wake = base_curve*np.repeat(p_wake, 50/(8/self.epoch_len_sec))
+        score_rem = base_curve*np.repeat(p_rem, 50) # 50 points for an epoch
+        score_nrem = base_curve*np.repeat(p_nrem, 50)
+        score_wake = base_curve*np.repeat(p_wake, 50)
 
 
         if len(self.lines_eeg)<=row_index:
@@ -203,12 +210,12 @@ class Timeseries_plot:
 
     def plot_timeseries_a_page(self, page):
         """ draws a page of timeseries plots and save a file. A page contains 5 rows.
-        A row contains 72 seconds of data (9 epochs when epoch_len_sec=8).
+        A row contains ~70 seconds of data (72 seconds: 9 epochs when epoch_len_sec=8).
        
         Args:
             page (int): A page number to be drawn
         """
-        epp = int(5*72/self.epoch_len_sec) # epochs per page
+        epp = int(5 * self.row_len_sec/self.epoch_len_sec) # epochs per page
         y_eeg = self.eeg_vm[(page-1)*epp:(page)*epp,:].flatten()
         y_emg = self.emg_vm[(page-1)*epp:(page)*epp,:].flatten()
         p_rem  = self.stage_df.iloc[:,1].values[(page-1)*epp:(page)*epp]
@@ -216,14 +223,14 @@ class Timeseries_plot:
         p_wake = self.stage_df.iloc[:,3].values[(page-1)*epp:(page)*epp]
         stages = self.stage_df.iloc[:,0].values[(page-1)*epp:(page)*epp]
         epoch_nums = range((page-1)*epp+1, (page)*epp+1)
-        timestamps = [self.start_datetime + timedelta(seconds=(page-1)*5*72 + i*72) for i in range(5)]
+        timestamps = [self.start_datetime + timedelta(seconds=(page-1)*5*self.row_len_sec + i*self.row_len_sec) for i in range(5)]
         
-        x = np.linspace(0, 72, 72*self.sample_freq)
-        epr = int(72/self.epoch_len_sec) # epochs per row
+        x = np.linspace(0, self.row_len_sec, self.row_len_sec*self.sample_freq)
+        epr = int(self.row_len_sec/self.epoch_len_sec) # epochs per row
         for i in range(5):
             ts = timestamps[i].strftime("%Y/%m/%d %H:%M:%S")
-            y_ee = y_eeg[i*72*self.sample_freq:((i+1)*72)*self.sample_freq] 
-            y_em = y_emg[i*72*self.sample_freq:((i+1)*72)*self.sample_freq]
+            y_ee = y_eeg[i*self.row_len_sec*self.sample_freq:((i+1)*self.row_len_sec)*self.sample_freq] 
+            y_em = y_emg[i*self.row_len_sec*self.sample_freq:((i+1)*self.row_len_sec)*self.sample_freq]
             p_r = p_rem[i*epr:(i+1)*epr]
             p_n = p_nrem[i*epr:(i+1)*epr]
             p_w = p_wake[i*epr:(i+1)*epr]
@@ -268,6 +275,9 @@ def plot_timeseries_a_mouse(voltage_data_dir, stage_dir, result_dir, device_id, 
                                  'Outlier ratio EEG-TS': np.zeros(epoch_num),
                                  'Outlier ratio EMG-TS': np.zeros(epoch_num)})
 
+    if len(stage_df) != epoch_num:
+        raise(ValueError('Stage length is not consistent with the epoch number.'))
+
     (eeg_vm_org, emg_vm_org, _) = stage.read_voltage_matrices(voltage_data_dir, device_id, sample_freq, epoch_len_sec, epoch_num, start_datetime)
     eeg_vm_norm = stage.voltage_normalize(eeg_vm_org)
     emg_vm_norm = stage.voltage_normalize(emg_vm_org)
@@ -276,8 +286,23 @@ def plot_timeseries_a_mouse(voltage_data_dir, stage_dir, result_dir, device_id, 
                          device_id, start_datetime, sample_freq)
 
 
-    plot_dir = os.path.join(result_dir, 'figure', 'voltage', device_id)
+    plot_dir = os.path.join(result_dir, 'figure', 'voltage', f'{device_id}_tmp')
     os.makedirs(plot_dir, exist_ok=True)
     os.chdir(plot_dir)
-    for i in range(1, tp.page_num):
+    print(f'Drawing plots in: {plot_dir}')
+    for i in range(1, tp.page_num + 1):
         tp.plot_timeseries_a_page(i)
+
+
+def row_len_sec(epoch_len_sec):
+    """The formula for the row length in seconds
+    The row length is a multiple of the epoch length and around 70 seconds
+
+    Args:
+        epoch_len_sec (int): The 
+
+    Returns:
+        row_len_sec: The row length in seconds
+    """
+    return int(epoch_len_sec * round(70/epoch_len_sec))
+    
