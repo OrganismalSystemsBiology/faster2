@@ -60,7 +60,7 @@ def make_archive(result_dir, epoch_num, epoch_len_sec, device_id):
     for day_idx in zip_files.keys():
         zipped_file = os.path.join(plot_dir, f'{device_id}_day{day_idx:02}.zip')
         print(f'Making zip file: {zipped_file}')
-        with zipfile.ZipFile(zipped_file, mode="w") as zf:
+        with zipfile.ZipFile(zipped_file, mode="w", compression=zipfile.ZIP_STORED) as zf:
             for t_file in zip_files[day_idx]:
                 zf.write(t_file, os.path.basename(t_file))
 
