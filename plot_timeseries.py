@@ -5,7 +5,6 @@ import argparse
 
 
 import numpy as np
-import pandas as pd
 
 import stage
 import faster2lib.timeseries_graph as tg
@@ -48,7 +47,7 @@ def make_archive(result_dir, epoch_num, epoch_len_sec, device_id):
     zip_files = {}
     for t_file in file_list:
         day_idx = get_day_idx(t_file, epoch_len_sec, pat)
-        if day_idx in zip_files.keys():
+        if day_idx in zip_files:
             zip_files[day_idx].append(t_file)
         else:
             zip_files[day_idx] = [t_file]
@@ -56,17 +55,17 @@ def make_archive(result_dir, epoch_num, epoch_len_sec, device_id):
     # create the zip file
     plot_dir = os.path.join(result_dir, 'figure', 'voltage', f'{device_id}')
     os.makedirs(plot_dir, exist_ok=True)
-    for day_idx in zip_files.keys():
+    for day_idx, target_files in zip_files.items():
         zipped_file = os.path.join(plot_dir, f'{device_id}_day{day_idx:02}.zip')
         print(f'Making zip file: {zipped_file}')
         with zipfile.ZipFile(zipped_file, mode="w", compression=zipfile.ZIP_STORED) as zf:
-            for t_file in zip_files[day_idx]:
+            for t_file in target_files:
                 zf.write(t_file, os.path.basename(t_file))
 
     # create a json file for signal_view
     signal_view_info = {"mes_len_sec": epoch_num * epoch_len_sec,
         "epoch_len_sec": epoch_len_sec,
-        "epoch_per_page": tg.row_len_sec(epoch_len_sec)
+        "epoch_per_page": int(tg.row_len_sec(epoch_len_sec)*5/epoch_len_sec)
      }
     with open(os.path.join(plot_dir, 'signal_view.json'), 'w') as f_json:
         json.dump(signal_view_info, f_json, indent=4)
