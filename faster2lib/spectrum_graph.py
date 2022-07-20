@@ -2,7 +2,6 @@
 import os
 import sys
 import numpy as np
-import pandas as pd
 import pickle
 from scipy import linalg
 
@@ -11,7 +10,6 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 import stage
-import faster2lib.eeg_tools as et
 
 
 def log_psd_inv(y, normalizing_fac, normalizing_mean):
@@ -222,11 +220,11 @@ class SpectrumAnalysisPlots:
         c_covars = cluster_params['3stage-covars']
         axes = [0, 2]  # Low-freq axis & REM axis
         colors = [stage.COLOR_WAKE, stage.COLOR_REM]
-        means = np.array([m[np.r_[axes]] for m in c_means[np.r_[0, 1]]])
+        means = np.array([m[np.r_[axes]] for m in c_means[np.r_[0, 1, 2]]])
         covars = np.array([c[np.r_[axes]][:, np.r_[axes]]
-                           for c in c_covars[np.r_[0, 1]]])
-        colors = [stage.COLOR_WAKE, stage.COLOR_REM]
-        labels = ['WAKE','REM']
+                           for c in c_covars[np.r_[0, 1, 2]]])
+        colors = [stage.COLOR_WAKE, stage.COLOR_REM, stage.COLOR_NREM]
+        labels = ['WAKE','REM', 'NREM']
         for (mean, covar, color, label) in zip(means, covars, colors, labels):
             w, v = linalg.eigh(covar)
             w = 4. * np.sqrt(w)  # 95% confidence (2SD) area
