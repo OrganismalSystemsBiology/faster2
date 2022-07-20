@@ -10,7 +10,6 @@ import pandas as pd
 import stage
 import faster2lib.timeseries_graph as tg
 
-import concurrent.futures
 from datetime import datetime
 
 import multiprocessing

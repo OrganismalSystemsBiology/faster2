@@ -150,9 +150,9 @@ def make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext):
 
         # stagetime in a day
         rem, nrem, wake, unknown = stagetime_in_a_day(stage_call)
-        stagetime_df = stagetime_df.append(
-            [[exp_label, mouse_group, mouse_id, device_label,
-              rem, nrem, wake, unknown, stats_report, note]], ignore_index=True)
+        stagetime_df = pd.concat(
+            [stagetime_df, pd.DataFrame([[exp_label, mouse_group, mouse_id, device_label,
+              rem, nrem, wake, unknown, stats_report, note]])], ignore_index=True)
 
         # stagetime profile
         stagetime_profile_list.append(stagetime_profile(stage_call, epoch_len_sec))
@@ -1329,7 +1329,7 @@ def x_shifts(values, y_min, y_max, width):
 
 def scatter_datapoints(ax, w, x_pos, values):
     s, v = x_shifts(values, *ax.get_ylim(), w)
-    ax.scatter(x_pos + s, v, color='darkgrey')
+    ax.scatter(x_pos + s, v, color='dimgrey')
 
 
 def draw_stagetime_barchart(stagetime_stats, output_dir):
@@ -1750,7 +1750,7 @@ def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
 
     w = 0.8  # bar width
     w_sf = 2 / num_groups # scale factor for the bar width
-    ax.set_xticks([0, 2, 4])
+    ax.set_xticks([0, 2])
     ax.set_xticklabels(['Psw', 'Pws'])
 
     if num_groups > 1:
@@ -1912,7 +1912,7 @@ def write_sleep_stats(stagetime_stats, output_dir):
     row3 = [mg, 'Wake', num, np.mean(wake_values_c), np.std(
         wake_values_c), np.nan, None, None]
 
-    sleep_stats_df = sleep_stats_df.append([row1, row2, row3])
+    sleep_stats_df = pd.concat([sleep_stats_df, pd.DataFrame([row1, row2, row3])], ignore_index=True)
     for i, bidx in enumerate(bidx_group_list[1:]):
         idx = i+1
         mg = mouse_groups_set[idx]
@@ -1932,7 +1932,7 @@ def write_sleep_stats(stagetime_stats, output_dir):
         row3 = [mg, 'Wake', num, np.mean(wake_values_t), np.std(
             wake_values_t), tw['p_value'], tw['stars'], tw['method']]
 
-        sleep_stats_df = sleep_stats_df.append([row1, row2, row3])
+        sleep_stats_df = pd.concat([sleep_stats_df, pd.DataFrame([row1, row2, row3])], ignore_index=True)
 
     sleep_stats_df.columns = ['Mouse group', 'Stage type',
                               'N', 'Mean', 'SD', 'Pvalue', 'Stars', 'Method']
@@ -1982,7 +1982,8 @@ def write_stagetrans_stats(stagetime_stats, output_dir):
     row9 = [mg, 'WN', num, np.mean(wn_vals_c), np.std(wn_vals_c), np.nan, None, None]
 
 
-    stagetrans_stats_df = stagetrans_stats_df.append([row1, row2, row3, row4, row5, row6, row7, row8, row9])
+    stagetrans_stats_df = pd.concat([stagetrans_stats_df, 
+                                     pd.DataFrame([row1, row2, row3, row4, row5, row6, row7, row8, row9])], ignore_index=True)
     for i, bidx in enumerate(bidx_group_list[1:]):
         idx = i+1
         mg = mouse_groups_set[idx]
@@ -2018,7 +2019,8 @@ def write_stagetrans_stats(stagetime_stats, output_dir):
         row8 = [mg, 'WR', num, np.mean(wr_vals_t), np.std(wr_vals_t), twr['p_value'], twr['stars'], twr['method']]
         row9 = [mg, 'WN', num, np.mean(wn_vals_t), np.std(wn_vals_t), twn['p_value'], twn['stars'], twn['method']]
 
-        stagetrans_stats_df = stagetrans_stats_df.append([row1, row2, row3, row4, row5, row6, row7, row8, row9])
+        stagetrans_stats_df = pd.concat([stagetrans_stats_df, 
+            pd.DataFrame([row1, row2, row3, row4, row5, row6, row7, row8, row9])], ignore_index=True)
 
     stagetrans_stats_df.columns = ['Mouse group', 'Trans type',
                               'N', 'Mean', 'SD', 'Pvalue', 'Stars', 'Method']
@@ -2057,7 +2059,8 @@ def write_swtrans_stats(stagetime_stats, output_dir):
     row2 = [mg, 'Pws', num, np.mean(pws_values_c), np.std(
         pws_values_c), np.nan, None, None]
 
-    swtrans_stats_df = swtrans_stats_df.append([row1, row2])
+    swtrans_stats_df = pd.concat([swtrans_stats_df, 
+        pd.DataFrame([row1, row2])], ignore_index=True)
     for i, bidx in enumerate(bidx_group_list[1:]):
         idx = i+1
         mg = mouse_groups_set[idx]
@@ -2073,7 +2076,7 @@ def write_swtrans_stats(stagetime_stats, output_dir):
         row2 = [mg, 'Pws', num, np.mean(pws_values_t), np.std(
             pws_values_t), t_pws['p_value'], t_pws['stars'], t_pws['method']]
 
-        swtrans_stats_df = swtrans_stats_df.append([row1, row2])
+        swtrans_stats_df = pd.concat([swtrans_stats_df, pd.DataFrame([row1, row2])], ignore_index=True)
 
     swtrans_stats_df.columns = ['Mouse group', 'trans type',
                               'N', 'Mean', 'SD', 'Pvalue', 'Stars', 'Method']

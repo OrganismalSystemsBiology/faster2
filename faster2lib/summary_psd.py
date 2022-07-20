@@ -76,15 +76,18 @@ def make_psd_profile(psd_info_list, sample_freq, psd_type='norm', mask=None):
         psd_summary_nrem = _psd_summary_by_bidx(bidx_nrem_target)
         psd_summary_wake = _psd_summary_by_bidx(bidx_wake_target)
 
-        psd_summary_df = psd_summary_df.append([
+        psd_summary_df = pd.concat([psd_summary_df, 
+            pd.DataFrame([
             [exp_label, mouse_group, mouse_id, device_label,
-             'REM', np.sum(bidx_rem_target)] + psd_summary_rem.tolist()], ignore_index=True)
-        psd_summary_df = psd_summary_df.append([
+             'REM', np.sum(bidx_rem_target)] + psd_summary_rem.tolist()])], ignore_index=True)
+        psd_summary_df = pd.concat([psd_summary_df, 
+            pd.DataFrame([
             [exp_label, mouse_group, mouse_id, device_label,
-             'NREM', np.sum(bidx_nrem_target)] + psd_summary_nrem.tolist()], ignore_index=True)
-        psd_summary_df = psd_summary_df.append([
+             'NREM', np.sum(bidx_nrem_target)] + psd_summary_nrem.tolist()])], ignore_index=True)
+        psd_summary_df = pd.concat([psd_summary_df, 
+            pd.DataFrame([
             [exp_label, mouse_group, mouse_id, device_label,
-             'Wake', np.sum(bidx_wake_target)] + psd_summary_wake.tolist()], ignore_index=True)
+             'Wake', np.sum(bidx_wake_target)] + psd_summary_wake.tolist()])], ignore_index=True)
 
     freq_columns = [f'f@{x}' for x in freq_bins.tolist()]
     column_names = ['Experiment label', 'Mouse group',
@@ -330,7 +333,7 @@ def make_psd_stats(psd_domain_df):
             rows.append([group_c, stage_name, domain_name, num,
                          np.mean(powers),  np.std(powers), np.nan, None, None])
 
-    psd_stats_df = psd_stats_df.append(rows)
+    psd_stats_df = pd.concat([psd_stats_df, pd.DataFrame(rows)], ignore_index=True)
 
     # treatment
     for group_t in mouse_group_set[1:]:
@@ -346,7 +349,7 @@ def make_psd_stats(psd_domain_df):
                 rows.append([group_t, stage_name, domain_name, num,
                              np.nanmean(powers_t),  np.nanstd(powers_t), test['p_value'], test['stars'], test['method']])
 
-        psd_stats_df = psd_stats_df.append(rows)
+        psd_stats_df = pd.concat([psd_stats_df, pd.DataFrame(rows)], ignore_index=True)
 
     psd_stats_df.columns = ['Mouse group', 'Stage type',
                             'Wake type', 'N', 'Mean', 'SD', 'Pvalue', 'Stars', 'Method']
@@ -378,8 +381,8 @@ def make_psd_timeseries_df(psd_info_list, epoch_range, bidx_freq, stage_bidx_key
         conv_psd = psd_info[psd_type]
         psd_delta_timeseries = np.repeat(np.nan, epoch_range.stop - epoch_range.start)
         psd_delta_timeseries[bidx_targeted_stage[epoch_range]] = np.apply_along_axis(np.nanmean, 1, conv_psd[bidx_targeted_stage, :][:,bidx_freq])
-        psd_timeseries_df = psd_timeseries_df.append(
-            [[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_delta_timeseries.tolist()], ignore_index=True)
+        psd_timeseries_df = pd.concat([psd_timeseries_df,
+            pd.DataFrame([[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_delta_timeseries.tolist()])], ignore_index=True)
 
     epoch_columns = [f'epoch{x+1}' for x in np.arange(epoch_range.start, epoch_range.stop)]
     column_names = ['Experiment label', 'Mouse group', 'Mouse ID', 'Device label'] + epoch_columns

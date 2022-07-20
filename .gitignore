@@ -104,6 +104,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+.venv.org
 env/
 venv/
 ENV/
@@ -139,3 +140,4 @@ ID-test_EEG.pkl
 ID-test_EMG.pkl
 *.bat
 !sample*.bat
+*.org

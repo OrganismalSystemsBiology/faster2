@@ -115,7 +115,7 @@ class  TestStage(unittest.TestCase):
         y = np.load('data/Voltage_EEG_0thRow_ID46770_FASTER2_20200206_EEG_2019-023.npy')
         ans = stage.psd(y, 256, 100)
 
-        np.testing.assert_array_equal(exp, ans)
+        np.testing.assert_array_almost_equal(exp, ans)
 
     
     def test_psd_128Hz(self):
@@ -124,7 +124,7 @@ class  TestStage(unittest.TestCase):
         y = np.load('data/Voltage_EEG_0thRow_09ch_FASTER_20191101_EEG_2019-015.npy')
         ans = stage.psd(y, 327, 128)
 
-        np.testing.assert_array_equal(exp, ans)
+        np.testing.assert_array_almost_equal(exp, ans)
 
 
     def test_psd_500Hz(self):
@@ -133,7 +133,7 @@ class  TestStage(unittest.TestCase):
         y = np.load('data/Voltage_EEG_0thRow_ID45073_FASTER_161006_Wake17.npy')
         ans = stage.psd(y, 1280, 500)
 
-        np.testing.assert_array_equal(exp, ans)
+        np.testing.assert_array_almost_equal(exp, ans)
 
 
     def test_plot_scatter2D(self):
@@ -202,7 +202,7 @@ class  TestStage(unittest.TestCase):
 
         ans = stage.spectrum_normalize(test_vm, 256, 100)
 
-        np.testing.assert_array_equal(exp, ans['psd'])
+        np.testing.assert_array_almost_equal(exp, ans['psd'])
 
 if __name__ == "__main__":
     unittest.main()
