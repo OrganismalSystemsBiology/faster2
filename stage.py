@@ -702,21 +702,15 @@ def pickle_powerspec_matrices(spec_norm_eeg, spec_norm_emg, result_dir_path, dev
 
     # save EEG PSD
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EEG_PSD.pkl')
-    if os.path.exists(pkl_path):
-        print_log(f'File already exists: {pkl_path}')
-    else:
-        with open(pkl_path, 'wb') as pkl:
-            print_log(f'Saving the EEG PSD matrix into {pkl_path}')
-            pickle.dump(spec_norm_eeg, pkl)
+    with open(pkl_path, 'wb') as pkl:
+        print_log(f'Saving the EEG PSD matrix into {pkl_path}')
+        pickle.dump(spec_norm_eeg, pkl)
 
     # save EMG PSD
     pkl_path = os.path.join(pickle_dir, f'{device_id}_EMG_PSD.pkl')
-    if os.path.exists(pkl_path):
-        print_log(f'File already exists: {pkl_path} ')
-    else:
-        with open(pkl_path, 'wb') as pkl:
-            print_log(f'Saving the EMG PSD matrix into {pkl_path}')
-            pickle.dump(spec_norm_emg, pkl)
+    with open(pkl_path, 'wb') as pkl:
+        print_log(f'Saving the EMG PSD matrix into {pkl_path}')
+        pickle.dump(spec_norm_emg, pkl)
 
 
 def pickle_cluster_params(means2, covars2, c_means, c_covars, result_dir_path, device_id):

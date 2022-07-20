@@ -61,7 +61,7 @@ def read_psd(device_label, psd_data_dir):
     Returns:
         [list]: normalized PSDs
     """
-    print(f'Reading PSD...')
+    print('Reading PSD...')
 
     # read the normalized EEG PSDs and the associated normalization factors and means
     pkl_path_eeg = os.path.join(psd_data_dir, f'{device_label}_EEG_PSD.pkl')
