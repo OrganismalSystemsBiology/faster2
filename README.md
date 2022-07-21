@@ -137,7 +137,7 @@ Because [signal_view](https://github.com/lsb-riken/signal_view) can recognize on
 ```sh
  python video_convert.py -t g:\tmp_video -o g:\FASTER2_Rec001\video -w 2 -e h264_nvenc
  ```
- In the example above, I specified the encoder option (-e) as h264_nvenc to utilize my NVIDIA GPU. The default is libx264 which uses only CPU. Also, you may want to search for an optimal worker number (-w options that specify the number of processes that run in parallel) for your PC.
+ In the example above, I specified the encoder option (-e) as h264_nvenc to utilize my NVIDIA GPU. The default is libx264 which uses only CPU. Also, you may want to search for an optimal worker number (-w option that specifies the number of processes that run in parallel) for your PC.
 
  [signal_view](https://github.com/lsb-riken/signal_view) needs to know when each video file started recording and how long it was. The information is stored in video.info.csv for each mouse. You can generate the video_info.csv files of mice in the video/ folder by using video_make_info.py.
 
