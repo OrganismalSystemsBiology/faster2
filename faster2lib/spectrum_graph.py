@@ -239,8 +239,8 @@ class SpectrumAnalysisPlots:
                    fontsize=8)
 
         # plot the initial points outside the view
-        point_HLplane, = ax1.plot(200, 200, 'ro', color='C3')
-        point_LRplane, = ax2.plot(200, 200, 'ro', color='C3')
+        point_HLplane, = ax1.plot(200, 200, 'o', color='C3')
+        point_LRplane, = ax2.plot(200, 200, 'o', color='C3')
 
         return (point_HLplane, point_LRplane)
 
