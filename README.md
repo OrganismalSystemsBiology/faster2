@@ -1,7 +1,7 @@
 ## What is it?
 FASTER2 is a set of Python scripts that automatically identify sleep stages of mouse by analyzing EEG/EMG signals. There is also a simple viewer of the analyzed data so that a user can visually inspect the results of FASTER2.
 
-FASTER2 is written from scratch and uses different algorithms from its predecessor FASTER [Sunagawa et al. in 2013](https://onlinelibrary.wiley.com/doi/abs/10.1111/gtc.12053).
+FASTER2 is written from scratch and uses different algorithms from its predecessor; FASTER [Sunagawa et al. in 2013]((https://onlinelibrary.wiley.com/doi/abs/10.1111/gtc.12053)).
 
 ## Main features
 - Automatic sleep staging (REM, NREM, and Wake) of mouse EEG/EMG data.
@@ -20,9 +20,9 @@ git clone https://github.com/lsb-riken/faster2.git # via HTTPS
 ```
 
 ## Installation
-You need to have [Python](https://www.python.org/) to run FASATER2. It is recommendable to have a virtual environment for FASTER2. Because FASTER2 depends on several python libraries, run the following command in the FASTER2's virtual environment. We are developing and testing FASTER2 on Windows11 (x64), but probably it works on other platforms such as Linux or macOS.
+You need to have [Python](https://www.python.org/) to run FASATER2. It is recommendable to use a virtual environment for FASTER2. Because FASTER2 depends on several python libraries, run the following command in the FASTER2's virtual environment. We are developing and testing FASTER2 on Windows11 (x64), but probably it works on other platforms such as Linux or macOS.
 
-### Windows11
+### python for Windows
 Run an installer available at the python's official web site:
 https://www.python.org/downloads/windows/
 
@@ -111,7 +111,7 @@ _Note_ The **control** group of mice should be placed at first of the list. The 
 
 ### Run FASTER2 script
 
-Then, run the sample_run.bat. The bat file executes four Python scripts. The first two scripts perform the main FASATER2 analysis (i.e. staging and calculating the basic statistics). This main processes usually take just a couple of minutes per animal. The latter two scripts plot many graphs of voltage timeseries and spectrums. These scripts are optional but useful for human visual inspection. The plotting process takes about one hour for 8 animal x 5 days recordings on a PC of moderate specs in 2022.
+Then, run the sample_run.bat. The bat file executes four Python scripts. The first two scripts perform the main FASATER2 analysis (i.e. staging and calculating the basic statistics). This main processes usually take just a couple of minutes per animal. The latter two scripts plot many graphs of voltage timeseries and spectrums. These scripts are optional but useful for human visual inspection. The plotting process takes about two hours for 8 animals x 5 days recordings on a PC of moderate specs in 2022.
 
 
 ### Video
