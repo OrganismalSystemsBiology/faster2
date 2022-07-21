@@ -378,6 +378,7 @@ def plot_specs_a_mouse(psd_data_dir, cluster_param_dir, result_dir, device_label
 
     root_plot_dir = os.path.join(result_dir, 'figure', 'spectrum', device_label)
     os.makedirs(root_plot_dir, exist_ok=True)
+    print(f'Drawing plots in: {root_plot_dir}')
     for i in range(1, sap.epoch_num + 1):
         # make subdirs for every 1000 epochs
         if (i-1) % 1000 == 0:
