@@ -1,5 +1,5 @@
 ## What is it?
-FASTER2 is a set of Python scripts that automatically identify sleep stages of mouse by analyzing EEG/EMG signals. There is also a simple viewer of the analyzed data so that a user can visually inspect the results of FASTER2.
+FASTER2 is a set of Python scripts that automatically identify sleep stages of mouse by analyzing EEG/EMG signals. There is also a simple viewer of the analyzed data [signal_view](https://github.com/lsb-riken/signal_view) so that a user can visually inspect the results of FASTER2.
 
 FASTER2 is written from scratch and uses different algorithms from its predecessor; FASTER ([Sunagawa et al. in 2013](https://onlinelibrary.wiley.com/doi/abs/10.1111/gtc.12053)).
 
@@ -90,23 +90,23 @@ Since the downloaded FASTER2 directory has an example exp.info.csv file, you can
 This file describes information about the individual records in the EEG/EMG data:
 |Device label|Mouse group|Mouse ID|DOB|Stats report| Note|
 |----   |----|----|----|----|----|
-|ID47395|WT|ES015-5-G7_1  |2019/03/25| Yes| Left 1(B1) |
-|ID58703|WT|ES015-5-G7_2  |2019/03/25| Yes| Left 2(B2) |
-|ID47479|WT|ES015-5-G7_3  |2019/03/25| No | Left 3(B3) cable bitten|
-|ID47313|WT|ES015-5-G7_4  |2019/03/25| Yes| Left 4(B4) | 
-|ID47481|MT|ES020-1-1-G6_1|2019/03/24| Yes| Right 1(C1)|
-|ID45791|MT|ES020-1-1-G6_2|2019/03/24| Yes| Right 2(C2)|
-|ID45764|MT|ES020-1-1-G6_3|2019/03/24| Yes| Right 3(C3)|
-|ID46770|MT|ES020-1-1-G6_4|2019/03/24| Yes| Right 4(C4)|
+|ch01|WT|ES015-5-G7_1  |2019/03/25| Yes| Left 1(B1) |
+|ch02|WT|ES015-5-G7_2  |2019/03/25| Yes| Left 2(B2) |
+|ch03|WT|ES015-5-G7_3  |2019/03/25| No | Left 3(B3) cable bitten|
+|ch04|WT|ES015-5-G7_4  |2019/03/25| Yes| Left 4(B4) | 
+|ch05|MT|ES020-1-1-G6_1|2019/03/24| Yes| Right 1(C1)|
+|ch06|MT|ES020-1-1-G6_2|2019/03/24| Yes| Right 2(C2)|
+|ch07|MT|ES020-1-1-G6_3|2019/03/24| Yes| Right 3(C3)|
+|ch08|MT|ES020-1-1-G6_4|2019/03/24| Yes| Right 4(C4)|
 
 * Device label: An identifier of the recording device. This must be same with the labels used in the data files.
 * Mouse group: The plot_summary.py calculates statistics according to this group. 
 * Mouse ID: Label of the individual animal.
-* DOB: Date of birth of the animal.
-* Stats. report: "Yes" or "No". If it is No, that record will be excluded from the statistics.
+* DOB: Date of birth of the animal. At present, Faster2 does not use this information. But it is always a good practice to record DOB as the age affects sleep time.
+* Stats report: "Yes" or "No". If it is No, that record will be excluded from the statistics.
 * Note: Additional information.
 
-_Note_ The **control** group of mice should be placed at first of the list. The summary.py assumes the first group of the list be the control group and performs the statistical analyses.
+_Note_ The **control** group of mice should be placed at first of the list. The summary.py assumes the first group of the list be the control group and performs the statistical analyses accordingly.
 
 
 ### Run FASTER2 script
@@ -115,24 +115,26 @@ Then, run the sample_run.bat. The bat file executes four Python scripts. The fir
 
 
 ### Video
-As it is not feasible to have a huge video file with length of days, there are usually a set of multiple video clips (from minutes to hours) for each animal. These video files need to be arranged in a folder of the corresponding animal. Our viewr (signal_view) assumes that the set of folders be placed in the "video" folder in the FASTER2 folder. Also, the names of individual folders must be same with the device labels in mouse.info.csv.
+As it is not feasible to have a huge video file with length of days, there are usually a set of multiple video clips (from minutes to hours) for each animal. These video files need to be arranged in a folder of the corresponding animal. Our viewr [signal_view](https://github.com/lsb-riken/signal_view) assumes that the set of folders be placed in the "video" folder in the FASTER2 folder. Also, the names of individual folders must be same with the device labels in mouse.info.csv.
 
 _note_ Each video file must contain a datatime in its file name to indicate when the file started recording. For example, the filename should be like: CAM-61E0-C1_2018-01-27_06-58-47.avi. 
 
 
+```
 -+ FASTER2_experimentID-000/
  |
  +- data/
  +- result/
  +- summary/
  +- video/
+```
 
 There are three scripts to process videos.
 * video_convert.py
 * video_make_info.py
 * video_split.py 
 
-Because signal_view can recognize only a couple of video codecs, probably you need to convert video files by using video_convert.py. Because convert_video.py is just a utility script to call [ffmpeg](https://ffmpeg.org/), you need to install it before using this script.
+Because [signal_view](https://github.com/lsb-riken/signal_view) can recognize only a couple of video codecs, probably you need to convert video files by using video_convert.py. Because convert_video.py is just a utility script to call [ffmpeg](https://ffmpeg.org/), you need to install it before using this script.
 
 
 ```sh
@@ -140,7 +142,7 @@ Because signal_view can recognize only a couple of video codecs, probably you ne
  ```
  In the example above, I specified the encoder option (-e) as h264_nvenc to utilize my NVIDIA GPU. The default is libx264 which uses only CPU. Also, you may want to search an optimal worker number (-w options that specifies the number of processes run in parallel) for your PC.
 
- signal_view needs to know when each video file started recording and how long it was. The information is stored in video.info.csv for each mouse. You can generate the video_info.csv files of mice in the video/ folder by using video_make_info.py.
+ [signal_view](https://github.com/lsb-riken/signal_view) needs to know when each video file started recording and how long it was. The information is stored in video.info.csv for each mouse. You can generate the video_info.csv files of mice in the video/ folder by using video_make_info.py.
 
  ```sh
  python make_video_info.py -t FASTER2_experimentID-000/video
