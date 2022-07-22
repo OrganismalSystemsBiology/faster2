@@ -41,7 +41,7 @@ In the virtual environment, install the libraries:
 ```sh
 pip install -r requirements.txt # requirements.txt is in the downloaded FASTER2
 or
-pip install pandas hmmlearn matplotlib dask chardet mne==0.19.2
+pip install pandas hmmlearn matplotlib dask chardet mne==0.19.2 python-pptx
 ```
 
 ## How to use
