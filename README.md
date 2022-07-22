@@ -5,7 +5,7 @@ FASTER2 succeeds many good concepts but is written from scratch and uses differe
 
 ## Main features
 - Automatic sleep staging (REM, NREM, and Wake) of mouse EEG/EMG data.
-- Basis statistical analyses based on the staging.
+- Basic statistical analyses based on the staging.
 - There is a simple viewer to support human inspection of the staging, [signal_view](https://github.com/lsb-riken/signal_view).
 
 ## Where to download it
