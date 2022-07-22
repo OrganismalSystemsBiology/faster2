@@ -17,7 +17,7 @@ Or the current version is available at:
 https://github.com/lsb-riken/faster2/
 
 ## Installation
-You need to have [Python](https://www.python.org/) to run FASATER2. Because FASTER2 depends on several python libraries, run the following commands to prepare FASTER2's virtual environment. We are developing and testing FASTER2 on Windows11 (x64), but it probably works on other platforms such as Linux or macOS.
+You need [Python](https://www.python.org/) to run FASATER2. Because FASTER2 depends on several python libraries, run the following commands to prepare FASTER2's virtual environment. We are developing and testing FASTER2 on Windows11 (x64), but it probably works on other platforms such as Linux or macOS.
 
 ### Python for Windows
 Run an installer available at Python's official website:
