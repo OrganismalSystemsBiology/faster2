@@ -5,7 +5,7 @@ FASTER2 succeeds many good concepts but is written from scratch and uses differe
 
 ## Main features
 - Automatic sleep staging (REM, NREM, and Wake) of mouse EEG/EMG data.
-- Basis statistical analyses based on the staging.
+- Basic statistical analyses based on the staging.
 - There is a simple viewer to support human inspection of the staging, [signal_view](https://github.com/lsb-riken/signal_view).
 
 ## Where to download it
@@ -17,7 +17,7 @@ Or the current version is available at:
 https://github.com/lsb-riken/faster2/
 
 ## Installation
-You need to have [Python](https://www.python.org/) to run FASATER2. Because FASTER2 depends on several python libraries, run the following commands to prepare FASTER2's virtual environment. We are developing and testing FASTER2 on Windows11 (x64), but it probably works on other platforms such as Linux or macOS.
+You need [Python](https://www.python.org/) to run FASATER2. Because FASTER2 depends on several python libraries, run the following commands to prepare FASTER2's virtual environment. We are developing and testing FASTER2 on Windows11 (x64), but it probably works on other platforms such as Linux or macOS.
 
 ### Python for Windows
 Run an installer available at Python's official website:
@@ -41,7 +41,7 @@ In the virtual environment, install the libraries:
 ```sh
 pip install -r requirements.txt # requirements.txt is in the downloaded FASTER2
 or
-pip install pandas hmmlearn matplotlib dask chardet mne==0.19.2
+pip install pandas hmmlearn matplotlib dask chardet mne==0.19.2 python-pptx
 ```
 
 ## How to use
