@@ -70,7 +70,7 @@ def test_two_sample(x, y):
             stars = '***'
         elif p_value < 0.01:
             stars = '**'
-        elif p_value < 0.06:
+        elif p_value < 0.05:
             stars = '*'
         else:
             stars = ''
