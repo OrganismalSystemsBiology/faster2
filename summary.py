@@ -2291,6 +2291,26 @@ def main(args):
     vol_unit = args.unit_voltage
     mouse_info_ext = args.mouse_info_ext
 
+    # set the output directory
+    if output_dir == None:
+        # default: output to the first FASTER2 directory
+        if len(faster_dir_list) > 1:
+            basenames = [os.path.basename(dir_path)
+                         for dir_path in faster_dir_list]
+            path_ext = '_' + '_'.join(basenames)
+        else:
+            path_ext = ''
+        output_dir = os.path.join(faster_dir_list[0], 'summary' + path_ext)
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(os.path.join(output_dir, 'pdf'), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, 'log'), exist_ok=True)
+
+    global log
+    dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    log = initialize_logger(os.path.join(output_dir, 'log', f'summary.{dt_str}.log'))
+    print_log(f'[{dt_str} - {stage.FASTER2_NAME} - {sys.modules[__name__].__file__}]'
+              f' Started in: {os.path.abspath(faster_dir_list[0])}')
+
     # collect mouse_infos of the specified (multiple) FASTER dirs
     mouse_info_collected = collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext)
     mouse_info_df = mouse_info_collected['mouse_info']
@@ -2320,24 +2340,6 @@ def main(args):
         # default: 'faster2' for *.faster2.csv
         stage_ext = 'faster2'
 
-    # set the output directory
-    if output_dir == None:
-        # default: output to the first FASTER2 directory
-        if len(faster_dir_list) > 1:
-            basenames = [os.path.basename(dir_path)
-                         for dir_path in faster_dir_list]
-            path_ext = '_' + '_'.join(basenames)
-        else:
-            path_ext = ''
-        output_dir = os.path.join(faster_dir_list[0], 'summary' + path_ext)
-    os.makedirs(output_dir, exist_ok=True)
-    os.makedirs(os.path.join(output_dir, 'pdf'), exist_ok=True)
-    os.makedirs(os.path.join(output_dir, 'log'), exist_ok=True)
-
-    global log
-    dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
-    log = initialize_logger(os.path.join(output_dir, 'log', f'summary.{dt_str}.log'))
-    print_log(f'[{dt_str} - {stage.FASTER2_NAME} - {sys.modules[__name__].__file__}] Started in: {os.path.abspath(faster_dir_list[0])}')
 
     # prepare stagetime statistics
     stagetime_stats = make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext)
