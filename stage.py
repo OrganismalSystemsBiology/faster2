@@ -3,7 +3,7 @@ import os
 # Limit the number of BLAS threads because GMM also tries multithreading
 os.environ['OPENBLAS_NUM_THREADS'] = "1"
 os.environ['GOTO_NUM_THREADS'] = "1"
-os.environ['OMP_NUM_THREADS='] = "1"
+os.environ['OMP_NUM_THREADS'] = "1"
 # pylint: disable = wrong-import-position
 import sys
 import argparse
