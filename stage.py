@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 import os
+# Limit the number of BLAS threads because GMM also tries multithreading
+os.environ['OPENBLAS_NUM_THREADS'] = "1"
+os.environ['GOTO_NUM_THREADS'] = "1"
+os.environ['OMP_NUM_THREADS='] = "1"
 import sys
 import argparse
 import pandas as pd
