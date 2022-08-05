@@ -1,10 +1,15 @@
 @echo off
 chcp 65001
+
 set PYTHON=[path to your python executable]
 set FASTER2_DIR="."
 
 set DATA_DIR=%FASTER2_DIR%\data\
 set RESULT_DIR=%FASTER2_DIR%\result\
+
+set OPENBLAS_NUM_THREADS=1
+set GOTO_NUM_THREADS=1
+set OMP_NUM_THREADS=1
 
 %PYTHON% stage.py -d %DATA_DIR% -r %RESULT_DIR% -p
 %PYTHON% summary.py -f %FASTER2_DIR% 
