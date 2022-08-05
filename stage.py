@@ -4,6 +4,7 @@ import os
 os.environ['OPENBLAS_NUM_THREADS'] = "1"
 os.environ['GOTO_NUM_THREADS'] = "1"
 os.environ['OMP_NUM_THREADS='] = "1"
+# pylint: disable = wrong-import-position
 import sys
 import argparse
 import pandas as pd
