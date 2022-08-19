@@ -29,7 +29,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.4.2'
+FASTER2_NAME = 'FASTER2 version 0.4.3'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
@@ -469,6 +469,11 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
         except ValueError:
             print_log(f'Failed to extract the data of "{device_id}" from {edf_file}. '
                       f'Check the channel name: "EEG/EMG{device_id}" is in the EDF file.')
+            raise
+        except IndexError:
+            print_log(f'Failed to extract the data of "{device_id}" from {edf_file}. '
+                      f'Check the exp.info start datetime: "{start_datetime}" is consistent with EDF file. '
+                      f'The start datetime of the EDF file is {measurement_start_datetime}')
             raise
         raw.close()
         try:

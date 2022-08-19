@@ -98,14 +98,13 @@ def make_psd_profile(psd_info_list, sample_freq, psd_type='norm', mask=None):
 
 
 def make_target_psd_info(mouse_info_df, epoch_range, epoch_len_sec, sample_freq,
-                         stage_ext, start_datetime):
+                         stage_ext):
     """makes PSD information sets for subsequent static analysis for each mouse:
     Arguments:
         mouse_info_df {pd.DataFram} -- a dataframe given by mouse_info_collected()
         sample_freq {int} -- sampling frequency
         epoch_range {slice} -- a range of target epochs
         stage_ext {str} -- a file sub-extention (e.g. 'faster2' for *.faster2.csv)
-        start_datetime -- datetime object for reading the voltage matrices
 
     Returns:
         psd_info_list [dict] --  A list of dict:
@@ -127,6 +126,7 @@ def make_target_psd_info(mouse_info_df, epoch_range, epoch_len_sec, sample_freq,
         mouse_id = row['Mouse ID'].strip()
         exp_label = row['Experiment label'].strip()
         faster_dir = row['FASTER_DIR']
+        start_datetime = row['exp_start_datetime']
 
         if stats_report == 'NO':
             LOGGER.info('[%d] Skipping: %s %s', i+1, faster_dir, device_label)

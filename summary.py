@@ -94,8 +94,9 @@ def collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext=None):
         m_info = stage.read_mouse_info(data_dir, mouse_info_ext)
         m_info['Experiment label'] = exp_label
         m_info['FASTER_DIR'] = faster_dir
+        m_info['exp_start_datetime'] = start_datetime
         mouse_info_df = pd.concat([mouse_info_df, m_info])
-    return ({'mouse_info': mouse_info_df, 'epoch_num': epoch_num, 'sample_freq': sample_freq, 'start_datetime': start_datetime})
+    return ({'mouse_info': mouse_info_df, 'epoch_num': epoch_num, 'sample_freq': sample_freq})
 
 
 def make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext):
@@ -2316,7 +2317,6 @@ def main(args):
     mouse_info_df = mouse_info_collected['mouse_info']
     epoch_num = mouse_info_collected['epoch_num']
     sample_freq = mouse_info_collected['sample_freq']
-    start_datetime = mouse_info_collected['start_datetime']
 
     # number of days in the data
     day_num = epoch_num * epoch_len_sec / 60 / 60 / 24
@@ -2394,7 +2394,7 @@ def main(args):
 
     # prepare Powerspectrum density (PSD) profiles for individual mice
     # list of {simple exp info, target info, psd (epoch_num, 129)} for each mouse
-    psd_info_list = sp.make_target_psd_info(mouse_info_df, epoch_range, epoch_len_sec, sample_freq, stage_ext, start_datetime)
+    psd_info_list = sp.make_target_psd_info(mouse_info_df, epoch_range, epoch_len_sec, sample_freq, stage_ext)
  
     # log version of psd_info
     print_log('Making the log version of the PSD information')
