@@ -284,16 +284,18 @@ class  TestFunctions(unittest.TestCase):
 
     def test_make_target_psd_info(self):
         # a small mouse_info_df
+        start_datetime = datetime.datetime(2019, 8, 15, 8, 0)
+
         mif = pd.DataFrame({'Device label':['190815.M3no4'], 
                     'Stats report':['Yes'], 
                     'Mouse group':['M3'], 
                     'Mouse ID':'M3.3',
                     'Experiment label': ['FASTER2_UT_20180814_M3Dq'], 
-                    'FASTER_DIR':['../test/data/FASTER2_UT_20180814_M3Dq/']})
+                    'FASTER_DIR':['../test/data/FASTER2_UT_20180814_M3Dq/'],
+                    'exp_start_datetime':[start_datetime]})
 
         # TEST
-        start_datetime = datetime.datetime(2019, 8, 15, 8, 0)
-        psd_info_list = summary_psd.make_target_psd_info(mif, slice(100,1800,None), 8, self.sample_freq, 'faster2_1800', start_datetime)
+        psd_info_list = summary_psd.make_target_psd_info(mif, slice(100,1800,None), 8, self.sample_freq, 'faster2_1800')
         psd_info = psd_info_list[0]
         ans_conv_psd = psd_info['norm']
 
