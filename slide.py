@@ -297,7 +297,7 @@ def make_slide(args):
 
     print_log(f'Making summary slides of {summary_dir}')
     path2template = os.path.join(os.path.dirname(
-        summary_dir), r'faster2lib/EEG_power_specrum_template.pptx')
+        os.path.abspath(summary_dir)), r'faster2lib/EEG_power_specrum_template.pptx')
     print_log(f'The template pptx:{path2template}')
 
     prs = Presentation(path2template)
