@@ -1510,6 +1510,10 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
             rr_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 0, 0]
             ww_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 1, 1]
             nn_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 2, 2]
+
+            # transition from REM may sometime be nan
+            rr_vals_t = rr_vals_t[~np.isnan(rr_vals_t)]
+
             x_pos = 0 + w*w_sf/2 - w + g_idx*w*w_sf
 
             ax1.bar(x_pos,
@@ -1550,6 +1554,11 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
             num_t = np.sum(bidx_group_list[g_idx])
             rw_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 0, 1]
             rn_vals_t = transmat_mat[bidx_group_list[g_idx]][:, 0, 2]
+
+            # transition from REM may sometime be nan
+            rw_vals_t = rw_vals_t[~np.isnan(rw_vals_t)]
+            rn_vals_t = rn_vals_t[~np.isnan(rn_vals_t)]
+
             x_pos = 0 + w*w_sf/2 - w + g_idx*w*w_sf
             ax2.bar(x_pos,
                     height=np.mean(rn_vals_t),
