@@ -84,14 +84,26 @@ def set_dataframe_to_table(df, tbl):
 def select_wanted_path(summary_dir, part_of_filename):
     # Find the only one wanted filepath from similar ones
     candidate_str = os.path.join(summary_dir, f'{part_of_filename}_*.jpg')
-    candidates = glob.glob(os.path.join(
-        summary_dir, f'{part_of_filename}_*.jpg'))
+    candidates = glob.glob(candidate_str)
     selected_paths = [c for c in candidates if 'logodds' not in c]
     try:
         slected_path = selected_paths[0]
     except IndexError:
         print(f'No match {candidate_str}')
     return slected_path
+
+
+def select_wanted_path_list(summary_dir, part_of_filename):
+    """ Find the mutliple wanted filepaths from similar ones
+    """
+    candidate_str = os.path.join(summary_dir, f'{part_of_filename}*.jpg')
+    candidates = sorted(glob.glob(candidate_str))
+    selected_paths = [c for c in candidates if 'logodds' not in c]
+    try:
+        _ = selected_paths[0]
+    except IndexError:
+        print_log(f'No match {candidate_str}')
+    return selected_paths
 
 
 def get_text_frames_in_slide(slide, tag_str=''):
@@ -129,7 +141,7 @@ def assign_page_title(prs, title):
         prs (Presentation): The slide object
         title (str): The slide title to be inserted
     """
-    for si in range(5):
+    for si in range(6):
         slide = prs.slides[si]
         txt_frms = get_text_frames_in_slide(slide, 'SUMMARY LABEL')
         try:
@@ -159,6 +171,23 @@ def prep_table_of_stage_stats(prs, summary_dir):
     set_dataframe_to_table(df_stage_time.fillna(' '), table_map['STAGE-TIME'])
     set_dataframe_to_table(df_sw_trans.fillna(' '), table_map['SW-TRANS'])
     set_dataframe_to_table(df_stage_trans.fillna(' '), table_map['STAGE-TRANS'])
+
+
+def prep_table_of_dpd(prs, summary_dir):
+    """Prepare tables of the delta-power dynamics
+
+    Args:
+        prs (Presentation): The slide object
+        summary_dir (str): The path to the summary directory
+    """
+    df_dpd_stats = pd.read_csv(os.path.join(
+        summary_dir, 'delta_power_dynamics', 'delta-power-dynamics_stats_table.csv'))
+
+    slide = prs.slides[5]
+    table_list = get_tables_in_slide(slide)
+    table_map = map_table_label(table_list)
+
+    set_dataframe_to_table(df_dpd_stats.fillna(' '), table_map['DPD-STATS'])
 
 
 def prep_table_of_psd(prs, summary_dir):
@@ -225,6 +254,47 @@ def prep_fig_of_stage_stats(prs, summary_dir):
         14.74), Cm(10.73), Cm(11.34), Cm(8.1))
 
 
+def prep_fig_of_dpd(prs, summary_dir):
+    """Prepare plots of the delta-power dynamics (page 6)
+
+    Args:
+        prs (Presentation): The slide object
+        summary_dir (str): The path to the summary directory
+    """
+    slide = prs.slides[5]
+    dpd_path = os.path.join(summary_dir, 'delta_power_dynamics')
+
+    # delta-power dyanmics simulation (group each)
+    path_dpd_sim_ge_list = select_wanted_path_list(dpd_path, 'delta-power-dynamics_GE')
+    
+    # delta-power dynamics simulation (group comparison)
+    path_dpd_sim_gc = select_wanted_path(dpd_path, 'delta-power-dynamics_GC')
+
+    # Taus 2D plot
+    path_taus_2d_plot = os.path.join(dpd_path, 'delta-power-dynamics_taus_2D-plot.jpg')
+
+    # Taus barchart
+    path_taus_barchart = os.path.join(dpd_path, 'delta-power-dynamics_taus_barchart.jpg')
+
+    slide.shapes.add_picture(path_dpd_sim_ge_list[0], Cm(0.7),
+                             Cm(3.0), Cm(16), Cm(4.74))
+
+    try:
+        slide.shapes.add_picture(path_dpd_sim_ge_list[1], Cm(0.7),
+                                Cm(8.1), Cm(16), Cm(4.74))
+    except IndexError:
+        print_log('Only sigle group found for delta power dynamics simulation')
+
+    slide.shapes.add_picture(path_dpd_sim_gc, Cm(0.7),
+                             Cm(13.8), Cm(16), Cm(4.74))
+
+    slide.shapes.add_picture(path_taus_2d_plot, Cm(17.38),
+                             Cm(3.46), Cm(8.0), Cm(7.48))
+
+    slide.shapes.add_picture(path_taus_barchart, Cm(25.23),
+                             Cm(5.62), Cm(8.0), Cm(5.13))
+
+
 def prep_fig_of_power_timeseries(prs, summary_dir):
     """Prepare plots of power timeseries (page 2)
 
@@ -263,7 +333,7 @@ def prep_fig_of_power_timeseries(prs, summary_dir):
         slide.shapes._spTree.insert(2, picture3._element)
 
 
-def prep_fig_of_pds(prs, summary_dir):
+def prep_fig_of_psd(prs, summary_dir):
     """Prepare plots of PSD (page 3,4,5)
     Args:
         prs (Presentation): The slide object
@@ -290,8 +360,7 @@ def make_slide(args):
     """The main function to make the slides
 
     Args:
-        prs (Presentation): The slide object
-        summary_dir (str): The path to the summary directory
+        args : The command line arguments
     """
     summary_dir = args.summary_dir
 
@@ -312,6 +381,9 @@ def make_slide(args):
     # Prepare tables of the PDS stats (page 3,4,5)
     prep_table_of_psd(prs, summary_dir)
 
+    # Prepare the table of delta-power dynamics (page 6)
+    prep_table_of_dpd(prs, summary_dir)
+
     # Prepare plots of stage stats (page 1)
     prep_fig_of_stage_stats(prs, summary_dir)
 
@@ -319,7 +391,10 @@ def make_slide(args):
     prep_fig_of_power_timeseries(prs, summary_dir)
 
     # Prepare plots of PSD (page 3,4,5)
-    prep_fig_of_pds(prs, summary_dir)
+    prep_fig_of_psd(prs, summary_dir)
+
+    # Prepare plots of delta-power dynamics (page 6)
+    prep_fig_of_dpd(prs, summary_dir)
 
     path2summary_slide = os.path.join(summary_dir, 'summary.pptx')
     prs.save(path2summary_slide)
