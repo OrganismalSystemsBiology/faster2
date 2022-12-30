@@ -96,7 +96,8 @@ def collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext=None):
         m_info['FASTER_DIR'] = faster_dir
         m_info['exp_start_datetime'] = start_datetime
         mouse_info_df = pd.concat([mouse_info_df, m_info])
-    return ({'mouse_info': mouse_info_df, 'epoch_num': epoch_num, 'sample_freq': sample_freq})
+    return ({'mouse_info': mouse_info_df, 'epoch_num': epoch_num, 
+             'sample_freq': sample_freq, 'epoch_len_sec': epoch_len_sec})
 
 
 def make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext):

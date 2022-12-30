@@ -291,8 +291,8 @@ def prep_fig_of_dpd(prs, summary_dir):
     slide.shapes.add_picture(path_taus_2d_plot, Cm(17.38),
                              Cm(3.46), Cm(8.0), Cm(7.48))
 
-    slide.shapes.add_picture(path_taus_barchart, Cm(25.23),
-                             Cm(5.62), Cm(8.0), Cm(5.13))
+    slide.shapes.add_picture(path_taus_barchart, Cm(25.62),
+                             Cm(5.49), Cm(8.0), Cm(5.13))
 
 
 def prep_fig_of_power_timeseries(prs, summary_dir):
