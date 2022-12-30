@@ -96,9 +96,18 @@ def collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext=None):
         m_info['Experiment label'] = exp_label
         m_info['FASTER_DIR'] = faster_dir
         m_info['exp_start_datetime'] = start_datetime
-        mouse_info_df = pd.concat([mouse_info_df, m_info])
+        mouse_info_df = pd.concat([mouse_info_df, m_info], ignore_index=True)
     return ({'mouse_info': mouse_info_df, 'epoch_num': epoch_num, 'mouse_info_ext':mouse_info_ext,
              'sample_freq': sample_freq, 'epoch_len_sec': epoch_len_sec})
+
+
+def serializable_collected_mouse_info(collected_mouse_info):
+    """ Because collected_mouse_info_df includes a dataframe, it needs to 
+    be converted to json for serialization.
+    """
+    cmi = collected_mouse_info.copy()
+    cmi['mouse_info'] = cmi['mouse_info'].to_json(orient='table')
+    return cmi
 
 
 def make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext):
@@ -2330,8 +2339,8 @@ def main(args):
     sample_freq = mouse_info_collected['sample_freq']
 
     # dump the collect_mouse_info_df into a file for external scripts
-    with open('collect_mouse_info_df.json', 'w') as outfile:
-        json.dump(collect_mouse_info_df, outfile)
+    with open(os.path.join(output_dir, 'collected_mouse_info_df.json'), 'w') as outfile:
+        json.dump(serializable_collected_mouse_info(mouse_info_collected), outfile)
 
     # number of days in the data
     day_num = epoch_num * epoch_len_sec / 60 / 60 / 24

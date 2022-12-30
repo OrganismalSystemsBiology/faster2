@@ -377,8 +377,10 @@ def read_exp_info(data_dir):
 
     csv_df = pd.read_csv(filepath,
                          engine="python",
-                         names=["Experiment label", "Rack label",
-                                "Start datetime", "End datetime", "Sampling freq"],
+                         dtype={"Experiment label":str, "Rack label":str,
+                                "Start datetime":str, "End datetime":str, "Sampling freq":int},
+                         names=["Experiment label", "Rack label", "Start datetime", 
+                                "End datetime", "Sampling freq"],
                          skiprows=1,
                          header=None)
 
@@ -579,7 +581,7 @@ def interpret_exp_info(exp_info_df, epoch_len_sec):
     try:
         start_datetime_str = exp_info_df['Start datetime'].values[0]
         end_datetime_str = exp_info_df['End datetime'].values[0]
-        sample_freq = exp_info_df['Sampling freq'].values[0]
+        sample_freq = int(exp_info_df['Sampling freq'].values[0])
         exp_label = exp_info_df['Experiment label'].values[0]
         rack_label = exp_info_df['Rack label'].values[0]
     except KeyError as e:
