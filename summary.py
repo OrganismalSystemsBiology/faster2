@@ -6,6 +6,8 @@ import numpy as np
 import pickle
 import argparse
 import copy
+import warnings
+import json
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -21,7 +23,6 @@ from datetime import datetime
 import logging
 from logging import getLogger, StreamHandler, FileHandler, Formatter
 
-import warnings
 
 DOMAIN_NAMES = ['Slow', 'Delta w/o slow', 'Delta', 'Theta']
 
@@ -96,7 +97,7 @@ def collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext=None):
         m_info['FASTER_DIR'] = faster_dir
         m_info['exp_start_datetime'] = start_datetime
         mouse_info_df = pd.concat([mouse_info_df, m_info])
-    return ({'mouse_info': mouse_info_df, 'epoch_num': epoch_num, 
+    return ({'mouse_info': mouse_info_df, 'epoch_num': epoch_num, 'mouse_info_ext':mouse_info_ext,
              'sample_freq': sample_freq, 'epoch_len_sec': epoch_len_sec})
 
 
@@ -2327,6 +2328,10 @@ def main(args):
     mouse_info_df = mouse_info_collected['mouse_info']
     epoch_num = mouse_info_collected['epoch_num']
     sample_freq = mouse_info_collected['sample_freq']
+
+    # dump the collect_mouse_info_df into a file for external scripts
+    with open('collect_mouse_info_df.json', 'w') as outfile:
+        json.dump(collect_mouse_info_df, outfile)
 
     # number of days in the data
     day_num = epoch_num * epoch_len_sec / 60 / 60 / 24
