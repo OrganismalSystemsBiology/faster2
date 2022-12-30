@@ -1320,7 +1320,7 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
 def x_shifts(values, y_min, y_max, width):
     #    print_log(y_min, y_max)
     counts, _ = np.histogram(values, range=(
-        np.min([y_min, np.min(values)]), np.max([y_max, np.max(values)])), bins=30)
+        np.min([y_min, np.min(values)]), np.max([y_max, np.max(values)])), bins=25)
     sorted_values = sorted(values)
     shifts = []
 #    print_log(counts)
