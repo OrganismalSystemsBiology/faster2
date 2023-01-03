@@ -83,7 +83,7 @@ def set_dataframe_to_table(df, tbl):
 
 def select_wanted_path(summary_dir, part_of_filename):
     # Find the only one wanted filepath from similar ones
-    candidate_str = os.path.join(summary_dir, f'{part_of_filename}_*.jpg')
+    candidate_str = os.path.join(summary_dir, f'{part_of_filename}*.jpg')
     candidates = glob.glob(candidate_str)
     selected_paths = [c for c in candidates if 'logodds' not in c]
     try:
@@ -271,10 +271,10 @@ def prep_fig_of_dpd(prs, summary_dir):
     path_dpd_sim_gc = select_wanted_path(dpd_path, 'delta-power-dynamics_GC')
 
     # Taus 2D plot
-    path_taus_2d_plot = os.path.join(dpd_path, 'delta-power-dynamics_taus_2D-plot.jpg')
+    path_taus_2d_plot_gc = select_wanted_path(dpd_path, 'delta-power-dynamics_taus_2D-plot_GC')
 
     # Taus barchart
-    path_taus_barchart = os.path.join(dpd_path, 'delta-power-dynamics_taus_barchart.jpg')
+    path_taus_barchart_gc = select_wanted_path(dpd_path, 'delta-power-dynamics_taus_barchart_GC')
 
     slide.shapes.add_picture(path_dpd_sim_ge_list[0], Cm(0.7),
                              Cm(3.0), Cm(16), Cm(4.74))
@@ -288,10 +288,10 @@ def prep_fig_of_dpd(prs, summary_dir):
     slide.shapes.add_picture(path_dpd_sim_gc, Cm(0.7),
                              Cm(13.8), Cm(16), Cm(4.74))
 
-    slide.shapes.add_picture(path_taus_2d_plot, Cm(17.38),
+    slide.shapes.add_picture(path_taus_2d_plot_gc, Cm(17.38),
                              Cm(3.46), Cm(8.0), Cm(7.48))
 
-    slide.shapes.add_picture(path_taus_barchart, Cm(25.62),
+    slide.shapes.add_picture(path_taus_barchart_gc, Cm(25.62),
                              Cm(5.49), Cm(8.0), Cm(5.13))
 
 

@@ -59,13 +59,14 @@ def print_log_exception(msg):
         print(msg)
 
 
-def collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext=None):
+def collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext=None, stage_ext=None):
     """ collects multiple mouse info
 
     Arguments:
         faster_dir_list [str] -- a list of paths for FASTER directories
         epoch_len_sec -- The epoch length in the second
         mouse_info_ext -- a sub-extention of the mouse.info.csv
+        stage_ext -- a sub-extention of the stage files
 
     Returns:
         {'mouse_info':pd.DataFrame, 'epoch_num':int, 'sample_freq':np.float} -- A dict of
@@ -98,7 +99,7 @@ def collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext=None):
         m_info['exp_start_datetime'] = start_datetime
         mouse_info_df = pd.concat([mouse_info_df, m_info], ignore_index=True)
     return ({'mouse_info': mouse_info_df, 'epoch_num': epoch_num, 'mouse_info_ext':mouse_info_ext,
-             'sample_freq': sample_freq, 'epoch_len_sec': epoch_len_sec})
+             'stage_ext':stage_ext, 'sample_freq': sample_freq, 'epoch_len_sec': epoch_len_sec})
 
 
 def serializable_collected_mouse_info(collected_mouse_info):
@@ -2330,10 +2331,10 @@ def main(args):
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     log = initialize_logger(os.path.join(output_dir, 'log', f'summary.{dt_str}.log'))
     print_log(f'[{dt_str} - {stage.FASTER2_NAME} - {sys.modules[__name__].__file__}]'
-              f' Started in: {os.path.abspath(faster_dir_list[0])}')
+              f' Started in: {os.path.abspath(output_dir)}')
 
     # collect mouse_infos of the specified (multiple) FASTER dirs
-    mouse_info_collected = collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext)
+    mouse_info_collected = collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext, stage_ext)
     mouse_info_df = mouse_info_collected['mouse_info']
     epoch_num = mouse_info_collected['epoch_num']
     sample_freq = mouse_info_collected['sample_freq']
