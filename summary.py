@@ -186,6 +186,10 @@ def make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext):
         # sw transition profile
         swtrans_circadian_profile_list.append(swtrans_circadian_profile(stage_call, epoch_len_sec))
 
+    if stagetime_df.size == 0:
+        # There is nothing for the stats report
+        return({})
+
     stagetime_df.columns = ['Experiment label', 'Mouse group', 'Mouse ID',
                             'Device label', 'REM', 'NREM', 'Wake', 'Unknown',
                             'Stats report', 'Note']
@@ -2368,6 +2372,9 @@ def main(args):
 
     # prepare stagetime statistics
     stagetime_stats = make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext)
+    if len(stagetime_stats) == 0:
+        # quit when there is no stats report
+        return -1
 
     # write tables of sleeptime stats 
     write_sleep_stats(stagetime_stats, output_dir)
