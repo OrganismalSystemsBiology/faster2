@@ -225,7 +225,7 @@ def _draw_asymptotes_histogram(delta_power_R, delta_power_W, delta_power_N, kern
         up_asymp (float): 99-percent percentile of delta-powers in NREM sleep
 
     Returns:
-        _type_: _description_
+        Figure : A histogram
     """
     fig = Figure(figsize=(8, 4))
     ax = fig.add_subplot(111)
@@ -363,10 +363,10 @@ def do_fitting(episode_stage, episode_size, bidx_D_episode, delta_power_D_episod
     to the observed delta-power timeseries of D-stage episodes.
 
     Arguments:
-        episode_stage {np.array} -- An array of stage of episode given by make_episode()
-        episode_size {np.array} -- An array of size of episode given by make_episode()
+        episode_stage {np.array} -- An array of stages of episode given by make_episode()
+        episode_size {np.array} -- An array of sizes of episode given by make_episode()
         bidx_D_episode {np.array} -- An binary index for the episode array indicating D episodes
-        delta_power_D_eipsode {np.array} -- An array of "observed" delta-power of D-stage episode
+        delta_power_D_eipsode {np.array} -- An array of "observed" delta-powers of D-stage episode
         epoch_len_sec {int} -- Epoch length in seconds
         low_asymp {double} -- Lower asymptote of the S-process
         up_asymp {double} -- Upper asymptote of the S-process
@@ -385,7 +385,7 @@ def do_fitting(episode_stage, episode_size, bidx_D_episode, delta_power_D_episod
         the simulation and the observed delta powers in D episodes.
 
             Arguments:
-                params: [tau_i, tau_d]
+                params: [tau_i, tau_d, s0]
 
             Returns:
                 The sum of squared differences wrapped by np.array()
@@ -395,6 +395,7 @@ def do_fitting(episode_stage, episode_size, bidx_D_episode, delta_power_D_episod
 
                 episode_stage:
                 episode_size:
+                bidx_D_episode:
                 delta_power_D_episode:
                 scale:
                 epoch_len_sec:
@@ -408,7 +409,7 @@ def do_fitting(episode_stage, episode_size, bidx_D_episode, delta_power_D_episod
             # But taus are never to be negative.
             return np.array(np.inf)
 
-        # given as a argument of the outer function
+        # given as arguments of the outer function
         nonlocal episode_stage
         nonlocal episode_size
         nonlocal epoch_len_sec
@@ -427,7 +428,6 @@ def do_fitting(episode_stage, episode_size, bidx_D_episode, delta_power_D_episod
         # Evaluate the error (sum of the squared differences)
         sim_delta_power_episode = simulated_s[1:]
         sim_delta_power_D_episode = sim_delta_power_episode[bidx_D_episode]
-
         sim_err = np.sum(
             np.power((scale*sim_delta_power_D_episode - scale*delta_power_D_episode), 2))
 
