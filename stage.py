@@ -29,7 +29,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.4.3'
+FASTER2_NAME = 'FASTER2 version 0.4.4'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
