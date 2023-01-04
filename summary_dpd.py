@@ -300,6 +300,22 @@ def _set_common_features_delta_power_dynamics(ax, x_max, y_range):
 
 
 def simulate_delta_power_dynamics(opt_taus, low_asymp, up_asymp, stage_call, idx_D_episode, delta_power_D_episode, delta_t):
+    """ simulate the delta power dynamics with the given parameters. This function also returns the observed delta powers
+    so that the returned observed delta powers can be simply plotted over the simulated delta powers.
+
+    Args:
+        opt_taus (_type_): _description_
+        low_asymp (_type_): _description_
+        up_asymp (_type_): _description_
+        stage_call (_type_): _description_
+        idx_D_episode (_type_): _description_
+        delta_power_D_episode (_type_): _description_
+        delta_t (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    
     # Two level stages: NREM=>D, REM & WAKE=>I
     two_stage_call = degrade_stage(stage_call)
 
@@ -1060,6 +1076,9 @@ def main(args):
         # default: use the all epochs
         epoch_range_basal = slice(0, epoch_num, None)
 
+    # The request of the extrapolation may be cancelled later
+    bool_extrapolation = args.extrapolation
+
     # read delta-power CSV file
     path_to_delta_power_csv = os.path.join(
         summary_dir, 'PSD_norm', 'power-timeseries_norm_delta_percentage.csv')
@@ -1070,6 +1089,10 @@ def main(args):
             f'Failed to find the CSV file. Check the summary folder path is valid. {err}')
 
     # Main process
+
+    if (epoch_range_basal.stop - epoch_range_basal.start) > epoch_num:
+        print_log(f'[Error] The specified epoch range:{epoch_range_basal.start}-{epoch_range_basal.stop} is out of the index ({epoch_num}).')
+        return -1
 
     ## print log the basic information
     print_log(f'The basal-epoch range: {epoch_range_basal.start}-{epoch_range_basal.stop} '\
@@ -1109,6 +1132,11 @@ def main(args):
                 'Mouse ID': mouse_id, 'Device label': device_label}
         delta_power_all = select_delta_power(csv_head, csv_body, keys)
         delta_power = delta_power_all[epoch_range_basal]
+
+        if bool_extrapolation and (len(delta_power_all) == len(delta_power)):
+            print_log('[Warning] The extrapolation was requested but canceled because the summary has only the basal range of epochs.')
+            bool_extrapolation = False
+
 
         # make episodes of 'I'ncreasing stages and 'D'ecreasing stages
         episode_len = int(np.ceil(EPISODE_LEN_MINUTES*60/epoch_len_sec))
@@ -1156,7 +1184,7 @@ def main(args):
         obs_ts_list.append(obs_ts)
 
         # Do the extrapolated simulation based on the found paramter
-        if args.extrapolation:
+        if bool_extrapolation:
             # make episode with all epochs
             (episode_stage, episode_size, idx_episode_start) = make_episode(
                 stage_call_all, episode_len)
@@ -1183,7 +1211,7 @@ def main(args):
     draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_len_sec)
     draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec)
 
-    if args.extrapolation:
+    if bool_extrapolation:
         obs_ts_ext_mat = np.array(obs_ts_ext_list)
         sim_ts_ext_mat = np.array(sim_ts_ext_list)
         draw_sim_and_obs_dpd_group_each(sim_ts_ext_mat, obs_ts_ext_mat, mouse_list, epoch_len_sec, epoch_range_basal)
