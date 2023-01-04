@@ -304,18 +304,18 @@ def simulate_delta_power_dynamics(opt_taus, low_asymp, up_asymp, stage_call, idx
     so that the returned observed delta powers can be simply plotted over the simulated delta powers.
 
     Args:
-        opt_taus (_type_): _description_
-        low_asymp (_type_): _description_
-        up_asymp (_type_): _description_
-        stage_call (_type_): _description_
-        idx_D_episode (_type_): _description_
-        delta_power_D_episode (_type_): _description_
-        delta_t (_type_): _description_
+        opt_taus (tuple): Three parametes to be optimized; tau_i, tau_d, and s0
+        low_asymp (float): The lower asymptote
+        up_asymp (float): The upper asymptote
+        stage_call (np.array): An array of stages (NREM, REM, WAKE)
+        idx_D_episode (np.array): The array of starting-epoch indices of D-episode
+        delta_power_D_episode (np.array): The array of delta-powers of D-episode
+        delta_t (int): The time interval between stages (epoch_len_sec)
 
     Returns:
-        _type_: _description_
+        tuble: Two arrays of the simulated and observed delta power time-series
     """
-    
+
     # Two level stages: NREM=>D, REM & WAKE=>I
     two_stage_call = degrade_stage(stage_call)
 
