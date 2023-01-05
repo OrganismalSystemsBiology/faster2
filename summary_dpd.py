@@ -456,8 +456,8 @@ def do_fitting(episode_stage, episode_size, bidx_D_episode, delta_power_D_episod
         return np.array(sim_err)
 
     # These lower boundaries are from Fig.1d of Franken et al. 2001. The upper boundaries are empirical.
-    boundary_tau_i = (3600, 100*3600)
-    boundary_tau_d = (360, 100*3600)
+    boundary_tau_i = (3600, 30*3600)
+    boundary_tau_d = (360, 30*3600)
 
     # initialize an array for the simulation of process-S
     simulated_s = np.zeros(len(episode_stage) + 1)
