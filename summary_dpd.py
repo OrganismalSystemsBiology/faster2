@@ -433,6 +433,12 @@ def do_fitting(episode_stage, episode_size, bidx_D_episode, delta_power_D_episod
         nonlocal bidx_D_episode
         # calculated in the outer function
         nonlocal scale
+        nonlocal boundary_tau_i
+        nonlocal boundary_tau_d
+
+        if tau_i<boundary_tau_i[0] or tau_d<boundary_tau_i[0] or tau_i>boundary_tau_i[1] or tau_d>boundary_tau_i[1]:
+            # scipy.optimize.brute sometimes tries to search beyond the grid boundary.  
+            return np.array(np.inf)
 
         for i, st, size in zip(range(len(episode_stage)), episode_stage, episode_size):
             delta_t = size * epoch_len_sec
@@ -448,6 +454,10 @@ def do_fitting(episode_stage, episode_size, bidx_D_episode, delta_power_D_episod
             np.power((scale*sim_delta_power_D_episode - scale*delta_power_D_episode), 2))
 
         return np.array(sim_err)
+
+    # These lower boundaries are from Fig.1d of Franken et al. 2001. The upper boundaries are empirical.
+    boundary_tau_i = (3600, 100*3600)
+    boundary_tau_d = (360, 100*3600)
 
     # initialize an array for the simulation of process-S
     simulated_s = np.zeros(len(episode_stage) + 1)
