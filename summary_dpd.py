@@ -436,7 +436,7 @@ def do_fitting(episode_stage, episode_size, bidx_D_episode, delta_power_D_episod
         nonlocal boundary_tau_i
         nonlocal boundary_tau_d
 
-        if tau_i<boundary_tau_i[0] or tau_d<boundary_tau_i[0] or tau_i>boundary_tau_i[1] or tau_d>boundary_tau_i[1]:
+        if tau_i<boundary_tau_i[0] or tau_d<boundary_tau_d[0] or tau_i>boundary_tau_i[1] or tau_d>boundary_tau_d[1]:
             # scipy.optimize.brute sometimes tries to search beyond the grid boundary.  
             return np.array(np.inf)
 
