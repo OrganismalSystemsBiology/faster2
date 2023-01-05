@@ -173,8 +173,8 @@ def make_target_psd_info(mouse_info_df, epoch_range, epoch_len_sec, sample_freq,
             LOGGER.info('... in stage file at %d', idx)
             break
 
-        # good PSD should have the nan- and outlier-ratios of less than 1%
-        bidx_good_psd = (nan_eeg < 0.01) & (outlier_eeg < 0.01)
+        # good PSD should have the nan- and outlier-ratios of less than 10%
+        bidx_good_psd = (nan_eeg < 0.10) & (outlier_eeg < 0.10)
 
         # bidx_target: bidx for the good epochs in the selected range
         bidx_selected = np.repeat(False, epoch_num)
