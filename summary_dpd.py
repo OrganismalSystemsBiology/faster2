@@ -420,11 +420,6 @@ def do_fitting(episode_stage, episode_size, bidx_D_episode, delta_power_D_episod
         [tau_i, tau_d, s0] = params
         simulated_s[0] = s0
 
-        if tau_i < 0 or tau_d < 0:
-            # scipy.optimize.brute sometimes tries to search beyond the grid boundary.
-            # But taus are never to be negative.
-            return np.array(np.inf)
-
         # given as arguments of the outer function
         nonlocal episode_stage
         nonlocal episode_size
