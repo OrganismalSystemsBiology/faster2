@@ -1340,10 +1340,10 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--data_dir", required=True,
-                        help="path to the directory of input data")
-    parser.add_argument("-r", "--result_dir", required=True,
-                        help="path to the directory of staging result")
+    parser.add_argument("-d", "--data_dir",
+                        help="path to the directory of input data", default="data")
+    parser.add_argument("-r", "--result_dir",
+                        help="path to the directory of staging result", default="result")
     parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
     parser.add_argument("-p", "--pickle_input_data",
                         help="flag to pickle input data", action='store_true')
