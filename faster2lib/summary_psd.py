@@ -603,7 +603,7 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
 
         fig.suptitle(
             f'Powerspectrum density: {mouse_group_set[g_idx]} (n={num_t})')
-        filename = f'PSD_{opt_label}G_{mouse_group_set[g_idx]}'
+        filename = f'PSD_{opt_label}profile_G_{mouse_group_set[g_idx]}'
         sc.savefig(output_dir, filename, fig)
 
 
