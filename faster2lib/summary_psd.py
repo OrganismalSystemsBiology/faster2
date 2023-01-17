@@ -744,5 +744,5 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epo
         ax1.set_xlabel('Time (hours)')
 
         fig.suptitle(f'Power timeseries: {mouse_groups_set[g_idx]} (n={num})')
-        filename = f'power-timeseries_{domain}_G_{opt_label}{mouse_groups_set[g_idx]}'
+        filename = f'power-timeseries_{domain}_{opt_label}G_{mouse_groups_set[g_idx]}'
         sc.savefig(output_dir, filename, fig)
