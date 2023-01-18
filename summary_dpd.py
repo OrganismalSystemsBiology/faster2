@@ -283,7 +283,7 @@ def _set_common_features_delta_power_dynamics(ax, x_max, y_range):
     ax.set_ylim(ymin, ymax)
     ax.set_xlim(0, x_max)
     ax.set_xticks(np.arange(0, x_max+1, 6))
-    ax.set_yticks([round(x, 2) for x in np.linspace(0, ymax, 6)])
+    ax.set_yticks([round(x, 2) for x in np.linspace(max(0, ymin), ymax, 6)])
     ax.grid(dashes=(2, 2))
     ax.set_xlabel('Time (hours)')
     ax.set_ylabel('Median delta power in NREM episode [%]')
@@ -338,7 +338,7 @@ def simulate_delta_power_dynamics(opt_taus, low_asymp, up_asymp, stage_call, idx
     return (delta_power_dynamics_simulated, delta_power_dynamics_observed)
 
 
-def draw_simulated_delta_power_dynamics(sim_ts, obs_ts, delta_t, y_max=None, epoch_range_basal=None):
+def draw_simulated_delta_power_dynamics(sim_ts, obs_ts, delta_t, y_range=None, epoch_range_basal=None):
     """draws similated timeseries of delta-power dynamics wiht observed data
 
     Args:
@@ -351,11 +351,11 @@ def draw_simulated_delta_power_dynamics(sim_ts, obs_ts, delta_t, y_max=None, epo
         Figure : A plot of the simulated time-series of delta-power dynamics
     """
     num_points = len(sim_ts)
-    if y_max is None:
+    if y_range is None:
         y_min = np.nanmin([sim_ts, obs_ts])
         y_max = np.nanmax([sim_ts, obs_ts])
     else:
-        y_min = 0
+        y_min, y_max = y_range
 
     fig = Figure(figsize=(13, 6))
     ax = fig.add_subplot(111)
@@ -365,7 +365,7 @@ def draw_simulated_delta_power_dynamics(sim_ts, obs_ts, delta_t, y_max=None, epo
         ax.axvspan(0, num_points*delta_t/3600, color='r', alpha=0.1)
         ax.axvspan(epoch_range_basal.start*delta_t/3600, epoch_range_basal.stop*delta_t/3600, color='w')
 
-    _set_common_features_delta_power_dynamics(ax, num_points*delta_t/3600, (y_min, y_max))
+    _set_common_features_delta_power_dynamics(ax, num_points*delta_t/3600, [y_min, y_max])
 
     bidx_valid_obs_ts = ~np.isnan(obs_ts)
     idx_valid_obs_ts = np.where(bidx_valid_obs_ts)[0]
@@ -513,7 +513,7 @@ def binned_mean(ts, epoch_len_sec):
     return (ts_mean)
 
 
-def draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_len_sec, y_max=None, epoch_range_basal=None):
+def draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_len_sec, y_range=None, epoch_range_basal=None):
     """draws the simulation and observed delta-power dynamics for each group in the given list
 
     Args:
@@ -556,12 +556,9 @@ def draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_le
         num_points = len(obs_mean)
         x = np.arange(0, num_points)
 
-        if y_max is None:
+        if y_range is None:
             y_range = [np.nanmin([sim_mean, obs_mean]),
                        np.nanmax([sim_mean, obs_mean])]
-        else:
-            y_range = [0, y_max]
-
 
 
         if epoch_range_basal is not None:
@@ -594,7 +591,7 @@ def draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_le
             sc.savefig(output_dir, filename, fig)
 
 
-def draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec, y_max=None, epoch_range_basal=None):
+def draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec, y_range=None, epoch_range_basal=None):
     """draws the simulation delta-power dynamics for comparison to the control
 
     Args:
@@ -643,10 +640,8 @@ def draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec, y_max=None, e
             num_points = len(sim_mean_ctrl)
             x = np.arange(0, num_points)
 
-            if y_max is None:
+            if y_range is None:
                 y_range = [np.nanmin([sim_mean_ctrl, sim_mean_test]), np.nanmax([sim_mean_ctrl, sim_mean_test])]
-            else:
-                y_range = [0, y_max]
 
             if epoch_range_basal is not None:
                 # Marked the extrapolated area with the pale red backgroud color
@@ -1210,24 +1205,33 @@ def main(args):
 
             sim_ts_ext_list.append(sim_ts)
             obs_ts_ext_list.append(obs_ts)
+            y_min = np.min([np.min(sim_ts_list), np.nanmin(obs_ts_list), np.min(sim_ts_ext_list), np.nanmin(obs_ts_ext_list)])
+            y_max = np.max([np.max(sim_ts_list), np.nanmax(obs_ts_list), np.max(sim_ts_ext_list), np.nanmax(obs_ts_ext_list)])
+        else:
+            y_min = np.min([np.min(sim_ts_list), np.nanmin(obs_ts_list)])
+            y_max = np.max([np.max(sim_ts_list), np.nanmax(obs_ts_list)])
 
-    #y_max = np.max([np.max(sim_ts_list), np.nanmax(obs_ts_list), np.max(sim_ts_ext_list), np.nanmax(obs_ts_ext_list)])
-    y_max = np.max([np.max(sim_ts_list), np.nanmax(obs_ts_list)])
 
+    # Draw plots
     for sim_ts, obs_ts, exp_label, mouse_group, mouse_id, device_label in zip(sim_ts_list, obs_ts_list,
                           delta_power_dynamics_df['Experiment label'],
                           delta_power_dynamics_df['Mouse group'],
                           delta_power_dynamics_df['Mouse ID'],
                           delta_power_dynamics_df['Device label']):
         fig = draw_simulated_delta_power_dynamics(
-            sim_ts, obs_ts, epoch_len_sec, y_max)
+            sim_ts, obs_ts, epoch_len_sec, [y_min, y_max])
         fig.suptitle(
             f'Delta power dynamics: {"  ".join([exp_label, mouse_group, mouse_id, device_label])}')
         filename = f'delta-power-dynamics_{"_".join([exp_label, mouse_group, mouse_id, device_label])}'
         sc.savefig(output_dir, filename, fig)
 
-        if bool_extrapolation:
-            fig = draw_simulated_delta_power_dynamics(sim_ts, obs_ts, epoch_len_sec, y_max, epoch_range_basal)
+    if bool_extrapolation:
+        for sim_ts, obs_ts, exp_label, mouse_group, mouse_id, device_label in zip(sim_ts_ext_list, obs_ts_ext_list,
+                          delta_power_dynamics_df['Experiment label'],
+                          delta_power_dynamics_df['Mouse group'],
+                          delta_power_dynamics_df['Mouse ID'],
+                          delta_power_dynamics_df['Device label']):
+            fig = draw_simulated_delta_power_dynamics(sim_ts, obs_ts, epoch_len_sec, [y_min, y_max], epoch_range_basal)
             fig.suptitle(
                 f'Delta power dynamics (extrapolated): {"  ".join([exp_label, mouse_group, mouse_id, device_label])}')
             filename = f'delta-power-dynamics_extrapolated_{"_".join([exp_label, mouse_group, mouse_id, device_label])}'
@@ -1240,14 +1244,14 @@ def main(args):
     mouse_list = delta_power_dynamics_df['Mouse group'].tolist()
     obs_ts_mat = np.array(obs_ts_list)
     sim_ts_mat = np.array(sim_ts_list)
-    draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_len_sec, y_max)
-    draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec, y_max)
+    draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_len_sec, [y_min, y_max])
+    draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec, [y_min, y_max])
 
     if bool_extrapolation:
         obs_ts_ext_mat = np.array(obs_ts_ext_list)
         sim_ts_ext_mat = np.array(sim_ts_ext_list)
-        draw_sim_and_obs_dpd_group_each(sim_ts_ext_mat, obs_ts_ext_mat, mouse_list, epoch_len_sec, y_max, epoch_range_basal)
-        draw_sim_dpd_group_comp(sim_ts_ext_mat, mouse_list, epoch_len_sec, y_max, epoch_range_basal)
+        draw_sim_and_obs_dpd_group_each(sim_ts_ext_mat, obs_ts_ext_mat, mouse_list, epoch_len_sec, [y_min, y_max], epoch_range_basal)
+        draw_sim_dpd_group_comp(sim_ts_ext_mat, mouse_list, epoch_len_sec, [y_min, y_max], epoch_range_basal)
 
     # Draw 2D plots of Tau_i and Tau_d
     draw_2d_plot_of_taus_group_comp(delta_power_dynamics_df)
