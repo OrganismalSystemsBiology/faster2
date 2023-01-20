@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-""" makes the additional summary on the delta-power dynamics(dpd)
+""" Performs the additional analysis on the delta-power dynamics(dpd)
     based on results of summary.py
 """
 import os
