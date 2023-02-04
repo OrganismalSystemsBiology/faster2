@@ -1047,72 +1047,17 @@ def draw_barchart_of_taus_all_group(delta_power_dynamics_df):
     sc.savefig(output_dir, filename, fig)
 
 
-def main(args):
-    """ is a main process
-
+def main_process(mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec):
+    """ wraps the main process with different asymptotes
     Args:
-        args (dict): A dict given by the PARSER.parse_args()
+
+    Returns:
+        sim_ts_list
+        obs_ts_list
+        sim_ts_ext_list
+        obs_ts_ext_list
+        delta_power_dynamics_df
     """
-
-    # pylint: disable = invalid-name, global-variable-not-assigned
-    global summary_dir
-    global output_dir
-    global log
-
-    # read the collected mouse information used for the summary
-    try:
-        with open(os.path.join(summary_dir, 'collected_mouse_info_df.json'), 'r',
-                  encoding='UTF-8') as infile:
-            mouse_info_collected = json.load(infile)
-    except FileNotFoundError as err:
-        print_log(
-            f'Failed to find collected_mouse_info_df.json. Check the summary folder path is valid. {err}')
-        return
-    mouse_info_collected['mouse_info'] = pd.read_json(
-        mouse_info_collected['mouse_info'], orient="table")
-
-    # basic parameters of the summary
-    mouse_info_df = mouse_info_collected['mouse_info']
-    epoch_num = mouse_info_collected['epoch_num']
-    epoch_len_sec = mouse_info_collected['epoch_len_sec']
-    stage_ext = mouse_info_collected['stage_ext']
-
-    if stage_ext is None:
-        stage_ext = 'faster2'
-
-    # set the epoch range to be summarized
-    if args.epoch_range:
-        # use the range given by the command line option
-        e_range = [
-            int(x.strip()) if x else None for x in args.epoch_range.split(':')]
-        epoch_range_basal = slice(*e_range)
-    else:
-        # default: use the all epochs
-        epoch_range_basal = slice(0, epoch_num, None)
-
-    # The request of the extrapolation may be cancelled later
-    bool_extrapolation = args.extrapolation
-
-    # read delta-power CSV file
-    path_to_delta_power_csv = os.path.join(
-        summary_dir, 'PSD_norm', 'power-timeseries_norm_delta_percentage.csv')
-    try:
-        (csv_head, csv_body) = read_delta_power_csv(path_to_delta_power_csv)
-    except FileNotFoundError as err:
-        print_log(
-            f'Failed to find the CSV file. Check the summary folder path is valid. {err}')
-
-    # Main process
-
-    if (epoch_range_basal.stop - epoch_range_basal.start) > epoch_num:
-        print_log(f'[Error] The specified epoch range:{epoch_range_basal.start}-{epoch_range_basal.stop} is out of the index ({epoch_num}).')
-        return -1
-
-    ## print log the basic information
-    print_log(f'The basal-epoch range: {epoch_range_basal.start}-{epoch_range_basal.stop} '\
-              f'({epoch_range_basal.stop - epoch_range_basal.start} epochs out of {epoch_num}). '\
-              f'Extrapolation: {args.extrapolation}')
-
     ## Initialize dataframe and lists to store results
     delta_power_dynamics_df = pd.DataFrame(columns=['Experiment label', 'Mouse group', 'Mouse ID', 'Device label',
                                                     'Lower_asymptote', 'Upper_asymptote',
@@ -1205,12 +1150,36 @@ def main(args):
 
             sim_ts_ext_list.append(sim_ts)
             obs_ts_ext_list.append(obs_ts)
-            y_min = np.min([np.min(sim_ts_list), np.nanmin(obs_ts_list), np.min(sim_ts_ext_list), np.nanmin(obs_ts_ext_list)])
-            y_max = np.max([np.max(sim_ts_list), np.nanmax(obs_ts_list), np.max(sim_ts_ext_list), np.nanmax(obs_ts_ext_list)])
-        else:
-            y_min = np.min([np.min(sim_ts_list), np.nanmin(obs_ts_list)])
-            y_max = np.max([np.max(sim_ts_list), np.nanmax(obs_ts_list)])
 
+    delta_power_dynamics_df.index = np.arange(len(delta_power_dynamics_df))
+
+    return (sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, delta_power_dynamics_df)
+
+
+def draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, epoch_len_sec, epoch_range_basal, bool_extrapolation):
+    """ make plots of
+        1) simulated_delta_power_dynamics with observed data points for each animal,
+        2) simulated_delta_power_dynamics with observed data points for each group,
+        3) group comparison of the simulated delta power dynamics,
+        4) 2D plots of Ti and Td,
+        5) Barchart ot Ti and Td.
+
+    Args:
+        delta_power_dynamics_df (pd.DataFrame): a DataFrame made by main_process()
+        sim_ts_list (2D list): simulated timeseries of mice
+        obs_ts_list (2D list): observed timeseries of mice
+        sim_ts_ext_list (2D list): simulated timeseries (extrapolated) of mice
+        obs_ts_ext_list (2D list): observed timeseries (extrapolated) of mice
+        epoch_len_sec (int): The lengch of an epoch in seconds
+        epoch_range_basal (tuple or list): Epoch range of the basal
+        bool_extrapolation (bool): The boolean switch to direct whether to do the extrapolation or not
+    """
+    if bool_extrapolation:
+        y_min = np.min([np.min(sim_ts_list), np.nanmin(obs_ts_list), np.min(sim_ts_ext_list), np.nanmin(obs_ts_ext_list)])
+        y_max = np.max([np.max(sim_ts_list), np.nanmax(obs_ts_list), np.max(sim_ts_ext_list), np.nanmax(obs_ts_ext_list)])
+    else:
+        y_min = np.min([np.min(sim_ts_list), np.nanmin(obs_ts_list)])
+        y_max = np.max([np.max(sim_ts_list), np.nanmax(obs_ts_list)])
 
     # Draw plots
     for sim_ts, obs_ts, exp_label, mouse_group, mouse_id, device_label in zip(sim_ts_list, obs_ts_list,
@@ -1238,7 +1207,6 @@ def main(args):
             sc.savefig(output_dir, filename, fig)
 
 
-    delta_power_dynamics_df.index = np.arange(len(delta_power_dynamics_df))
 
     ## Superimposed plot of simulation on the observed delta-power
     mouse_list = delta_power_dynamics_df['Mouse group'].tolist()
@@ -1261,6 +1229,77 @@ def main(args):
     stats_table_of_taus(delta_power_dynamics_df)
     draw_barchart_of_taus_group_comp(delta_power_dynamics_df)
     draw_barchart_of_taus_all_group(delta_power_dynamics_df)
+
+def main(args):
+    """ is a main process
+
+    Args:
+        args (dict): A dict given by the PARSER.parse_args()
+    """
+
+    # pylint: disable = invalid-name, global-variable-not-assigned
+    global summary_dir
+    global output_dir
+    global log
+
+    # read the collected mouse information used for the summary
+    try:
+        with open(os.path.join(summary_dir, 'collected_mouse_info_df.json'), 'r',
+                  encoding='UTF-8') as infile:
+            mouse_info_collected = json.load(infile)
+    except FileNotFoundError as err:
+        print_log(
+            f'Failed to find collected_mouse_info_df.json. Check the summary folder path is valid. {err}')
+        return
+    mouse_info_collected['mouse_info'] = pd.read_json(
+        mouse_info_collected['mouse_info'], orient="table")
+
+    # basic parameters of the summary
+    mouse_info_df = mouse_info_collected['mouse_info']
+    epoch_num = mouse_info_collected['epoch_num']
+    epoch_len_sec = mouse_info_collected['epoch_len_sec']
+    stage_ext = mouse_info_collected['stage_ext']
+
+    if stage_ext is None:
+        stage_ext = 'faster2'
+
+    # set the epoch range to be summarized
+    if args.epoch_range:
+        # use the range given by the command line option
+        e_range = [
+            int(x.strip()) if x else None for x in args.epoch_range.split(':')]
+        epoch_range_basal = slice(*e_range)
+    else:
+        # default: use the all epochs
+        epoch_range_basal = slice(0, epoch_num, None)
+
+    # The request of the extrapolation may be cancelled later
+    bool_extrapolation = args.extrapolation
+
+    # read delta-power CSV file
+    path_to_delta_power_csv = os.path.join(
+        summary_dir, 'PSD_norm', 'power-timeseries_norm_delta_percentage.csv')
+    try:
+        (csv_head, csv_body) = read_delta_power_csv(path_to_delta_power_csv)
+    except FileNotFoundError as err:
+        print_log(
+            f'Failed to find the CSV file. Check the summary folder path is valid. {err}')
+
+    # Main process
+
+    if (epoch_range_basal.stop - epoch_range_basal.start) > epoch_num:
+        print_log(f'[Error] The specified epoch range:{epoch_range_basal.start}-{epoch_range_basal.stop} is out of the index ({epoch_num}).')
+        return -1
+
+    ## print log the basic information
+    print_log(f'The basal-epoch range: {epoch_range_basal.start}-{epoch_range_basal.stop} '\
+              f'({epoch_range_basal.stop - epoch_range_basal.start} epochs out of {epoch_num}). '\
+              f'Extrapolation: {args.extrapolation}')
+
+    (sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, delta_power_dynamics_df) = main_process(
+        mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec)
+
+    draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, epoch_len_sec, epoch_range_basal, bool_extrapolation)
 
 
 # initialize global variables
