@@ -1047,7 +1047,7 @@ def draw_barchart_of_taus_all_group(delta_power_dynamics_df):
     sc.savefig(output_dir, filename, fig)
 
 
-def main_process(mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec):
+def main_process(mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec, bool_extrapolation):
     """ wraps the main process with different asymptotes
     Args:
 
@@ -1297,7 +1297,7 @@ def main(args):
               f'Extrapolation: {args.extrapolation}')
 
     (sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, delta_power_dynamics_df) = main_process(
-        mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec)
+        mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec, bool_extrapolation)
 
     draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, epoch_len_sec, epoch_range_basal, bool_extrapolation)
 
