@@ -205,7 +205,7 @@ def make_D_episode(delta_power, episode_size, episode_len, episode_stage, idx_ep
     size_D_episode = episode_size[bidx_D_episode]
     num_of_D_episode = len(idx_D_episode)
 
-    delta_power_D_episode = np.array([np.nanmedian(delta_power[start_idx:(start_idx+episode_len)])
+    delta_power_D_episode = np.array([empty_median(delta_power[start_idx:(start_idx+episode_len)])
                                       for start_idx, episode_len in zip(idx_D_episode, size_D_episode)])
 
     return (num_of_D_episode, delta_power_D_episode, idx_D_episode, bidx_D_episode)
@@ -232,16 +232,21 @@ def _draw_asymptotes_histogram(delta_power_R, delta_power_W, delta_power_N, kern
 
     x = np.linspace(np.nanmin(np.concatenate(
         [delta_power_W, delta_power_R])), np.nanmax(delta_power_N), 100)
-    ax.plot(x, kernel_R(x), linewidth=3, color=stage.COLOR_REM, label='REM')
-    ax.plot(x, kernel_W(x), linewidth=3, color=stage.COLOR_WAKE, label="Wake")
-    ax.plot(x, kernel_N(x), linewidth=3, color=stage.COLOR_NREM, label="NREM")
 
-    _ = ax.hist(delta_power_R, bins=100, density=True,
+    if kernel_R is not None:
+        ax.plot(x, kernel_R(x), linewidth=3, color=stage.COLOR_REM, label='REM')
+        _ = ax.hist(delta_power_R, bins=100, density=True,
                 color=stage.COLOR_REM, alpha=0.7)
+
+    ax.plot(x, kernel_W(x), linewidth=3, color=stage.COLOR_WAKE, label="Wake")
     _ = ax.hist(delta_power_W, bins=100, density=True,
                 color=stage.COLOR_WAKE, alpha=0.7)
+
+    ax.plot(x, kernel_N(x), linewidth=3, color=stage.COLOR_NREM, label="NREM")
     _ = ax.hist(delta_power_N, bins=100, density=True,
                 color=stage.COLOR_NREM, alpha=0.7)
+
+    
 
     ax.axvline(low_asymp, c='black')
     ax.axvline(up_asymp, c='black')
@@ -261,7 +266,12 @@ def estimate_delta_power_asymptote(stage_call, delta_power):
     delta_power_W = delta_power[bidx_W]
     delta_power_N = delta_power[bidx_N]
 
-    kernel_R = stats.gaussian_kde(delta_power_R[~np.isnan(delta_power_R)])
+    # If there are not multiple REM epochs, the kernel is None
+    if len(delta_power_R)>1:
+        kernel_R = stats.gaussian_kde(delta_power_R[~np.isnan(delta_power_R)])
+    else:
+        kernel_R = None
+
     kernel_W = stats.gaussian_kde(delta_power_W[~np.isnan(delta_power_W)])
     kernel_N = stats.gaussian_kde(delta_power_N[~np.isnan(delta_power_N)])
 
@@ -430,6 +440,7 @@ def do_fitting(episode_stage, episode_size, bidx_D_episode, delta_power_D_episod
         nonlocal bidx_D_episode
         # calculated in the outer function
         nonlocal scale
+        nonlocal bidx_valid
         nonlocal boundary_tau_i
         nonlocal boundary_tau_d
 
@@ -448,7 +459,7 @@ def do_fitting(episode_stage, episode_size, bidx_D_episode, delta_power_D_episod
         sim_delta_power_episode = simulated_s[1:]
         sim_delta_power_D_episode = sim_delta_power_episode[bidx_D_episode]
         sim_err = np.sum(
-            np.power((scale*sim_delta_power_D_episode - scale*delta_power_D_episode), 2))
+            np.power((scale*sim_delta_power_D_episode[bidx_valid] - scale*delta_power_D_episode[bidx_valid]), 2))
 
         return np.array(sim_err)
 
@@ -462,10 +473,29 @@ def do_fitting(episode_stage, episode_size, bidx_D_episode, delta_power_D_episod
     # Pre-calculation of scale required in _evaluate_process_s()
     scale = 1/np.nanmedian(delta_power_D_episode)
 
+    # valid datapoint
+    bidx_valid = ~np.isnan(delta_power_D_episode)
+
     # do the grid search
     opt_taus = optimize.brute(_evaluate_process_s, (boundary_tau_i, boundary_tau_d, (low_asymp, up_asymp)))
 
     return opt_taus
+
+
+def empty_median(ar):
+    """ calculates median like np.nanmedian() but this returns NaN if the given array is empty (all NaN)
+    Arguments:
+        ar {np.array} -- an array
+
+    Returns:
+        The mean of the array
+    """
+    if np.all(np.isnan(ar)):
+        res = np.nan
+    else:
+        res = np.nanmedian(ar)
+
+    return (res)
 
 
 def empty_std(ar):
@@ -1047,8 +1077,8 @@ def draw_barchart_of_taus_all_group(delta_power_dynamics_df):
     sc.savefig(output_dir, filename, fig)
 
 
-def main_process(mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec, bool_extrapolation):
-    """ wraps the main process with different asymptotes
+def main_process(mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec, bool_extrapolation, limit_aymptotes=True):
+    """ wraps the main process 
     Args:
 
     Returns:
@@ -1114,6 +1144,14 @@ def main_process(mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head
             f'Upper and lower asymptotes:\n {"  ".join([exp_label, mouse_group, mouse_id, device_label])}')
         filename = f'asymptotes_estimation_{"_".join([exp_label, mouse_group, mouse_id, device_label])}'
         sc.savefig(output_dir, filename, fig)
+
+        # Limit asymptotes to the range (0, 1)
+        if limit_aymptotes:
+            sf = 1/(up_asymp - low_asymp)
+            delta_power_D_episode = (delta_power_D_episode - low_asymp)*sf + 0
+            low_asymp = 0
+            up_asymp = 1
+
 
         # Do fitting to find the optimal parameters (Taus and S0)
         print_log(
@@ -1297,7 +1335,7 @@ def main(args):
               f'Extrapolation: {args.extrapolation}')
 
     (sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, delta_power_dynamics_df) = main_process(
-        mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec, bool_extrapolation)
+        mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec, bool_extrapolation, limit_aymptotes=True)
 
     draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, epoch_len_sec, epoch_range_basal, bool_extrapolation)
 
