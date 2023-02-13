@@ -1339,14 +1339,13 @@ def main(args):
 
     draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, epoch_len_sec, epoch_range_basal, bool_extrapolation)
 
-
-# initialize global variables
-# pylint: disable = invalid-name
-summary_dir = None
-output_dir = None
-log = None
-
 if __name__ == '__main__':
+    # initialize global variables
+    # pylint: disable = invalid-name
+    summary_dir = None
+    output_dir = None
+    log = None
+
     PARSER = argparse.ArgumentParser()
     PARSER.add_argument("-s", "--summary_dir", required=True,
                         help="a path to the summary folder")
