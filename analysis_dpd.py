@@ -543,7 +543,7 @@ def binned_mean(ts, epoch_len_sec):
     return (ts_mean)
 
 
-def draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_len_sec, y_range=None, epoch_range_basal=None):
+def draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_len_sec, output_dir, y_range=None, epoch_range_basal=None):
     """draws the simulation and observed delta-power dynamics for each group in the given list
 
     Args:
@@ -621,7 +621,7 @@ def draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_le
             sc.savefig(output_dir, filename, fig)
 
 
-def draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec, y_range=None, epoch_range_basal=None):
+def draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec, output_dir, y_range=None, epoch_range_basal=None):
     """draws the simulation delta-power dynamics for comparison to the control
 
     Args:
@@ -703,7 +703,7 @@ def draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec, y_range=None,
                 sc.savefig(output_dir, filename, fig)
 
 
-def draw_2d_plot_of_taus_group_comp(delta_power_dynamics_df):
+def draw_2d_plot_of_taus_group_comp(delta_power_dynamics_df, output_dir):
     """ draws 2D scatter plots of tau_i and tau_d (each group to the control)
 
     Args:
@@ -778,7 +778,7 @@ def draw_2d_plot_of_taus_group_comp(delta_power_dynamics_df):
         sc.savefig(output_dir, filename, fig)
 
 
-def draw_2d_plot_of_taus_all_group(delta_power_dynamics_df):
+def draw_2d_plot_of_taus_all_group(delta_power_dynamics_df, output_dir):
     """ draws 2D scatter plot of tau_i and tau_d (all group in a plot)
 
     Args:
@@ -925,7 +925,7 @@ def stats_table_of_taus(delta_power_dynamics_df):
         output_dir, 'delta-power-dynamics_stats_table.csv'), index=False)
 
 
-def draw_barchart_of_taus_group_comp(delta_power_dynamics_df):
+def draw_barchart_of_taus_group_comp(delta_power_dynamics_df, output_dir):
     # mouse set
     mouse_list = delta_power_dynamics_df['Mouse group'].tolist()
     mouse_groups_set = sorted(set(mouse_list), key=mouse_list.index)
@@ -995,7 +995,7 @@ def draw_barchart_of_taus_group_comp(delta_power_dynamics_df):
         return (0)
 
 
-def draw_barchart_of_taus_all_group(delta_power_dynamics_df):
+def draw_barchart_of_taus_all_group(delta_power_dynamics_df, output_dir):
     # mouse set
     mouse_list = delta_power_dynamics_df['Mouse group'].tolist()
     mouse_groups_set = sorted(set(mouse_list), key=mouse_list.index)
