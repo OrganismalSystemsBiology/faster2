@@ -246,8 +246,6 @@ def _draw_asymptotes_histogram(delta_power_R, delta_power_W, delta_power_N, kern
     _ = ax.hist(delta_power_N, bins=100, density=True,
                 color=stage.COLOR_NREM, alpha=0.7)
 
-    
-
     ax.axvline(low_asymp, c='black')
     ax.axvline(up_asymp, c='black')
 
@@ -827,7 +825,85 @@ def draw_2d_plot_of_taus_all_group(delta_power_dynamics_df, output_dir):
     sc.savefig(output_dir, filename, fig)
 
 
-def stats_table_of_taus(delta_power_dynamics_df):
+def draw_sim_dpd_group_circ_comp(sim_ts_list, delta_power_dynamics_df, epoch_len_sec, output_dir, y_range=None):
+    """draws the simulation delta-power dynamics for comparison to the control
+
+    Args:
+        sim_ts_list (list): A matrix of simulated delta-power dynamics
+        delta_power_dynamics_df (dataframe): A dataframe containing 'Mouse group' list e.g. delta_power_dynamics_df
+        epoch_len_sec (int): The time delta of each epoch
+    """
+    # unique mouse set with the preserved order
+    mouse_list = delta_power_dynamics_df['Mouse group'].tolist()
+    mouse_set = sorted(set(mouse_list), key=mouse_list.index)
+
+    if len(mouse_set) < 2:
+        # nothing to do if there's only one group
+        return (0)
+    else:
+        # Use the frist as control, the followings as tests one by one
+        bidx_group_ctrl = (np.array(mouse_list) == mouse_set[0])
+
+        sim_ts_mat = np.array(sim_ts_list)
+        sim_ts_binned_mean_mat = np.apply_along_axis(
+            binned_mean, 1, sim_ts_mat, epoch_len_sec)
+        sim_group_ts_ctrl = sim_ts_binned_mean_mat[bidx_group_ctrl]
+
+        # stats time-series
+        sim_mean_ctrl = np.apply_along_axis(
+            empty_mean, 0, sim_group_ts_ctrl)
+
+        sim_mean_ctrl_circ = np.reshape(sim_mean_ctrl, [-1, 24])
+        tp_num = sim_mean_ctrl_circ.shape[1]
+        delta_power_dynamics_circadian_GC_stats_table_df = pd.DataFrame({'Mouse group': np.repeat(mouse_set[0], tp_num), 'Time': np.arange(tp_num),
+                                                                         'N': np.repeat(sim_mean_ctrl_circ.shape[0], tp_num),
+                                                                         'Mean': np.mean(sim_mean_ctrl_circ, axis=0),
+                                                                         'SD': np.std(sim_mean_ctrl_circ, axis=0),
+                                                                         'Pvalue': np.repeat(np.nan, tp_num)})
+        # draw
+        for set_no, mouse_group in enumerate(mouse_set[1:]):
+            bidx_group_test = (np.array(mouse_list) == mouse_group)
+            sim_group_ts_test = sim_ts_binned_mean_mat[bidx_group_test]
+
+            sim_mean_test = np.apply_along_axis(
+                empty_mean, 0, sim_group_ts_test)
+
+            sim_mean_test_circ = np.reshape(sim_mean_test, [-1, 24])
+
+            p_values = np.ones(tp_num)
+            for tp in range(tp_num):
+                test_res = stats.ttest_ind(
+                    sim_mean_ctrl_circ[:, tp], sim_mean_test_circ[:, tp], equal_var=False)
+                p_values[tp] = test_res.pvalue
+
+            group_stats = pd.DataFrame({'Mouse group': np.repeat(mouse_group, tp_num), 'Time': np.arange(tp_num),
+                                        'N': np.repeat(sim_mean_test_circ.shape[0], tp_num),
+                                        'Mean': np.mean(sim_mean_test_circ, axis=0),
+                                        'SD': np.std(sim_mean_test_circ, axis=0),
+                                        'Pvalue': p_values})
+            delta_power_dynamics_circadian_GC_stats_table_df = pd.concat(
+                [delta_power_dynamics_circadian_GC_stats_table_df, group_stats])
+
+            fig = Figure(figsize=(13, 6))
+            ax = fig.add_subplot(111)
+            ax.scatter(np.tile(np.arange(0, 24), 2),
+                       sim_mean_ctrl, color="grey")
+            ax.scatter(np.tile(np.arange(0, 24), 2),
+                       sim_mean_test, color=COLOR_SERIES[1])
+
+            if y_range is None:
+                y_range = [np.nanmin([sim_mean_ctrl, sim_mean_test]), np.nanmax(
+                    [sim_mean_ctrl, sim_mean_test])]
+
+            _set_common_features_delta_power_dynamics(ax, 24, y_range)
+
+            filename = f'delta-power-dynamics_circadian_GC{set_no:02}_{"_".join([mouse_set[0], mouse_group])}'
+            sc.savefig(output_dir, filename, fig)
+
+    return delta_power_dynamics_circadian_GC_stats_table_df
+
+
+def stats_table_of_taus(delta_power_dynamics_df, output_dir):
     """ makes a statistics table of taus and related values
 
     Args:
@@ -1077,17 +1153,84 @@ def draw_barchart_of_taus_all_group(delta_power_dynamics_df, output_dir):
     sc.savefig(output_dir, filename, fig)
 
 
-def main_process(mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec, bool_extrapolation, limit_aymptotes=True):
-    """ wraps the main process 
+def make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, csv_head, csv_body, output_dir):
+    """makes a dataframe of upper and lower asymptotes
+
     Args:
+        mouse_info_df (pd.DataFrame): The dataframe of mouse_info
 
     Returns:
-        sim_ts_list
-        obs_ts_list
-        sim_ts_ext_list
-        obs_ts_ext_list
-        delta_power_dynamics_df
+        asymptote_df (pd.DataFrame)
     """
+
+    asymptote_df = pd.DataFrame(columns=['Experiment label', 'Mouse group', 'Mouse ID', 'Device label',
+                                                        'Lower_asymptote', 'Upper_asymptote'])
+
+    for i, r in mouse_info_df.iterrows():
+        device_label = r['Device label'].strip()
+        mouse_group = r['Mouse group'].strip()
+        mouse_id = r['Mouse ID'].strip()
+        stats_report = r['Stats report'].strip().upper()
+        exp_label = r['Experiment label'].strip()
+        faster_dir = r['FASTER_DIR']
+        if stats_report == 'NO':
+            print_log(f'[{i+1}] Skipping: {faster_dir} {device_label}')
+            continue
+        print_log(
+            f'[{i+1}] Estimating asymptotes: {faster_dir} {device_label} {stage_ext}')
+
+        # read the stage file
+        stage_call_all = et.read_stages(os.path.join(
+            faster_dir, 'result'), device_label, stage_ext)
+        stage_call = stage_call_all[epoch_range_basal]
+
+        # read the delta power timeseries
+        keys = {'Experiment label': exp_label, 'Mouse group': mouse_group,
+                'Mouse ID': mouse_id, 'Device label': device_label}
+        delta_power_all = select_delta_power(csv_head, csv_body, keys)
+        delta_power = delta_power_all[epoch_range_basal]
+
+
+        # Estimate the lower and upper asymptotes
+        (low_asymp, up_asymp, fig) = estimate_delta_power_asymptote(
+            stage_call, delta_power)
+        fig.suptitle(
+            f'Upper and lower asymptotes:\n {"  ".join([exp_label, mouse_group, mouse_id, device_label])}')
+        filename = f'asymptotes_estimation_{"_".join([exp_label, mouse_group, mouse_id, device_label])}'
+        sc.savefig(output_dir, filename, fig)
+
+        a_row = pd.DataFrame([{'Experiment label': exp_label, 'Mouse group': mouse_group, 'Mouse ID': mouse_id, 'Device label': device_label,
+                            'Lower_asymptote': low_asymp, 'Upper_asymptote': up_asymp}])
+
+        asymptote_df = pd.concat([asymptote_df, a_row])
+
+    return asymptote_df
+
+
+def do_analysis(mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec, output_dir, bool_extrapolation):
+    """ Calculates Ti and Td (the main part of the delta-power dynamics analyssi)
+
+    Args:
+        mouse_info_df (pd.DataFrame): contents of collected_mouse_info_df.json (mouse.info.csv)
+        stage_ext (str): The extention for the stage files
+        epoch_range_basal (slice): The range of the epochs used as the basal
+        csv_body (pd.DataFrame): dataframe returned by read_delta_power_csv()
+        csv_head (pd.DataFrame): dataframe returned by read_delta_power_csv()
+        epoch_len_sec (int): The length [sec] of each epoch
+        output_dir (str): The folder path of the output files
+        bool_extrapolation (bool): The extrapolated plots are generated when true
+
+    Returns:
+        sim_ts_list: simulated time-series of delta-power
+        obs_ts_list: observed time-series of delta-power
+        sim_ts_ext_list: simulated time-series of delta-power (extrapolated)
+        obs_ts_ext_list: observed time-series of delta-power (extrapolated)
+        delta_power_dynamics_df: Summary table of the delta-power dynamics
+    """
+    # Estimate the asymptotes
+    asymptote_df = make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, csv_head, csv_body, output_dir)
+    asymptote_medians_df = asymptote_df.groupby('Mouse group').median()
+
     ## Initialize dataframe and lists to store results
     delta_power_dynamics_df = pd.DataFrame(columns=['Experiment label', 'Mouse group', 'Mouse ID', 'Device label',
                                                     'Lower_asymptote', 'Upper_asymptote',
@@ -1137,36 +1280,25 @@ def main_process(mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head
                                                                                                   episode_size, episode_len,
                                                                                                   episode_stage, idx_episode_start)
 
-        # Estimate the lower and upper asymptotes
-        (low_asymp, up_asymp, fig) = estimate_delta_power_asymptote(
-            stage_call, delta_power)
-        fig.suptitle(
-            f'Upper and lower asymptotes:\n {"  ".join([exp_label, mouse_group, mouse_id, device_label])}')
-        filename = f'asymptotes_estimation_{"_".join([exp_label, mouse_group, mouse_id, device_label])}'
-        sc.savefig(output_dir, filename, fig)
-
-        # Limit asymptotes to the range (0, 1)
-        if limit_aymptotes:
-            sf = 1/(up_asymp - low_asymp)
-            delta_power_D_episode = (delta_power_D_episode - low_asymp)*sf + 0
-            low_asymp = 0
-            up_asymp = 1
+        # set asymptotes
+        low_asymp_group = asymptote_medians_df.loc[mouse_group]['Lower_asymptote']
+        up_asymp_group = asymptote_medians_df.loc[mouse_group]['Upper_asymptote']
 
 
         # Do fitting to find the optimal parameters (Taus and S0)
         print_log(
             f'    Optimizing the simulation of delta power dynamics for {num_of_D_episode} D-episodes')
         opt_taus = do_fitting(episode_stage, episode_size, bidx_D_episode,
-                              delta_power_D_episode, epoch_len_sec, low_asymp, up_asymp)
+                              delta_power_D_episode, epoch_len_sec, low_asymp_group, up_asymp_group)
 
         # Do the simulation based on the found paramter
         sim_ts, obs_ts = simulate_delta_power_dynamics(
-            opt_taus, low_asymp, up_asymp, stage_call, idx_D_episode, delta_power_D_episode, epoch_len_sec)
+            opt_taus, low_asymp_group, up_asymp_group, stage_call, idx_D_episode, delta_power_D_episode, epoch_len_sec)
 
         # Make a row for the stats table
         bidx_valid_obs = ~np.isnan(obs_ts)
         a_row = pd.DataFrame([{'Experiment label': exp_label, 'Mouse group': mouse_group, 'Mouse ID': mouse_id, 'Device label': device_label,
-                               'Lower_asymptote': low_asymp, 'Upper_asymptote': up_asymp,
+                               'Lower_asymptote': low_asymp_group, 'Upper_asymptote': up_asymp_group,
                                'Tau_i': opt_taus[0]/3600, 'Tau_d':opt_taus[1]/3600, 'S0':opt_taus[2], 'Num_of_D-episode':num_of_D_episode,
                                'R2_score':r2_score(obs_ts[bidx_valid_obs], sim_ts[bidx_valid_obs])}])
 
@@ -1184,7 +1316,7 @@ def main_process(mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head
                                                                                                     episode_stage, idx_episode_start)
             # Do simulation based on the found paramter
             sim_ts, obs_ts = simulate_delta_power_dynamics(
-                opt_taus, low_asymp, up_asymp, stage_call_all, idx_D_episode, delta_power_D_episode, epoch_len_sec)
+                opt_taus, low_asymp_group, up_asymp_group, stage_call_all, idx_D_episode, delta_power_D_episode, epoch_len_sec)
 
             sim_ts_ext_list.append(sim_ts)
             obs_ts_ext_list.append(obs_ts)
@@ -1194,7 +1326,7 @@ def main_process(mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head
     return (sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, delta_power_dynamics_df)
 
 
-def draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, epoch_len_sec, epoch_range_basal, bool_extrapolation):
+def draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, epoch_len_sec, epoch_range_basal, output_dir, bool_extrapolation):
     """ make plots of
         1) simulated_delta_power_dynamics with observed data points for each animal,
         2) simulated_delta_power_dynamics with observed data points for each group,
@@ -1250,25 +1382,31 @@ def draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_lis
     mouse_list = delta_power_dynamics_df['Mouse group'].tolist()
     obs_ts_mat = np.array(obs_ts_list)
     sim_ts_mat = np.array(sim_ts_list)
-    draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_len_sec, [y_min, y_max])
-    draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec, [y_min, y_max])
+    draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_len_sec, output_dir, [y_min, y_max])
+    draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec, output_dir, [y_min, y_max])
 
     if bool_extrapolation:
         obs_ts_ext_mat = np.array(obs_ts_ext_list)
         sim_ts_ext_mat = np.array(sim_ts_ext_list)
-        draw_sim_and_obs_dpd_group_each(sim_ts_ext_mat, obs_ts_ext_mat, mouse_list, epoch_len_sec, [y_min, y_max], epoch_range_basal)
-        draw_sim_dpd_group_comp(sim_ts_ext_mat, mouse_list, epoch_len_sec, [y_min, y_max], epoch_range_basal)
+        draw_sim_and_obs_dpd_group_each(sim_ts_ext_mat, obs_ts_ext_mat, mouse_list, epoch_len_sec, output_dir, [y_min, y_max], epoch_range_basal)
+        draw_sim_dpd_group_comp(sim_ts_ext_mat, mouse_list, epoch_len_sec, output_dir, [y_min, y_max], epoch_range_basal)
 
     # Draw 2D plots of Tau_i and Tau_d
-    draw_2d_plot_of_taus_group_comp(delta_power_dynamics_df)
-    draw_2d_plot_of_taus_all_group(delta_power_dynamics_df)
+    draw_2d_plot_of_taus_group_comp(delta_power_dynamics_df, output_dir)
+    draw_2d_plot_of_taus_all_group(delta_power_dynamics_df, output_dir)
 
     # Make a statistics table and draw bar charts
-    stats_table_of_taus(delta_power_dynamics_df)
-    draw_barchart_of_taus_group_comp(delta_power_dynamics_df)
-    draw_barchart_of_taus_all_group(delta_power_dynamics_df)
+    stats_table_of_taus(delta_power_dynamics_df, output_dir)
+    draw_barchart_of_taus_group_comp(delta_power_dynamics_df, output_dir)
+    draw_barchart_of_taus_all_group(delta_power_dynamics_df, output_dir)
 
-def main(args):
+    # Draw the comparison plot of circadian profiles
+    circadian_GC_stats_table_df = draw_sim_dpd_group_circ_comp(sim_ts_list, delta_power_dynamics_df, epoch_len_sec, output_dir)
+    circadian_GC_stats_table_df.to_csv(os.path.join(
+        output_dir, 'delta-power-dynamics_circadian_GC_stats_table.csv'), index=False)
+
+
+def main(args, summary_dir, output_dir):
     """ is a main process
 
     Args:
@@ -1276,8 +1414,6 @@ def main(args):
     """
 
     # pylint: disable = invalid-name, global-variable-not-assigned
-    global summary_dir
-    global output_dir
     global log
 
     # read the collected mouse information used for the summary
@@ -1334,16 +1470,15 @@ def main(args):
               f'({epoch_range_basal.stop - epoch_range_basal.start} epochs out of {epoch_num}). '\
               f'Extrapolation: {args.extrapolation}')
 
-    (sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, delta_power_dynamics_df) = main_process(
-        mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec, bool_extrapolation, limit_aymptotes=True)
+    (sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, delta_power_dynamics_df) = do_analysis(
+        mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec, output_dir, bool_extrapolation)
 
-    draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, epoch_len_sec, epoch_range_basal, bool_extrapolation)
+    draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_list,
+               obs_ts_ext_list, epoch_len_sec, epoch_range_basal, output_dir, bool_extrapolation)
 
 if __name__ == '__main__':
     # initialize global variables
     # pylint: disable = invalid-name
-    summary_dir = None
-    output_dir = None
     log = None
 
     PARSER = argparse.ArgumentParser()
@@ -1376,7 +1511,7 @@ if __name__ == '__main__':
               f' Started in: {os.path.abspath(output_dir)}')
 
     try:
-        main(args)
+        main(args, summary_dir, output_dir)
     # pylint: disable = broad-except
     except Exception as e:
         print_log_exception('Unhandled exception occured')
