@@ -1066,7 +1066,7 @@ def draw_barchart_of_taus_group_comp(delta_power_dynamics_df, output_dir):
                     width=w, capsize=6, color=COLOR_SERIES[1], alpha=0.6)
             summary.scatter_datapoints(ax2, w, 1, values_t)
             fig.suptitle(
-                f'Paired group comparison of Taus \n{mouse_groups_set[0]} (n={len(values_c)}) v.s. {mouse_group} (n={len(values_t)})')
+                f'Paired group comparison of Taus \n{mouse_groups_set[0]} (n={len(values_ti_c)}) v.s. {mouse_group} (n={len(values_t)})')
 
             filename = f'delta-power-dynamics_taus_barchart_GC{g_idx:02}_{"_".join([mouse_groups_set[0], mouse_group])}'
             sc.savefig(output_dir, filename, fig)
@@ -1155,6 +1155,73 @@ def draw_barchart_of_taus_all_group(delta_power_dynamics_df, output_dir):
     fig.suptitle(r'All group comparison of Taus')
 
     filename = f'delta-power-dynamics_taus_barchart_all-group'
+    sc.savefig(output_dir, filename, fig)
+
+
+def draw_boxplot_of_asymptotes(asymptote_df, output_dir):
+
+    # mouse set
+    mouse_list = asymptote_df['Mouse group'].tolist()
+    mouse_groups_set = sorted(set(mouse_list), key=mouse_list.index)
+    num_groups = len(mouse_groups_set)
+    mouse_groups_set
+
+    # the control group
+    bidx_group_ctrl = asymptote_df['Mouse group'] == mouse_groups_set[0]
+
+    # Lower & Upper asymptote (control)
+    values_low_c = asymptote_df['Lower_asymptote'].values[bidx_group_ctrl]
+    values_up_c = asymptote_df['Upper_asymptote'].values[bidx_group_ctrl]
+    num_list = [np.sum(bidx_group_ctrl)]
+    asymp_values_list = [values_low_c, values_up_c]
+    xtick_str_list = ['\n'.join(textwrap.wrap(mouse_groups_set[0]+' Low', 8)),
+                      '\n'.join(textwrap.wrap(mouse_groups_set[0]+' Up', 8))]
+
+    # test groups
+    for g_idx, mouse_group in enumerate(mouse_groups_set[1:]):
+
+        bidx_group = asymptote_df['Mouse group'] == mouse_group
+        num_list.extend([np.sum(bidx_group)])
+
+        # Lower asymptote
+        values_t = asymptote_df['Lower_asymptote'].values[bidx_group]
+        asymp_values_list.append(values_t)
+
+        # Upper asymptote
+        values_t = asymptote_df['Upper_asymptote'].values[bidx_group]
+        asymp_values_list.append(values_t)
+
+        # tick labels
+        xtick_str_list.extend(['\n'.join(textwrap.wrap(mouse_groups_set[g_idx+1] + ' Low', 8)),
+                               '\n'.join(textwrap.wrap(mouse_groups_set[g_idx+1] + ' Up', 8))])
+
+    # draw the figure
+    fig = Figure(figsize=(7, 4))
+    fig.subplots_adjust(wspace=0.5)
+    ax = fig.add_subplot(111)
+    w = 0.8  # bar width
+
+    bp = ax.boxplot(asymp_values_list, widths=w, patch_artist=True)
+    for i, box in enumerate(bp['boxes']):
+        box.set_alpha(0.6)
+        box.set_facecolor(COLOR_SERIES[int(i/2)])
+        box.set_zorder(1)
+
+    for box in bp['medians']:
+        box.set(color='black', linewidth=1)
+
+    for x_pos, vals in enumerate(asymp_values_list):
+        summary.scatter_datapoints(ax, w, x_pos + 1, vals)
+
+    ax.set_ylabel(r'Delta power [%]', fontsize=14)
+    ax.set_xticklabels(xtick_str_list)
+    ax.set_axisbelow(True)
+    ax.grid(axis='y')
+
+    fig.suptitle(
+        f'Comparison of asymptotes \n'
+        f'{", ".join([mouse_group +"(n="+str(num)+")" for mouse_group, num in zip(mouse_groups_set, num_list)])}')
+    filename = f'delta-power-dynamics_comparison_of_asymptotes'
     sc.savefig(output_dir, filename, fig)
 
 
@@ -1328,10 +1395,10 @@ def do_analysis(mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head,
 
     delta_power_dynamics_df.index = np.arange(len(delta_power_dynamics_df))
 
-    return (sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, delta_power_dynamics_df)
+    return (sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, delta_power_dynamics_df, asymptote_df)
 
 
-def draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, epoch_len_sec, epoch_range_basal, output_dir, bool_extrapolation):
+def draw_plots(delta_power_dynamics_df, asymptote_df, sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, epoch_len_sec, epoch_range_basal, output_dir, bool_extrapolation):
     """ make plots of
         1) simulated_delta_power_dynamics with observed data points for each animal,
         2) simulated_delta_power_dynamics with observed data points for each group,
@@ -1395,6 +1462,9 @@ def draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_lis
         sim_ts_ext_mat = np.array(sim_ts_ext_list)
         draw_sim_and_obs_dpd_group_each(sim_ts_ext_mat, obs_ts_ext_mat, mouse_list, epoch_len_sec, output_dir, [y_min, y_max], epoch_range_basal)
         draw_sim_dpd_group_comp(sim_ts_ext_mat, mouse_list, epoch_len_sec, output_dir, [y_min, y_max], epoch_range_basal)
+
+    # Draw
+    draw_boxplot_of_asymptotes(asymptote_df, output_dir)
 
     # Draw 2D plots of Tau_i and Tau_d
     draw_2d_plot_of_taus_group_comp(delta_power_dynamics_df, output_dir)
@@ -1475,10 +1545,10 @@ def main(args, summary_dir, output_dir):
               f'({epoch_range_basal.stop - epoch_range_basal.start} epochs out of {epoch_num}). '\
               f'Extrapolation: {args.extrapolation}')
 
-    (sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, delta_power_dynamics_df) = do_analysis(
+    (sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, delta_power_dynamics_df, asymptote_df) = do_analysis(
         mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec, output_dir, bool_extrapolation)
 
-    draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_list,
+    draw_plots(delta_power_dynamics_df, asymptote_df, sim_ts_list, obs_ts_list, sim_ts_ext_list,
                obs_ts_ext_list, epoch_len_sec, epoch_range_basal, output_dir, bool_extrapolation)
 
 if __name__ == '__main__':
