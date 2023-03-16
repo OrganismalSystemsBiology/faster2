@@ -260,9 +260,14 @@ def estimate_delta_power_asymptote(stage_call, delta_power):
     bidx_R = (stage_call == 'REM')
     bidx_W = (stage_call == 'WAKE')
     bidx_N = (stage_call == 'NREM')
-    delta_power_R = delta_power[bidx_R]
-    delta_power_W = delta_power[bidx_W]
-    delta_power_N = delta_power[bidx_N]
+    try:
+        delta_power_R = delta_power[bidx_R]
+        delta_power_W = delta_power[bidx_W]
+        delta_power_N = delta_power[bidx_N]
+    except IndexError as idx_err:
+        print_log(f'[Error] There is a mismatch in the epoch lengths between stages ({len(stage_call)}) and delta powers ({len(delta_power)}).\n'
+                   'Check the epoch length of the analysis or use -e option to specify it.\n')
+        raise
 
     # If there are not multiple REM epochs, the kernel is None
     if len(delta_power_R)>1:
