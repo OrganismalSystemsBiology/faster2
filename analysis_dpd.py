@@ -1015,14 +1015,14 @@ def draw_barchart_of_taus_group_comp(delta_power_dynamics_df, output_dir):
     if num_groups > 1:
         bidx_group_ctrl = delta_power_dynamics_df['Mouse group'] == mouse_groups_set[0]
         # Tau_i (control)
-        values_c = delta_power_dynamics_df['Tau_i'].values[bidx_group_ctrl]
-        mean_c = np.mean(values_c)
-        sem_c = np.std(values_c)/np.sqrt(len(values_c))
+        values_ti_c = delta_power_dynamics_df['Tau_i'].values[bidx_group_ctrl]
+        mean_ti_c = np.mean(values_ti_c)
+        sem_ti_c = np.std(values_ti_c)/np.sqrt(len(values_ti_c))
 
         # Tau_d (control)
-        values_c = delta_power_dynamics_df['Tau_d'].values[bidx_group_ctrl]
-        mean_c = np.mean(values_c)
-        sem_c = np.std(values_c)/np.sqrt(len(values_c))
+        values_td_c = delta_power_dynamics_df['Tau_d'].values[bidx_group_ctrl]
+        mean_td_c = np.mean(values_td_c)
+        sem_td_c = np.std(values_td_c)/np.sqrt(len(values_td_c))
 
         for g_idx, mouse_group in enumerate(mouse_groups_set[1:]):
             w = 0.8  # bar width
@@ -1043,9 +1043,9 @@ def draw_barchart_of_taus_group_comp(delta_power_dynamics_df, output_dir):
             bidx_group = delta_power_dynamics_df['Mouse group'] == mouse_group
 
             # Tau_i
-            ax1.bar(0, mean_c, yerr=sem_c, align='center',
+            ax1.bar(0, mean_ti_c, yerr=sem_ti_c, align='center',
                     width=w, capsize=6, color=COLOR_SERIES[0], alpha=0.6)
-            summary.scatter_datapoints(ax1, w, 0, values_c)
+            summary.scatter_datapoints(ax1, w, 0, values_ti_c)
 
             values_t = delta_power_dynamics_df['Tau_i'].values[bidx_group]
             mean_t = np.mean(values_t)
@@ -1055,9 +1055,9 @@ def draw_barchart_of_taus_group_comp(delta_power_dynamics_df, output_dir):
             summary.scatter_datapoints(ax1, w, 1, values_t)
 
             # Tau_d
-            ax2.bar(0, mean_c, yerr=sem_c, align='center',
+            ax2.bar(0, mean_td_c, yerr=sem_td_c, align='center',
                     width=w, capsize=6, color=COLOR_SERIES[0], alpha=0.6)
-            summary.scatter_datapoints(ax2, w, 0, values_c)
+            summary.scatter_datapoints(ax2, w, 0, values_td_c)
 
             values_t = delta_power_dynamics_df['Tau_d'].values[bidx_group]
             mean_t = np.mean(values_t)
