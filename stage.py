@@ -823,7 +823,7 @@ def projection_on_sep_axix(stage_coord_2D, sep_vec_type):
     print_log(f'Trying the \"{sep_vec_type}\" separation axis.')
     if sep_vec_type == 'normal':
         # Both the low and high freq are equally important
-        sep_vec = np.array([1, 1])
+        sep_vec = np.array([1, -1])
         sep_vec = sep_vec.T/np.sqrt(np.dot(sep_vec, sep_vec))
     elif sep_vec_type == 'low':
         # The low freq is more important
@@ -856,6 +856,8 @@ def cancel_weight_bias(stage_coord_2D):
     Returns:
         dict: A dict of estimated cluster parameters and the bias cancelled stage_coord_2D
     """
+
+    print_log('Estimate the bias of the two cluster means')
 
     # Try the normal separation axis first
     s, gmm, d = projection_on_sep_axix(stage_coord_2D, 'normal')
