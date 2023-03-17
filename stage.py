@@ -344,8 +344,8 @@ def read_mouse_info(data_dir, mouse_info_ext=None):
 
     try:
         codename = et.encode_lookup(filepath)
-    except LookupError as e:
-        print_log(e)
+    except LookupError as lkup_err:
+        print_log(lkup_err)
         exit(1)
 
     csv_df = pd.read_csv(filepath,
@@ -584,9 +584,9 @@ def interpret_exp_info(exp_info_df, epoch_len_sec):
         sample_freq = int(exp_info_df['Sampling freq'].values[0])
         exp_label = exp_info_df['Experiment label'].values[0]
         rack_label = exp_info_df['Rack label'].values[0]
-    except KeyError as e:
+    except KeyError as key_err:
         print_log(
-            f'Failed to parse the column: {e} in exp.info.csv. Check the headers.')
+            f'Failed to parse the column: {key_err} in exp.info.csv. Check the headers.')
         exit(1)
 
     start_datetime = interpret_datetimestr(start_datetime_str)
@@ -766,15 +766,15 @@ def remove_extreme_voltage(y, sample_freq):
 
 
 def remove_extreme_power(y):
-    """In FASTER2, the spectrum powers are normalized so that the mean and 
-    SD of each frequency power over all epochs become 0 and 1, respectively.  
-    This function removes extremely high or low powers in the normalized 
-    spectrum by replacing the value with a random number sampled from the 
-    noraml distribution: N(0, 1). 
-    
+    """In FASTER2, the spectrum powers are normalized so that the mean and
+    SD of each frequency power over all epochs become 0 and 1, respectively.
+    This function removes extremely high or low powers in the normalized
+    spectrum by replacing the value with a random number sampled from the
+    noraml distribution: N(0, 1).
+
     Args:
         y (np.array(1)): a vector of normalized power spectrum
-    
+
     Returns:
         float: The ratio of the replaced exreme values in the given vector.
     """
@@ -802,24 +802,98 @@ def spectrum_normalize(voltage_matrix, n_fft, sample_freq):
     return {'psd': psd_norm_mat, 'mean': psd_mean, 'norm_fac': spec_norm_fac}
 
 
-def cancel_weight_bias(stage_coord_2D):
-    # Estimate the center of the two clusters
-    print_log('Estimate the bias of the two cluster means')
-    d = stage_coord_2D@np.array([1, -1]).T  # project onto the separation axis
+def projection_on_sep_axix(stage_coord_2D, sep_vec_type):
+    """ projects stage_coord_2D onto the separation axis to roughly estimate
+    the sleep/wake clusters. There are two types of separation axes. One is the
+    "normal" axis that gives equal weight to both the high- and low-frequency powers.
+    The other is the "low" axis that emphasizes more on the low-frequency power.
+
+    Args:
+        stage_coord_2D (np.array): 2D array of the stage coordination
+        sep_vec_type (str): "normal" or "low".
+
+    Raises:
+        ValueError: There is only 'normal' or 'low' axis type.
+
+    Returns:
+        sep_vec: The separation vector.
+        gmm: gaussian mixture model.
+        d: 1D data points projected onto the separation axis.
+    """
+    print_log(f'Trying the \"{sep_vec_type}\" separation axis.')
+    if sep_vec_type == 'normal':
+        # Both the low and high freq are equally important
+        sep_vec = np.array([1, 1])
+        sep_vec = sep_vec.T/np.sqrt(np.dot(sep_vec, sep_vec))
+    elif sep_vec_type == 'low':
+        # The low freq is more important
+        sep_vec = np.array([1, -0.5])
+        sep_vec = sep_vec.T/np.sqrt(np.dot(sep_vec, sep_vec))
+    else:
+        raise ValueError('Unknown separation type specified')
+
+    d = stage_coord_2D@sep_vec  # project onto the separation axis
     d = d.reshape(-1, 1)
     # Two states: active and quiet
     gmm = mixture.BayesianGaussianMixture(n_components=2, n_init=10)
     gmm.fit(d)
-    weights = gmm.weights_
-    means = gmm.means_.flatten()
-    covars = gmm.covariances_.flatten()
+
+    return (sep_vec, gmm, d)
+
+
+def cancel_weight_bias(stage_coord_2D):
+    """ Correct the weight bias of wake/sleep clusters. FASTER2 assumes that the wake/sleep clusters
+    are distributed on both sides of the diagonal line on the 2D plane (low- vs. high-frequency power
+    plane). However, either cluster may lie closer to the diagonal line when it has more weight than
+    the other. This is because the center of gravity of all datapoints is always closer to the larger
+    cluster, and the COG approaches the diagonal line. To correct the bias, this function tries to
+    estimate the midpoint between the wake/sleep clusters, and shifts all datapoints to make the estimated
+    midpoint align with the diagonal line.
+
+    Args:
+        stage_coord_2D (np.array): 2D array of the stage coordination
+
+    Returns:
+        dict: A dict of estimated cluster parameters and the bias cancelled stage_coord_2D
+    """
+
+    # Try the normal separation axis first
+    s, gmm, d = projection_on_sep_axix(stage_coord_2D, 'normal')
+    if gmm.converged_ == True:
+        weights = gmm.weights_
+        means = gmm.means_.flatten()
+        covars = gmm.covariances_.flatten()
+        sep_vec = s
+    else:
+        # backup results
+        weights_bak = gmm.weights_
+        means_bak = gmm.means_.flatten()
+        covars_bak = gmm.covariances_.flatten()
+        sep_vec_bak = s
+        d_bak = d
+
+        # when if it doesn't converge, try 'low' power focused separation axis
+        s, gmm, d = projection_on_sep_axix(stage_coord_2D, 'low')
+        if gmm.converged_ == True:
+            weights = gmm.weights_
+            means = gmm.means_.flatten()
+            covars = gmm.covariances_.flatten()
+            sep_vec = s
+        else:
+            print_log(f'Falling back to the normal seperation axis.')
+            # falls back to the normal when the 'low' axis also fails
+            weights = weights_bak
+            means = means_bak
+            covars = covars_bak
+            sep_vec = sep_vec_bak
+            d = d_bak
 
     # this is supposed to be zero if weights are completely balanced
     bias = np.mean(means[0:2])
-    s = bias/np.sqrt(2)  # x,y-axis components
-    print_log(f'Estimated bias: {s}')
+    eb = bias * sep_vec  # x,y-axis components
+    print_log(f'Estimated bias: {eb}')
 
-    stage_coord_2D = stage_coord_2D + [-s, s]
+    stage_coord_2D = stage_coord_2D - eb
 
     return {'proj_data': d, 'means': means, 'covars': covars, 'weights': weights, 'stage_coord_2D': stage_coord_2D}
 
