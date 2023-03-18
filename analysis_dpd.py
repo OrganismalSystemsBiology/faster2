@@ -854,12 +854,20 @@ def draw_sim_dpd_group_circ_comp(sim_ts_list, delta_power_dynamics_df, epoch_len
             binned_mean, 1, sim_ts_mat, epoch_len_sec)
         sim_group_ts_ctrl = sim_ts_binned_mean_mat[bidx_group_ctrl]
 
-        # stats time-series
+        # mean time-series
         sim_mean_ctrl = np.apply_along_axis(
             empty_mean, 0, sim_group_ts_ctrl)
 
-        sim_mean_ctrl_circ = np.reshape(sim_mean_ctrl, [-1, 24])
-        tp_num = sim_mean_ctrl_circ.shape[1]
+        sim_mean_ctrl_circ = np.reshape(sim_mean_ctrl, [-1, 24]) # 24 is of circadian 24 h
+        d_num, tp_num = sim_mean_ctrl_circ.shape # numbers of datapoints and timepoints
+
+        # stats of circadian mean time-series (control)
+        sim_mean_ctrl_circ_mean = np.apply_along_axis(
+            empty_mean, 0, sim_mean_ctrl_circ)
+        sim_mean_ctrl_circ_std = np.apply_along_axis(
+            empty_std, 0, sim_mean_ctrl_circ)
+        sim_mean_ctrl_circ_sem = sim_mean_ctrl_circ_std/np.sqrt(d_num)
+
         delta_power_dynamics_circadian_GC_stats_table_df = pd.DataFrame({'Mouse group': np.repeat(mouse_set[0], tp_num), 'Time': np.arange(tp_num),
                                                                          'N': np.repeat(sim_mean_ctrl_circ.shape[0], tp_num),
                                                                          'Mean': np.mean(sim_mean_ctrl_circ, axis=0),
@@ -870,10 +878,18 @@ def draw_sim_dpd_group_circ_comp(sim_ts_list, delta_power_dynamics_df, epoch_len
             bidx_group_test = (np.array(mouse_list) == mouse_group)
             sim_group_ts_test = sim_ts_binned_mean_mat[bidx_group_test]
 
+            # mean time-series
             sim_mean_test = np.apply_along_axis(
                 empty_mean, 0, sim_group_ts_test)
 
             sim_mean_test_circ = np.reshape(sim_mean_test, [-1, 24])
+
+            # stats of circadian mean time-series (test)
+            sim_mean_test_circ_mean = np.apply_along_axis(
+                empty_mean, 0, sim_mean_test_circ)
+            sim_mean_test_circ_std = np.apply_along_axis(
+                empty_std, 0, sim_mean_test_circ)
+            sim_mean_test_circ_sem = sim_mean_test_circ_std/np.sqrt(d_num)
 
             p_values = np.ones(tp_num)
             for tp in range(tp_num):
@@ -891,10 +907,21 @@ def draw_sim_dpd_group_circ_comp(sim_ts_list, delta_power_dynamics_df, epoch_len
 
             fig = Figure(figsize=(13, 6))
             ax = fig.add_subplot(111)
-            ax.scatter(np.tile(np.arange(0, 24), 2),
-                       sim_mean_ctrl, color="grey")
-            ax.scatter(np.tile(np.arange(0, 24), 2),
-                       sim_mean_test, color=COLOR_SERIES[1])
+            x_pos = np.arange(0, 24)
+
+            ax.plot(x_pos, sim_mean_ctrl_circ_mean, color="grey")
+            ax.fill_between(x_pos, sim_mean_ctrl_circ_mean - sim_mean_ctrl_circ_sem,
+                        sim_mean_ctrl_circ_mean + sim_mean_ctrl_circ_sem,
+                        color="grey", alpha=0.3)
+            ax.plot(x_pos, sim_mean_test_circ_mean, color=COLOR_SERIES[1])
+            ax.fill_between(x_pos, sim_mean_test_circ_mean - sim_mean_test_circ_sem,
+                        sim_mean_test_circ_mean + sim_mean_test_circ_sem,
+                        color=COLOR_SERIES[1], alpha=0.3)
+
+            ax.scatter(np.tile(x_pos, d_num),
+                       sim_mean_ctrl, color="grey", alpha=0.6)
+            ax.scatter(np.tile(x_pos, d_num),
+                       sim_mean_test, color=COLOR_SERIES[1], alpha=0.6)
 
             if y_range is None:
                 y_range = [np.nanmin([sim_mean_ctrl, sim_mean_test]), np.nanmax(
