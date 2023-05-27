@@ -1190,7 +1190,6 @@ def draw_boxplot_of_asymptotes(delta_power_dynamics_df, output_dir):
     # mouse set
     mouse_list = delta_power_dynamics_df['Mouse group'].tolist()
     mouse_groups_set = sorted(set(mouse_list), key=mouse_list.index)
-    mouse_groups_set
 
     # the control group
     bidx_group_ctrl = delta_power_dynamics_df['Mouse group'] == mouse_groups_set[0]

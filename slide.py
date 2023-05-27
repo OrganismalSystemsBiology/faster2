@@ -272,6 +272,9 @@ def prep_fig_of_dpd(prs, summary_dir):
     slide.shapes.add_picture(path_dpd_sim_ge_list[0], Cm(0.7),
                              Cm(3.0), Cm(16), Cm(4.74))
 
+    # Asymptotes boxchart
+    path_asymp_boxplot = select_wanted_path(dpd_path, 'delta-power-dynamics_comparison_of_asymptotes')
+
     try:
         slide.shapes.add_picture(path_dpd_sim_ge_list[1], Cm(0.7),
                                 Cm(8.1), Cm(16), Cm(4.74))
@@ -287,6 +290,7 @@ def prep_fig_of_dpd(prs, summary_dir):
         # Taus barchart
         path_taus_barchart = select_wanted_path(dpd_path, 'delta-power-dynamics_taus_barchart_GC')
 
+
     except IndexError:
         print_log('Only a single group found for the delta power dynamics simulation')
 
@@ -298,10 +302,13 @@ def prep_fig_of_dpd(prs, summary_dir):
 
 
     slide.shapes.add_picture(path_taus_2d_plot, Cm(17.38),
-                             Cm(3.46), Cm(8.0), Cm(7.48))
+                             Cm(0.62), Cm(8.0), Cm(7.48))
 
     slide.shapes.add_picture(path_taus_barchart, Cm(25.62),
-                             Cm(5.49), Cm(8.0), Cm(5.13))
+                             Cm(3.01), Cm(8.0), Cm(5.13))
+
+    slide.shapes.add_picture(path_asymp_boxplot, Cm(17.00),
+                             Cm(13.77), Cm(7.41), Cm(5.13))
 
 
 def prep_fig_of_power_timeseries(prs, summary_dir):
