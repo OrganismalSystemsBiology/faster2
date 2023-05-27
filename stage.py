@@ -29,7 +29,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.4.6'
+FASTER2_NAME = 'FASTER2 version 0.4.7'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
@@ -789,9 +789,28 @@ def remove_extreme_power(y):
 
 
 def spectrum_normalize(voltage_matrix, n_fft, sample_freq):
+    """ Normalizes the power along the time axis
+
+    Args:
+        voltage_matrix (2D np.array): voltages of each epoch
+        n_fft (int): a parameter of psd()
+        sample_freq (int): a parameter of psd()
+
+    Returns:
+        dict: normalized PSDs and associated factors.
+    """
     # power-spectrum normalization of EEG
     psd_mat = np.apply_along_axis(lambda y: psd(
         y, n_fft, sample_freq), 1, voltage_matrix)
+
+    # If there is any zero power, replace it with a smaller value
+    bidx_zero_power = (psd_mat<=0)
+    if bidx_zero_power.any():
+        max_power = np.max(psd_mat[~bidx_zero_power])
+        peri_min_power = np.min(psd_mat[~bidx_zero_power])
+        alt_min = peri_min_power/(1000*(max_power - peri_min_power)) # one-thousandth of the peri_min
+        psd_mat[bidx_zero_power] = alt_min
+
     psd_mat = 10*np.log10(psd_mat)  # decibel-like
     psd_mean = np.apply_along_axis(np.nanmean, 0, psd_mat)
     psd_sd = np.apply_along_axis(np.nanstd, 0, psd_mat)
@@ -1333,7 +1352,7 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
             # pylint: disable=unused-variable
             pred_2D, pred_2D_proba, means_2D, covars_2D, pred_3D, pred_3D_proba, means_3D, covars_3D = classification_process(
                 stage_coord, rem_floor)
-        except ValueError as e:
+        except ValueError as val_err:
             print_log('Encountered an unhandlable analytical error during the staging. Check the '
                       'date validity of the mouse.')
             print_log(traceback.format_exc())
