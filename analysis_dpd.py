@@ -1246,9 +1246,40 @@ def draw_boxplot_of_asymptotes(delta_power_dynamics_df, output_dir):
     fig.suptitle(
         f'Comparison of asymptotes \n'
         f'{", ".join([mouse_group +"(n="+str(num)+")" for mouse_group, num in zip(mouse_groups_set, num_list)])}')
-    filename = f'delta-power-dynamics_comparison_of_asymptotes'
+    filename = 'delta-power-dynamics_comparison_of_asymptotes'
     sc.savefig(output_dir, filename, fig)
 
+
+def delta_power_from_range(delta_power_all, epoch_range_basal, epoch_range_summarised):
+    """The array of the delta powers is culculated by summary.py with the specified range.
+    The epoch_range_basal can must be within the epoch_range_summarised, but can locate anywhere inside.
+    This function returns the array of delta_powers with the length of epoch_range_basal 
+    from the epoch_range_summarised.
+
+    Args:
+        delta_power_all (np.array): an array of delta powers
+        epoch_range_basal (slice):
+        epoch_range_summarized (slice):
+
+    Raises: IndexError
+
+    Returns:
+        np.array: delta powers in the range
+    """
+
+    # check if the epoch_range_basal is within the summarised epoch_range
+    if (epoch_range_basal.start < epoch_range_summarised.start) or (epoch_range_basal.stop > epoch_range_summarised.stop):
+        raise IndexError(f'[Error] The specified epoch range:{epoch_range_basal.start}-{epoch_range_basal.stop} is out '
+                         f'of the summarised epoch range:{epoch_range_summarised.start}-{epoch_range_summarised.stop}.\n')
+
+    epoch_range_num = epoch_range_basal.stop - epoch_range_basal.start
+
+    if epoch_range_basal.start == epoch_range_summarised.start:
+        delta_power = delta_power_all[slice(0, epoch_range_num, None)]
+    else:
+        delta_power = delta_power_all[slice(epoch_range_basal.start - epoch_range_summarised.start, epoch_range_num)]
+
+    return delta_power
 
 def make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summarised, csv_head, csv_body, output_dir):
     """makes a dataframe of upper and lower asymptotes
@@ -1288,8 +1319,7 @@ def make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_s
         keys = {'Experiment label': exp_label, 'Mouse group': mouse_group,
                 'Mouse ID': mouse_id, 'Device label': device_label}
         delta_power_all = select_delta_power(csv_head, csv_body, keys)
-        delta_power = delta_power_all[slice(0, epoch_range_summarised.stop - epoch_range_summarised.start, None)]
-
+        delta_power = delta_power_from_range(delta_power_all, epoch_range_basal, epoch_range_summarised)
 
         # Estimate the lower and upper asymptotes
         (low_asymp, up_asymp, fig) = estimate_delta_power_asymptote(
@@ -1362,7 +1392,7 @@ def do_analysis(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summari
         keys = {'Experiment label': exp_label, 'Mouse group': mouse_group,
                 'Mouse ID': mouse_id, 'Device label': device_label}
         delta_power_all = select_delta_power(csv_head, csv_body, keys)
-        delta_power = delta_power_all[slice(0, epoch_range_summarised.stop - epoch_range_summarised.start, None)]
+        delta_power = delta_power_from_range(delta_power_all, epoch_range_basal, epoch_range_summarised)
 
         if bool_extrapolation and (len(delta_power_all) == len(delta_power)):
             print_log('[Warning] The extrapolation was requested but canceled because the summary has only the basal range of epochs.')
@@ -1560,6 +1590,10 @@ def main(args, summary_dir, output_dir):
         # default: use the all epochs
         epoch_range_summarised = slice(0, epoch_num, None)
 
+    # chekc if the epoch range is within the exp.info range
+    if (epoch_range_basal.stop - epoch_range_basal.start) > epoch_num:
+        print_log(f'[Error] The specified epoch range:{epoch_range_basal.start}-{epoch_range_basal.stop} is out of the index ({epoch_num}).')
+        return -1
 
     # The request of the extrapolation may be cancelled later
     bool_extrapolation = args.extrapolation
@@ -1575,15 +1609,11 @@ def main(args, summary_dir, output_dir):
 
     # Main process
 
-    if (epoch_range_basal.stop - epoch_range_basal.start) > epoch_num:
-        print_log(f'[Error] The specified epoch range:{epoch_range_basal.start}-{epoch_range_basal.stop} is out of the index ({epoch_num}).')
-        return -1
-
     ## print log the basic information
     print_log(f'The basal-epoch range: {epoch_range_basal.start}-{epoch_range_basal.stop} '\
               f'({epoch_range_basal.stop - epoch_range_basal.start} epochs out of {epoch_num}). '\
               f'Extrapolation: {args.extrapolation}')
-
+    
     (sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, delta_power_dynamics_df) = do_analysis(
         mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summarised, csv_body, csv_head, epoch_len_sec, output_dir, bool_extrapolation)
 
