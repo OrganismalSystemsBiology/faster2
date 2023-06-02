@@ -1250,11 +1250,14 @@ def draw_boxplot_of_asymptotes(delta_power_dynamics_df, output_dir):
     sc.savefig(output_dir, filename, fig)
 
 
-def make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, csv_head, csv_body, output_dir):
+def make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summarised, csv_head, csv_body, output_dir):
     """makes a dataframe of upper and lower asymptotes
 
     Args:
         mouse_info_df (pd.DataFrame): The dataframe of mouse_info
+        stage_ext (str): string
+        epoch_range_basal: epoch range for the DPD analysis
+        epoch_range_summarised: epoch range used in summary.py
 
     Returns:
         asymptote_df (pd.DataFrame)
@@ -1285,7 +1288,7 @@ def make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, csv_head, csv
         keys = {'Experiment label': exp_label, 'Mouse group': mouse_group,
                 'Mouse ID': mouse_id, 'Device label': device_label}
         delta_power_all = select_delta_power(csv_head, csv_body, keys)
-        delta_power = delta_power_all[epoch_range_basal]
+        delta_power = delta_power_all[slice(0, epoch_range_summarised.stop - epoch_range_summarised.start, None)]
 
 
         # Estimate the lower and upper asymptotes
@@ -1304,7 +1307,7 @@ def make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, csv_head, csv
     return asymptote_df
 
 
-def do_analysis(mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec, output_dir, bool_extrapolation):
+def do_analysis(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summarised, csv_body, csv_head, epoch_len_sec, output_dir, bool_extrapolation):
     """ Calculates Ti and Td (the main part of the delta-power dynamics analyssi)
 
     Args:
@@ -1325,7 +1328,7 @@ def do_analysis(mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head,
         delta_power_dynamics_df: Summary table of the delta-power dynamics
     """
     # Estimate the asymptotes
-    asymptote_df = make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, csv_head, csv_body, output_dir)
+    asymptote_df = make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summarised, csv_head, csv_body, output_dir)
     asymptote_medians_df = asymptote_df.groupby('Mouse group').median()
 
     ## Initialize dataframe and lists to store results
@@ -1359,7 +1362,7 @@ def do_analysis(mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head,
         keys = {'Experiment label': exp_label, 'Mouse group': mouse_group,
                 'Mouse ID': mouse_id, 'Device label': device_label}
         delta_power_all = select_delta_power(csv_head, csv_body, keys)
-        delta_power = delta_power_all[epoch_range_basal]
+        delta_power = delta_power_all[slice(0, epoch_range_summarised.stop - epoch_range_summarised.start, None)]
 
         if bool_extrapolation and (len(delta_power_all) == len(delta_power)):
             print_log('[Warning] The extrapolation was requested but canceled because the summary has only the basal range of epochs.')
@@ -1498,10 +1501,11 @@ def draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_lis
     draw_barchart_of_taus_group_comp(delta_power_dynamics_df, output_dir)
     draw_barchart_of_taus_all_group(delta_power_dynamics_df, output_dir)
 
-    # Draw the comparison plot of circadian profiles
-    circadian_GC_stats_table_df = draw_sim_dpd_group_circ_comp(sim_ts_list, delta_power_dynamics_df, epoch_len_sec, output_dir)
-    circadian_GC_stats_table_df.to_csv(os.path.join(
-        output_dir, 'delta-power-dynamics_circadian_GC_stats_table.csv'), index=False)
+    # Draw the comparison plot of circadian profiles if time series length is > 2 days
+    if len(sim_ts_list[0])*epoch_len_sec/3600 >= 48:
+        circadian_GC_stats_table_df = draw_sim_dpd_group_circ_comp(sim_ts_list, delta_power_dynamics_df, epoch_len_sec, output_dir)
+        circadian_GC_stats_table_df.to_csv(os.path.join(
+            output_dir, 'delta-power-dynamics_circadian_GC_stats_table.csv'), index=False)
 
 
 def main(args, summary_dir, output_dir):
@@ -1531,11 +1535,12 @@ def main(args, summary_dir, output_dir):
     epoch_num = mouse_info_collected['epoch_num']
     epoch_len_sec = mouse_info_collected['epoch_len_sec']
     stage_ext = mouse_info_collected['stage_ext']
+    epoch_range_summarised_str = mouse_info_collected['epoch_range']
 
     if stage_ext is None:
         stage_ext = 'faster2'
 
-    # set the epoch range to be summarized
+    # set the epoch range for DPD analysis
     if args.epoch_range:
         # use the range given by the command line option
         e_range = [
@@ -1544,6 +1549,17 @@ def main(args, summary_dir, output_dir):
     else:
         # default: use the all epochs
         epoch_range_basal = slice(0, epoch_num, None)
+
+    # set the epoch range used for summary.py
+    if epoch_range_summarised_str:
+        # use the range given by the command line option
+        e_range = [
+            int(x.strip()) if x else None for x in epoch_range_summarised_str.split(':')]
+        epoch_range_summarised = slice(*e_range)
+    else:
+        # default: use the all epochs
+        epoch_range_summarised = slice(0, epoch_num, None)
+
 
     # The request of the extrapolation may be cancelled later
     bool_extrapolation = args.extrapolation
@@ -1569,7 +1585,7 @@ def main(args, summary_dir, output_dir):
               f'Extrapolation: {args.extrapolation}')
 
     (sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, delta_power_dynamics_df) = do_analysis(
-        mouse_info_df, stage_ext, epoch_range_basal, csv_body, csv_head, epoch_len_sec, output_dir, bool_extrapolation)
+        mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summarised, csv_body, csv_head, epoch_len_sec, output_dir, bool_extrapolation)
 
     draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_list,
                obs_ts_ext_list, epoch_len_sec, epoch_range_basal, output_dir, bool_extrapolation)

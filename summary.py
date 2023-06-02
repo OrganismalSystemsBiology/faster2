@@ -2343,17 +2343,6 @@ def main(args):
     epoch_num = mouse_info_collected['epoch_num']
     sample_freq = mouse_info_collected['sample_freq']
 
-    # dump the collect_mouse_info_df into a file for external scripts
-    with open(os.path.join(output_dir, 'collected_mouse_info_df.json'), 'w') as outfile:
-        json.dump(serializable_collected_mouse_info(mouse_info_collected), outfile)
-
-    # number of days in the data
-    day_num = epoch_num * epoch_len_sec / 60 / 60 / 24
-    if day_num != int(day_num):
-        raise ValueError(f'The number of days: {day_num} must be an integer.')
-    else:
-        day_num = int(day_num)
-
     # set the epoch range to be summarized
     if args.epoch_range:
         # use the range given by the command line option
@@ -2369,6 +2358,20 @@ def main(args):
         # default: 'faster2' for *.faster2.csv
         stage_ext = 'faster2'
 
+    # add optional information
+    mouse_info_collected['epoch_range'] = args.epoch_range
+    mouse_info_collected['stage_ext'] = args.stage_ext
+
+    # dump the collect_mouse_info_df into a file for external scripts
+    with open(os.path.join(output_dir, 'collected_mouse_info_df.json'), 'w') as outfile:
+        json.dump(serializable_collected_mouse_info(mouse_info_collected), outfile)
+
+    # number of days in the data
+    day_num = epoch_num * epoch_len_sec / 60 / 60 / 24
+    if day_num != int(day_num):
+        raise ValueError(f'The number of days: {day_num} must be an integer.')
+    else:
+        day_num = int(day_num)
 
     # prepare stagetime statistics
     stagetime_stats = make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext)
