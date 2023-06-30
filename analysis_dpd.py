@@ -728,6 +728,9 @@ def draw_2d_plot_of_taus_group_comp(delta_power_dynamics_df, output_dir):
         covar_ctrl = np.cov(tau_coord_ctrl, rowvar=False)
         mean_ctrl = np.mean(tau_coord_ctrl, axis=0)
         w_ctrl, v_ctrl = linalg.eigh(covar_ctrl)
+        if np.any(w_ctrl < 0):
+            print_log("Negative value encountered in sqrt for estimating the error area of test data. Setting to zero.")
+            w_ctrl[w_ctrl < 0] = 0
         w_ctrl = 4. * np.sqrt(w_ctrl)  # 95% confidence (2SD) area (2*radius)
         angle_ctrl = np.arctan(v_ctrl[1, 0] / v_ctrl[0, 0])
         angle_ctrl = 180. * angle_ctrl / np.pi  # convert to degrees
@@ -762,6 +765,9 @@ def draw_2d_plot_of_taus_group_comp(delta_power_dynamics_df, output_dir):
             covar = np.cov(tau_coord, rowvar=False)
             mean = np.mean(tau_coord, axis=0)
             w, v = linalg.eigh(covar)
+            if np.any(w_ctrl < 0):
+                print_log("Negative value encountered in sqrt for estimating the error area of control data.. Setting to zero.")
+                w_ctrl[w_ctrl < 0] = 0
             w = 4. * np.sqrt(w)  # 95% confidence (2SD) area (2*radius)
             angle = np.arctan(v[1, 0] / v[0, 0])
             angle = 180. * angle / np.pi  # convert to degrees
@@ -813,6 +819,10 @@ def draw_2d_plot_of_taus_all_group(delta_power_dynamics_df, output_dir):
             covar = np.cov(tau_coord, rowvar=False)
             mean = np.mean(tau_coord, axis=0)
             w, v = linalg.eigh(covar)
+            if np.any(w < 0):
+                print_log(f"Negative value encountered in sqrt for estimating the error area of {mouse_group} data.. Setting to zero.")
+                w[w < 0] = 0
+ 
             w = 4. * np.sqrt(w)  # 95% confidence (2SD) area (2*radius)
             angle = np.arctan(v[1, 0] / v[0, 0])
             angle = 180. * angle / np.pi  # convert to degrees
