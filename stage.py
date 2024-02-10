@@ -199,7 +199,7 @@ class CustomedGHMM(hmm.GaussianHMM):
         w = 2 * np.sqrt(w)  # 95% confidence (2SD) area
         prn_ax = v@np.diag(w)  # 3x3 matrix: each column is the principal axis
 
-        # confine above diagonal line
+        # confine below diagonal line
         for i in range(3):
             arr_hd = nrem_mean + prn_ax[:, i]  # the arrow head from the mean
             # the negative arrow head from the mean
@@ -933,7 +933,7 @@ def classify_active_and_NREM(stage_coord_2D):
 
     # To estimate clusters, use only epochs projected within the reasonable region on the separation line (<3SD)
     def _geo_classifier(coord):
-        # geometrical classifier (simpl separation by the diagonal line)
+        # geometrical classifier (simple separation by the diagonal line)
         if coord[0] - coord[1] > 0:
             return 1
         else:
@@ -958,7 +958,7 @@ def classify_active_and_NREM(stage_coord_2D):
 
 
 def classify_active_and_NREM_by_GHMM(stage_coord_2D, pred_2D, mm_2D, cc_2D):
-    # Initialize active/stative(NREM) clusters by Gaussian mixture model ignoring transition probablity
+    # Initialize active/stative(NREM) clusters by Gaussian mixture model
     print_log('Classify active/NREM clusters with GHMM')
 
     weights = np.array(
