@@ -212,7 +212,7 @@ def make_target_psd_info(mouse_info_df, epoch_range, epoch_len_sec, sample_freq,
                     'NREM (%d epochs) and Wake (%d epochs)',
                     epoch_num_balanced, epoch_num_nrem, epoch_num_wake)
         # calculate EEG's PSD
-        # assures frequency bins compatibe among different sampleling frequencies
+        # assures frequency bins are compatible among different sampling frequencies
         n_fft = int(256 * sample_freq/100)
         # Note: unknown epoch's conv_psd is nan. This is different from PSD pickled by stage.py.
         conv_psd = np.apply_along_axis(

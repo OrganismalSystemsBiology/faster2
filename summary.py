@@ -2430,7 +2430,11 @@ def main(args):
     # prepare Powerspectrum density (PSD) profiles for individual mice
     # list of {simple exp info, target info, psd (epoch_num, 129)} for each mouse
     psd_info_list = sp.make_target_psd_info(mouse_info_df, epoch_range, epoch_len_sec, sample_freq, stage_ext)
- 
+
+    # Save the psd_info_lists
+    print_log('Saving the PSD information')
+    pickle_psd_info_list(psd_info_list, output_dir, 'psd_info_list.pkl')
+
     # log version of psd_info
     print_log('Making the log version of the PSD information')
     log_psd_info_list = copy.deepcopy(psd_info_list)
@@ -2452,10 +2456,6 @@ def main(args):
         for i, p in enumerate(conv_psd_raw): # row wise
             percentage_psd_raw_mat[i,:] = 100*p / np.sum(p)
         percentage_psd_info['raw'] = percentage_psd_raw_mat
-
-    # Save the psd_info_lists
-    print_log('Saving the PSD information')
-    pickle_psd_info_list(psd_info_list, output_dir, 'psd_info_list.pkl')
 
     # make output dirs for PSDs
     make_psd_output_dirs(output_dir, 'norm')
@@ -2488,6 +2488,7 @@ if __name__ == '__main__':
                         help="a path to the output files (default: the first FASTER2 directory)")
     PARSER.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
     PARSER.add_argument("-u", "--unit_voltage", help="The unit of EEG voltage for the raw PSD (default: V)", default="V")
+    PARSER.add_argument("-b", "--basal_days", help="The number of basal days", default=2)
 
 
     args = PARSER.parse_args()
