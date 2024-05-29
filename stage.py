@@ -29,7 +29,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.4.8'
+FASTER2_NAME = 'FASTER2 version 0.4.7'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
@@ -599,7 +599,7 @@ def interpret_exp_info(exp_info_df, epoch_len_sec):
 
 
 def psd(y, n_fft, sample_freq):
-    return signal.welch(y, nperseg=n_fft, fs=sample_freq)[1][0:129]
+    return signal.welch(y, nfft=n_fft, fs=sample_freq)[1][0:129]
 
 
 def plot_hist_on_separation_axis(path2figures, d, means, covars, weights, draw_pdf_plot=False):
