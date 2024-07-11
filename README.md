@@ -1,5 +1,5 @@
 ## What is it?
-FASTER2 is a set of Python scripts that automatically identify the sleep stages of mice by analyzing EEG/EMG signals. There is also a simple viewer of the analyzed data so that a user can visually inspect the results of FASTER2.
+FASTER2 is a set of Python scripts that automatically identify the sleep stages of mice by analyzing EEG/EMG signals. There is also a simple viewer of the analyzed data so that a user can visually inspect the results of FASTER2 ([Yamada et al. in press]()).
 
 FASTER2 succeeds many good concepts but is written from scratch and uses different algorithms from its predecessor, FASTER ([Sunagawa et al. in 2013](https://onlinelibrary.wiley.com/doi/abs/10.1111/gtc.12053)).
 
@@ -25,7 +25,7 @@ https://www.python.org/downloads/windows/
 
 Note: Check the 'Add Python to PATH' checkbox at the first step in the installer.
 
-At the time of writing this document (2022/07/21), it is recommendable to use python 3.10.x.
+At the time of writing this document (2024/07/11), it is recommendable to use python 3.10.x.
 
 
 In the windows shell, execute the following commands:
@@ -146,3 +146,8 @@ Because [signal_view](https://github.com/lsb-riken/signal_view) can recognize on
  ```
  
  video_split.py is just a utility script to make a short video clip. This may be useful when you find an interesting behavior of an animal and want to make a short video clip for a presentation.
+
+ ## How to cite
+ If you find FASTER2 useful and use it to publish your research, please cite the original paper.
+
+ [Yamada et al. in press]()
