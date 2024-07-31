@@ -10,6 +10,7 @@ import argparse
 import pandas as pd
 import numpy as np
 import faster2lib.eeg_tools as et
+import faster2lib.dsi_tools as dt
 import re
 from datetime import datetime, timedelta
 from scipy import signal
@@ -29,7 +30,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.4.7'
+FASTER2_NAME = 'FASTER2 version 0.4.8'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
@@ -490,10 +491,10 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
         # try to read dsi.txt
         not_yet_pickled = True
         try:
-            dsi_reader_eeg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'),
+            dsi_reader_eeg = dt.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'),
                                                f'{device_id}', 'EEG',
                                                sample_freq=sample_freq)
-            dsi_reader_emg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'),
+            dsi_reader_emg = dt.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'),
                                                f'{device_id}', 'EMG',
                                                sample_freq=sample_freq)
             if isinstance(start_datetime, datetime):
