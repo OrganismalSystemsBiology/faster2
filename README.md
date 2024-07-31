@@ -1,7 +1,7 @@
 ## What is it?
-FASTER2 is a set of Python scripts that automatically identify the sleep stages of mice by analyzing EEG/EMG signals. There is also a simple viewer of the analyzed data so that a user can visually inspect the results of FASTER2 ([Yamada et al. in press]()).
+FASTER2 is a set of Python scripts that automatically identify the sleep stages of mice by analyzing EEG/EMG signals. There is also a simple viewer of the analyzed data so that a user can visually inspect the results of FASTER2 ([Yamada et al. in 2024](https://doi.org/10.1111/ejn.16465)).
 
-FASTER2 succeeds many good concepts but is written from scratch and uses different algorithms from its predecessor, FASTER ([Sunagawa et al. in 2013](https://onlinelibrary.wiley.com/doi/abs/10.1111/gtc.12053)).
+FASTER2 succeeds in many good concepts but is written from scratch and uses different algorithms from its predecessor, FASTER ([Sunagawa et al. in 2013](https://onlinelibrary.wiley.com/doi/abs/10.1111/gtc.12053)).
 
 ## Main features
 - Automatic sleep staging (REM, NREM, and Wake) of mouse EEG/EMG data.
@@ -17,7 +17,7 @@ Or the current version is available at:
 https://github.com/lsb-riken/faster2/
 
 ## Installation
-You need [Python](https://www.python.org/) to run FASATER2. Because FASTER2 depends on several python libraries, run the following commands to prepare FASTER2's virtual environment. We are developing and testing FASTER2 on Windows11 (x64), but it probably works on other platforms such as Linux or macOS.
+You need [Python](https://www.python.org/) to run FASATER2. Because FASTER2 depends on several Python libraries, run the following commands to prepare FASTER2's virtual environment. We are developing and testing FASTER2 on Windows 11 (x64), but it probably works on other platforms such as Linux or macOS.
 
 ### Python for Windows
 Run an installer available at Python's official website:
@@ -25,10 +25,10 @@ https://www.python.org/downloads/windows/
 
 Note: Check the 'Add Python to PATH' checkbox at the first step in the installer.
 
-At the time of writing this document (2024/07/11), it is recommendable to use python 3.10.x.
+At the time of writing this document (2024/07/11), it is recommended to use Python 3.10.x.
 
 
-In the windows shell, execute the following commands:
+In the Windows shell, execute the following commands:
 ```sh
 C:\Users\user-name> mkdir faster2-env
 C:\Users\user-name> cd faster2-env
@@ -99,7 +99,7 @@ This file describes information about the individual records in the EEG/EMG data
 * Device label: An identifier of the recording device. This label must be the same as the label used for each record in the data files.
 * Mouse group: The plot_summary.py calculates statistics according to this group. 
 * Mouse ID: Label of the individual animal.
-* DOB: Date of birth of the animal. At present, Faster2 does not use this information. But it is always a good practice to record DOB as age affects sleep time.
+* DOB: Date of birth of the animal. At present, Faster2 does not use this information. However, it is always a good practice to record DOB as age affects sleep time.
 * Stats report: "Yes" or "No." If it is No, that record will be excluded from the statistics.
 * Note: Additional information.
 
@@ -108,11 +108,11 @@ _Note_ The **control** group of mice should be placed first on the list. The sum
 
 ### Run FASTER2 script
 
-Then, run the sample_run.bat. The bat file executes four Python scripts. The first two scripts perform the main FASATER2 analysis (i.e., staging and calculating the basic statistics). These main processes usually take just a couple of minutes per animal. The latter scripts plot many graphs of voltage time-series and spectrums. These scripts are optional but useful for human visual inspection. The plotting takes about two hours for 8 animals x 5 days of recordings on a PC of moderate specs in 2022.
+Then, run the sample_run.bat. The bat file executes four Python scripts. The first two scripts perform the main FASATER2 analysis (i.e., staging and calculating the basic statistics). These main processes usually take just a couple of minutes per animal. The latter scripts plot many graphs of voltage time series and spectrums. These scripts are optional but useful for human visual inspection. The plotting takes about two hours for 8 animals x 5 days of recordings on a PC of moderate specs in 2022.
 
 
 ### Video
-As it is not feasible to have a huge video file with a length of days, there are usually a set of multiple video clips (from minutes to hours) for each animal. These video files need to be arranged in a folder of the corresponding animal. Our viewer [signal_view](https://github.com/lsb-riken/signal_view) assumes that the set of folders is placed in the "video" folder in the FASTER2 folder. Also, the names of individual folders must be the same as the device labels in mouse.info.csv.
+As it is not feasible to have a huge video file with a length of days, there is usually a set of multiple video clips (from minutes to hours) for each animal. These video files need to be arranged in a folder of the corresponding animal. Our viewer [signal_view](https://github.com/lsb-riken/signal_view) assumes that the set of folders is placed in the "video" folder in the FASTER2 folder. Also, the names of individual folders must be the same as the device labels in mouse.info.csv.
 
 _note_ Each video file must contain a data time in its file name to indicate when the file started recording. For example, the filename should be like: CAM-61E0-C1_2018-01-27_06-58-47.avi. 
 
@@ -137,7 +137,7 @@ Because [signal_view](https://github.com/lsb-riken/signal_view) can recognize on
 ```sh
  python video_convert.py -t g:\tmp_video -o g:\FASTER2_Rec001\video -w 2 -e h264_nvenc
  ```
- In the example above, I specified the encoder option (-e) as h264_nvenc to utilize my NVIDIA GPU. The default is libx264 which uses only CPU. Also, you may want to search for an optimal worker number (-w option that specifies the number of processes that run in parallel) for your PC.
+ In the example above, I specified the encoder option (-e) as h264_nvenc to utilize my NVIDIA GPU. The default is libx264, which uses only CPU. Also, you may want to search for an optimal worker number (-w option that specifies the number of processes that run in parallel) for your PC.
 
  [signal_view](https://github.com/lsb-riken/signal_view) needs to know when each video file started recording and how long it was. The information is stored in video.info.csv for each mouse. You can generate the video_info.csv files of mice in the video/ folder by using video_make_info.py.
 
@@ -150,4 +150,4 @@ Because [signal_view](https://github.com/lsb-riken/signal_view) can recognize on
  ## How to cite
  If you find FASTER2 useful and use it to publish your research, please cite the original paper.
 
- [Yamada et al. in press]()
+ [Yamada et al. in 2024](https://doi.org/10.1111/ejn.16465)
