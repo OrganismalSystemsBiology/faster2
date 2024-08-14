@@ -8,6 +8,7 @@ import mne
 import numpy as np
 from glob import glob
 from datetime import datetime, timedelta
+from pathlib import Path
 import locale
 import chardet
 
@@ -431,3 +432,54 @@ def interpret_exp_info(exp_info_df, epoch_len_sec):
         (end_datetime - start_datetime).total_seconds() / epoch_len_sec)
 
     return (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime)
+
+
+class DataSet:
+    """ Class to manage the dataset used for the analysis
+    """
+    def __init__(self, mouse_info_df: dict, sample_freq, epoch_len_sec, 
+                 epoch_num, epoch_range_target, stage_ext, new_root_dir=None):
+        self.mouse_info_df = mouse_info_df
+        self.sample_freq = sample_freq
+        self.epoch_len_sec = epoch_len_sec
+        self.epoch_num = epoch_num
+        self.epoch_range_target = epoch_range_target
+        self.stage_ext = stage_ext
+
+        # change the root directory of the data if needed
+        if new_root_dir:
+            for i, r in self.mouse_info_df.iterrows():
+                faster_dir = Path(r['FASTER_DIR'])
+                new_faster_dir = Path(new_root_dir, *faster_dir.parts[1:])
+                self.mouse_info_df.loc[i, 'FASTER_DIR'] = new_faster_dir
+                
+    def load_eeg(self, idx: int):
+        """ Load the data of the mouse specified by the index
+
+        Args:idx    index of the mouse_info_df
+        
+        """
+        r = self.mouse_info_df.iloc[idx]
+        device_label = r['Device label'].strip()
+        faster_dir = Path(r['FASTER_DIR'])
+        data_dir = faster_dir / 'data'
+        start_date_time = r['exp_start_string']
+
+        eeg_vm, _, _ = read_voltage_matrices(data_dir, device_label, self.sample_freq, 
+                                 self.epoch_len_sec, self.epoch_num, start_date_time)
+        
+        return eeg_vm.reshape(-1)
+    
+    def load_stage(self, idx: int, type='auto'):
+        """ Load the data of the mouse specified by the index
+
+        Args:idx    index of the mouse_info_df
+        
+        """
+        r = self.mouse_info_df.iloc[idx]
+        device_label = r['Device label'].strip()
+        faster_dir = Path(r['FASTER_DIR'])
+        result_dir = faster_dir / 'result'
+        
+        stages = read_stages(result_dir, device_label, type)    
+        return stages
