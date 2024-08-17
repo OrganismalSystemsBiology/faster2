@@ -286,8 +286,12 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
         edf_file = edf_file[0]
 
         raw = mne.io.read_raw_edf(edf_file)
-        measurement_start_datetime = datetime.utcfromtimestamp(
-            raw.info['meas_date'][0]) + timedelta(microseconds=raw.info['meas_date'][1])
+        if type(raw.info['meas_date']) is datetime:#for MNE version>=0.20 (by Okami)
+                measurement_start_datetime = raw.info['meas_date']
+                measurement_start_datetime = measurement_start_datetime.replace(tzinfo=None)
+        else:
+                measurement_start_datetime = datetime.utcfromtimestamp(
+                raw.info['meas_date'][0]) + timedelta(microseconds=raw.info['meas_date'][1])
         try:
             if isinstance(start_datetime, datetime) and (measurement_start_datetime < start_datetime):
                 start_offset_sec = (
@@ -435,10 +439,21 @@ def interpret_exp_info(exp_info_df, epoch_len_sec):
 
 
 class DataSet:
-    """ Class to manage the dataset used for the analysis
+    """ Class to manage the dataset used for the previous analysis (stage.py or summary.py)
     """
     def __init__(self, mouse_info_df: dict, sample_freq, epoch_len_sec, 
                  epoch_num, epoch_range_target, stage_ext, new_root_dir=None):
+        """ Initialize the dataset
+        Args:
+            mouse_info_df (DataFrame): a DataFrame that contains the information of the mice
+            sample_freq (int): sampling frequency
+            epoch_len_sec (int): the length of an epoch in seconds
+            epoch_num (int): the number of all epochs processed in the previous analysis
+            epoch_range_target (str): an epoch range targeted for the analysis with this dataset
+            stage_ext (str): a stage file extension
+            new_root_dir (str): a new root directory of the data
+        
+        """
         self.mouse_info_df = mouse_info_df
         self.sample_freq = sample_freq
         self.epoch_len_sec = epoch_len_sec
