@@ -956,9 +956,9 @@ def voltage_normalize(v_mat):
 def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filter=False, no_signal_filter=False, draw_pdf_plot=False):
     """ main """
 
-    exp_info_df = read_exp_info(data_dir)
+    exp_info_df = et.read_exp_info(data_dir)
     (epoch_num, sample_freq, exp_label, rack_label, start_datetime,
-     end_datetime) = interpret_exp_info(exp_info_df, epoch_len_sec)
+     end_datetime) = et.interpret_exp_info(exp_info_df, epoch_len_sec)
 
     # assures frequency bins compatibe among different sampling frequencies
     n_fft = int(256 * sample_freq/100)
@@ -979,7 +979,7 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
 
     rem_floor = np.sum(np.sqrt([n_muscle_freq, n_theta_freq]))
 
-    mouse_info_df = read_mouse_info(data_dir)
+    mouse_info_df = et.read_mouse_info(data_dir)
     for i, r in mouse_info_df.iterrows():
         device_id = r[0].strip()
         mouse_group = r[1].strip()
@@ -992,7 +992,7 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
         print_log(f'Reading voltages')
         print_log(
             f'Epoch num:{epoch_num}  Epoch length:{epoch_len_sec} [s]  Sampling frequency: {sample_freq} [Hz]')
-        (eeg_vm_org, emg_vm_org, not_yet_pickled) = read_voltage_matrices(
+        (eeg_vm_org, emg_vm_org, not_yet_pickled) = et.read_voltage_matrices(
             data_dir, device_id, sample_freq, epoch_len_sec, epoch_num, start_datetime)
 
         if (pickle_input_data and not_yet_pickled):
