@@ -183,14 +183,14 @@ def run_main():
 
         ## data parameters
         data_dir = os.path.abspath(args.data_dir)
-        exp_info_df = stage.read_exp_info(data_dir)
+        exp_info_df = et.read_exp_info(data_dir)
         result_dir = os.path.join(args.result_dir)
         stage_ext = args.stage_ext if args.stage_ext else 'faster2'
         psd_data_dir = os.path.join(result_dir, 'PSD')
 
         (epoch_num, sample_freq, exp_label, rack_label, start_datetime,
-         end_datetime) = stage.interpret_exp_info(exp_info_df, epoch_len_sec)
-        mouse_info_df = stage.read_mouse_info(data_dir)
+         end_datetime) = et.interpret_exp_info(exp_info_df, epoch_len_sec)
+        mouse_info_df = et.read_mouse_info(data_dir)
 
         ## plot parameters
         # The range of the plot in hour

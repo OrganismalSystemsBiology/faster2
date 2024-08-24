@@ -7,6 +7,7 @@ import numpy as np
 
 import stage
 import faster2lib.spectrum_graph as sg
+import faster2lib.eeg_tools as et
 
 from datetime import datetime
 
@@ -56,10 +57,10 @@ def main(args):
     cluster_params_dir = os.path.join(result_dir, 'cluster_params')
     epoch_len_sec = int(args.epoch_len_sec)
 
-    exp_info_df = stage.read_exp_info(data_dir)
-    (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime) = stage.interpret_exp_info(exp_info_df, epoch_len_sec)
+    exp_info_df = et.read_exp_info(data_dir)
+    (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime) = et.interpret_exp_info(exp_info_df, epoch_len_sec)
 
-    mouse_info_df = stage.read_mouse_info(data_dir)
+    mouse_info_df = et.read_mouse_info(data_dir)
 
 
     dt_now = datetime.now()

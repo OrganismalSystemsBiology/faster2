@@ -79,11 +79,11 @@ def collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext=None, s
     for faster_dir in faster_dir_list:
         data_dir = os.path.join(faster_dir, 'data')
 
-        exp_info_df = stage.read_exp_info(data_dir)
+        exp_info_df = et.read_exp_info(data_dir)
         # not used variable: rack_label, start_datetime, end_datetime
         # pylint: disable=unused-variable
         (epoch_num, sample_freq, exp_label, rack_label, \
-            start_datetime, end_datetime) = stage.interpret_exp_info(exp_info_df, epoch_len_sec)
+            start_datetime, end_datetime) = et.interpret_exp_info(exp_info_df, epoch_len_sec)
         if (epoch_num_stored != None) and epoch_num != epoch_num_stored:
             raise ValueError('epoch number must be equal among the all dataset')
         else:
@@ -93,7 +93,7 @@ def collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext=None, s
         else:
             sample_freq_stored = sample_freq
 
-        m_info = stage.read_mouse_info(data_dir, mouse_info_ext)
+        m_info = et.read_mouse_info(data_dir, mouse_info_ext)
         m_info['Experiment label'] = exp_label
         m_info['FASTER_DIR'] = faster_dir
         m_info['exp_start_datetime'] = start_datetime
