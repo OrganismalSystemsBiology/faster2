@@ -143,7 +143,7 @@ def assign_page_title(prs, title):
         prs (Presentation): The slide object
         title (str): The slide title to be inserted
     """
-    for si in range(6):
+    for si in range(7):
         slide = prs.slides[si]
         txt_frms = get_text_frames_in_slide(slide, 'SUMMARY LABEL')
         try:
@@ -372,6 +372,32 @@ def prep_fig_of_psd(prs, summary_dir):
                 left), Cm(top), Cm(14.84), Cm(4.5))
 
 
+def prep_fig_of_spindle(prs, summary_dir):
+    """Prepare plots of spindle (page 7)
+
+    Args:
+        prs (Presentation): The slide object
+        summary_dir (str): The path to the summary directory
+    """
+    slide = prs.slides[6]
+
+    if os.path.exists(os.path.join(summary_dir, 'spindle')) is False:
+        print_log('No spindle data found')
+        return 
+
+    path_spindle_density_in_NREM              = os.path.join(summary_dir, 'spindle', f'spindle_density_in_NREM.jpg')
+    path_spindle_distributions_NREMbeforeREM  = os.path.join(summary_dir, 'spindle', 'spindle_distributions_NREMbeforeREM.jpg')
+    path_spindle_distributions_NREMafterWAKE  = os.path.join(summary_dir, 'spindle', 'spindle_distributions_NREMafterWAKE.jpg')
+    path_spindle_distributions_NREMbeforeWAKE = os.path.join(summary_dir, 'spindle', 'spindle_distributions_NREMbeforeWAKE.jpg')
+    path_spindle_distributions_NREMafterREM   = os.path.join(summary_dir, 'spindle', 'spindle_distributions_NREMafterREM.jpg')
+
+    slide.shapes.add_picture(path_spindle_density_in_NREM, Cm(0.21), Cm(3.46), Cm(10.36), Cm(4.83))
+    slide.shapes.add_picture(path_spindle_distributions_NREMbeforeREM, Cm(11.86), Cm(3.47), Cm(10.0), Cm(5))
+    slide.shapes.add_picture(path_spindle_distributions_NREMafterWAKE, Cm(22.65), Cm(3.46), Cm(10.0), Cm(5))
+    slide.shapes.add_picture(path_spindle_distributions_NREMbeforeWAKE, Cm(11.86), Cm(9.8), Cm(10.0), Cm(5))
+    slide.shapes.add_picture(path_spindle_distributions_NREMafterREM, Cm(22.65), Cm(9.8), Cm(10.0), Cm(5))
+
+
 def make_slide(args):
     """The main function to make the slides
 
@@ -410,6 +436,9 @@ def make_slide(args):
 
     # Prepare plots of delta-power dynamics (page 6)
     prep_fig_of_dpd(prs, summary_dir)
+
+    # Prepare plots of delta-power dynamics (page 7)
+    prep_fig_of_spindle(prs, summary_dir)
 
     path2summary_slide = os.path.join(summary_dir, 'summary.pptx')
     prs.save(path2summary_slide)

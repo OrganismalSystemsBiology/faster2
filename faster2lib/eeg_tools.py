@@ -441,11 +441,11 @@ def interpret_exp_info(exp_info_df, epoch_len_sec):
 class DataSet:
     """ Class to manage the dataset used for the previous analysis (stage.py or summary.py)
     """
-    def __init__(self, mouse_info_df: dict, sample_freq, epoch_len_sec, 
+    def __init__(self, mouse_info_collected_df, sample_freq, epoch_len_sec, 
                  epoch_num, epoch_range_target, stage_ext, new_root_dir=None):
         """ Initialize the dataset
         Args:
-            mouse_info_df (DataFrame): a DataFrame that contains the information of the mice
+            mouse_info_collected_df (DataFrame): a DataFrame that contains the collected information of the mice
             sample_freq (int): sampling frequency
             epoch_len_sec (int): the length of an epoch in seconds
             epoch_num (int): the number of all epochs processed in the previous analysis
@@ -454,7 +454,7 @@ class DataSet:
             new_root_dir (str): a new root directory of the data
         
         """
-        self.mouse_info_df = mouse_info_df
+        self.mouse_info_collected_df = mouse_info_collected_df
         self.sample_freq = sample_freq
         self.epoch_len_sec = epoch_len_sec
         self.epoch_num = epoch_num
@@ -463,18 +463,18 @@ class DataSet:
 
         # change the root directory of the data if needed
         if new_root_dir:
-            for i, r in self.mouse_info_df.iterrows():
+            for i, r in self.mouse_info_collected_df.iterrows():
                 faster_dir = Path(r['FASTER_DIR'])
                 new_faster_dir = Path(new_root_dir, *faster_dir.parts[1:])
-                self.mouse_info_df.loc[i, 'FASTER_DIR'] = new_faster_dir
+                self.mouse_info_collected_df.loc[i, 'FASTER_DIR'] = new_faster_dir
                 
     def load_eeg(self, idx: int):
         """ Load the data of the mouse specified by the index
 
-        Args:idx    index of the mouse_info_df
+        Args:idx    index of the mouse_info_collected_df
         
         """
-        r = self.mouse_info_df.iloc[idx]
+        r = self.mouse_info_collected_df.iloc[idx]
         device_label = r['Device label'].strip()
         faster_dir = Path(r['FASTER_DIR'])
         data_dir = faster_dir / 'data'
@@ -488,10 +488,10 @@ class DataSet:
     def load_stage(self, idx: int, type='auto'):
         """ Load the data of the mouse specified by the index
 
-        Args:idx    index of the mouse_info_df
+        Args:idx    index of the mouse_info_collected_df
         
         """
-        r = self.mouse_info_df.iloc[idx]
+        r = self.mouse_info_collected_df.iloc[idx]
         device_label = r['Device label'].strip()
         faster_dir = Path(r['FASTER_DIR'])
         result_dir = faster_dir / 'result'
