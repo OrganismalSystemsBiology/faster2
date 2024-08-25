@@ -149,7 +149,7 @@ def make_target_psd_info(mouse_info_df, epoch_range, epoch_len_sec, sample_freq,
 
         # Read the voltage (EMG is also necessary for marking unknown epochs)
         # pylint: disable=unused-variable
-        (eeg_vm_org, emg_vm_org, not_yet_pickled) = stage.read_voltage_matrices(
+        (eeg_vm_org, emg_vm_org, not_yet_pickled) = et.read_voltage_matrices(
             os.path.join(faster_dir, 'data'), device_label, sample_freq, epoch_len_sec,
             epoch_num, start_datetime)
 
