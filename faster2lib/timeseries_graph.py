@@ -3,7 +3,7 @@ from matplotlib.figure import Figure
 import numpy as np
 import stage
 import pandas as pd
-import eeg_tools as et
+import faster2lib.eeg_tools as et
 
 from datetime import timedelta
 import os
