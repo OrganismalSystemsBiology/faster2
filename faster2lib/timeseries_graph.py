@@ -278,7 +278,7 @@ def plot_timeseries_a_mouse(voltage_data_dir, stage_dir, result_dir, device_id, 
     if len(stage_df) != epoch_num:
         raise(ValueError('Stage length is not consistent with the epoch number.'))
 
-    (eeg_vm_org, emg_vm_org, _) = stage.read_voltage_matrices(voltage_data_dir, device_id, sample_freq, epoch_len_sec, epoch_num, start_datetime)
+    (eeg_vm_org, emg_vm_org, _) = et.read_voltage_matrices(voltage_data_dir, device_id, sample_freq, epoch_len_sec, epoch_num, start_datetime)
     eeg_vm_norm = stage.voltage_normalize(eeg_vm_org)
     emg_vm_norm = stage.voltage_normalize(emg_vm_org)
 
