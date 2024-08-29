@@ -31,7 +31,7 @@ def psd_freq_bins(sample_freq):
 
 
 def make_psd_profile(psd_info_list, sample_freq, psd_type='norm', mask=None):
-    """makes summary PSD statics of each mouse:
+    """makes summary PSD statistics of each mouse:
             psd_mean_df: summary (default: mean) of PSD profiles for each stage for each mice.
 
     Arguments:
@@ -99,7 +99,7 @@ def make_psd_profile(psd_info_list, sample_freq, psd_type='norm', mask=None):
 
 def make_target_psd_info(mouse_info_df, epoch_range, epoch_len_sec, sample_freq,
                          stage_ext):
-    """makes PSD information sets for subsequent static analysis for each mouse:
+    """makes PSD information sets for subsequent statistical analysis for each mouse:
     Arguments:
         mouse_info_df {pd.DataFram} -- a dataframe given by mouse_info_collected()
         sample_freq {int} -- sampling frequency

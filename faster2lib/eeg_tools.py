@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import locale
 import chardet
+import pickle
+import faster2lib.dsi_tools as dt
 
 def print_log(msg):
     if 'log' in globals():

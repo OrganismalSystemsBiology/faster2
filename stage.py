@@ -10,7 +10,6 @@ import argparse
 import pandas as pd
 import numpy as np
 import faster2lib.eeg_tools as et
-import faster2lib.dsi_tools as dt
 import re
 from datetime import datetime, timedelta
 from scipy import signal
