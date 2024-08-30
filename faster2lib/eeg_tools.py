@@ -456,7 +456,7 @@ class DataSet:
             new_root_dir (str): a new root directory of the data
         
         """
-        self.mouse_info_collected_df = mouse_info_collected_df
+        self.mouse_info_collected_df = mouse_info_collected_df.copy()
         self.sample_freq = sample_freq
         self.epoch_len_sec = epoch_len_sec
         self.epoch_num = epoch_num
@@ -469,8 +469,12 @@ class DataSet:
                 faster_dir = Path(r['FASTER_DIR'])
                 new_faster_dir = Path(new_root_dir, *faster_dir.parts[1:])
                 self.mouse_info_collected_df.loc[i, 'FASTER_DIR'] = new_faster_dir
-                
-    def load_eeg(self, idx: int):
+
+        # set the default stage_ext
+        if not self.stage_ext:
+            self.stage_ext = 'faster2'
+
+    def load_eeg_vm(self, idx: int):
         """ Load the data of the mouse specified by the index
 
         Args:idx    index of the mouse_info_collected_df
@@ -485,9 +489,12 @@ class DataSet:
         eeg_vm, _, _ = read_voltage_matrices(data_dir, device_label, self.sample_freq, 
                                  self.epoch_len_sec, self.epoch_num, start_date_time)
         
-        return eeg_vm.reshape(-1)
+        if self.epoch_range_target:
+            eeg_vm = eeg_vm[self.epoch_range_target,:]
+
+        return eeg_vm
     
-    def load_stage(self, idx: int, type='auto'):
+    def load_stage(self, idx: int):
         """ Load the data of the mouse specified by the index
 
         Args:idx    index of the mouse_info_collected_df
@@ -498,5 +505,9 @@ class DataSet:
         faster_dir = Path(r['FASTER_DIR'])
         result_dir = faster_dir / 'result'
         
-        stages = read_stages(result_dir, device_label, type)    
+        stages = read_stages(result_dir, device_label, self.stage_ext)    
+
+        if self.epoch_range_target:
+            stages = stages[self.epoch_range_target]
+
         return stages
