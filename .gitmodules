@@ -1,5 +1,5 @@
 [submodule "modules/spindle"]
 	path = modules/spindle
 	url = git@github.com:OrganismalSystemsBiology/faster2-spindle.git
-	ignore = all
+	ignore = dirty
 
