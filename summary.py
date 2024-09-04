@@ -1322,33 +1322,6 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
         sc.savefig(output_dir, filename, fig)
 
 
-def x_shifts(values, y_min, y_max, width):
-    #    print_log(y_min, y_max)
-    counts, _ = np.histogram(values, range=(
-        np.min([y_min, np.min(values)]), np.max([y_max, np.max(values)])), bins=25)
-    sorted_values = sorted(values)
-    shifts = []
-#    print_log(counts)
-    non_zero_counts = counts[counts > 0]
-    for c in non_zero_counts:
-        if c == 1:
-            shifts.append(0)
-        else:
-            p = np.arange(1, c+1)  # point counts
-            s = np.repeat(p, 2)[:p.size] * (-1)**p * width / \
-                10  # [-1, 1, -2, 2, ...] * width/10
-            shifts.extend(s)
-
-#     print_log(shifts)
-#     print_log(sorted_values)
-    return [np.array(shifts), sorted_values]
-
-
-def scatter_datapoints(ax, w, x_pos, values):
-    s, v = x_shifts(values, *ax.get_ylim(), w)
-    ax.scatter(x_pos + s, v, color='dimgrey')
-
-
 def draw_stagetime_barchart(stagetime_stats, output_dir):
     stagetime_df = stagetime_stats['stagetime']
 
@@ -1385,14 +1358,14 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
         sem_c = np.std(values_c)/np.sqrt(len(values_c))
         ax1.bar(x_pos[0], mean_c, yerr=sem_c, align='center',
                 width=w, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos[0], values_c)
+        sc.scatter_datapoints(ax1, w, x_pos[0], values_c)
         for g_idx in range(1, num_groups):
             values_t = stagetime_df['REM'].values[bidx_group_list[g_idx]]
             mean_t = np.mean(values_t)
             sem_t = np.std(values_t)/np.sqrt(len(values_t))
             ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                     width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-            scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
+            sc.scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
 
         # NREM
         values_c = stagetime_df['NREM'].values[bidx_group_list[0]]
@@ -1400,7 +1373,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
         sem_c = np.std(values_c)/np.sqrt(len(values_c))
         ax2.bar(x_pos[0], mean_c, yerr=sem_c, align='center',
                 width=w, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax2, w, x_pos[0], values_c)
+        sc.scatter_datapoints(ax2, w, x_pos[0], values_c)
 
         for g_idx in range(1, num_groups):
             values_t = stagetime_df['NREM'].values[bidx_group_list[g_idx]]
@@ -1408,7 +1381,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
             sem_t = np.std(values_t)/np.sqrt(len(values_t))
             ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                     width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-            scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
+            sc.scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
 
         # Wake
         values_c = stagetime_df['Wake'].values[bidx_group_list[0]]
@@ -1416,7 +1389,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
         sem_c = np.std(values_c)/np.sqrt(len(values_c))
         ax3.bar(x_pos[0], mean_c, yerr=sem_c, align='center',
                 width=w, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax3, w, x_pos[0], values_c)
+        sc.scatter_datapoints(ax3, w, x_pos[0], values_c)
 
         for g_idx in range(1, num_groups):
             values_t = stagetime_df['Wake'].values[bidx_group_list[g_idx]]
@@ -1424,7 +1397,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
             sem_t = np.std(values_t)/np.sqrt(len(values_t))
             ax3.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                     width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-            scatter_datapoints(ax3, w, x_pos[g_idx], values_t)
+            sc.scatter_datapoints(ax3, w, x_pos[g_idx], values_t)
     else:
         # single group
         g_idx = 0
@@ -1434,7 +1407,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
         sem_t = np.std(values_t)/np.sqrt(len(values_t))
         ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                 width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
+        sc.scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
 
         # NREM
         values_t = stagetime_df['NREM'].values[bidx_group_list[0]]
@@ -1442,7 +1415,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
         sem_t = np.std(values_t)/np.sqrt(len(values_t))
         ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                 width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-        scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
+        sc.scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
 
         # Wake
         values_t = stagetime_df['Wake'].values[bidx_group_list[0]]
@@ -1450,7 +1423,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
         sem_t = np.std(values_t)/np.sqrt(len(values_t))
         ax3.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                 width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-        scatter_datapoints(ax3, w, x_pos[g_idx], values_t)
+        sc.scatter_datapoints(ax3, w, x_pos[g_idx], values_t)
 
     fig.suptitle('Stage-times')
     filename = 'stage-time_barchart'
@@ -1506,19 +1479,19 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(rr_vals_c),
                 yerr=np.std(rr_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos, rr_vals_c)
+        sc.scatter_datapoints(ax1, w, x_pos, rr_vals_c)
         x_pos = 2 - w + w*w_sf/2
         ax1.bar(x_pos,
                 height=np.mean(nn_vals_c),
                 yerr=np.std(nn_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos, nn_vals_c)
+        sc.scatter_datapoints(ax1, w, x_pos, nn_vals_c)
         x_pos = 4 - w + w*w_sf/2 
         ax1.bar(x_pos,
                 height=np.mean(ww_vals_c),
                 yerr=np.std(ww_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos, ww_vals_c)
+        sc.scatter_datapoints(ax1, w, x_pos, ww_vals_c)
 
         # tests.
         for g_idx in range(1, num_groups):
@@ -1536,19 +1509,19 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                     height=np.mean(rr_vals_t),
                     yerr=np.std(rr_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-            scatter_datapoints(ax1, w, x_pos, rr_vals_t)
+            sc.scatter_datapoints(ax1, w, x_pos, rr_vals_t)
             x_pos = 2 + w*w_sf/2 - w + g_idx*w*w_sf
             ax1.bar(x_pos,
                     height=np.mean(nn_vals_t),
                     yerr=np.std(nn_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-            scatter_datapoints(ax1, w, x_pos, nn_vals_t)
+            sc.scatter_datapoints(ax1, w, x_pos, nn_vals_t)
             x_pos = 4 + w*w_sf/2 - w + g_idx*w*w_sf
             ax1.bar(x_pos,
                     height=np.mean(ww_vals_t),
                     yerr=np.std(ww_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-            scatter_datapoints(ax1, w, x_pos, ww_vals_t)
+            sc.scatter_datapoints(ax1, w, x_pos, ww_vals_t)
 
         # Trnsitions from REM
         # control
@@ -1557,13 +1530,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(rn_vals_c),
                 yerr=np.std(rn_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax2, w, x_pos, rn_vals_c)
+        sc.scatter_datapoints(ax2, w, x_pos, rn_vals_c)
         x_pos = 2 - w + w*w_sf/2
         ax2.bar(x_pos,
                 height=np.mean(rw_vals_c),
                 yerr=np.std(rw_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax2, w, x_pos, rw_vals_c)
+        sc.scatter_datapoints(ax2, w, x_pos, rw_vals_c)
 
         # tests.
         for g_idx in range(1, num_groups):
@@ -1580,13 +1553,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                     height=np.mean(rn_vals_t),
                     yerr=np.std(rn_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-            scatter_datapoints(ax2, w, x_pos, rn_vals_t)
+            sc.scatter_datapoints(ax2, w, x_pos, rn_vals_t)
             x_pos = 2 + w*w_sf/2 - w + g_idx*w*w_sf
             ax2.bar(x_pos,
                     height=np.mean(rw_vals_t),
                     yerr=np.std(rw_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-            scatter_datapoints(ax2, w, x_pos, rw_vals_t)
+            sc.scatter_datapoints(ax2, w, x_pos, rw_vals_t)
 
         # Trnsitions from NREM
         # control
@@ -1595,13 +1568,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(nr_vals_c),
                 yerr=np.std(nr_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax3, w, x_pos, nr_vals_c)
+        sc.scatter_datapoints(ax3, w, x_pos, nr_vals_c)
         x_pos = 2 - w + w*w_sf/2
         ax3.bar(x_pos,
                 height=np.mean(nw_vals_c),
                 yerr=np.std(nw_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax3, w, x_pos, nw_vals_c)
+        sc.scatter_datapoints(ax3, w, x_pos, nw_vals_c)
 
         # tests.
         for g_idx in range(1, num_groups):
@@ -1613,13 +1586,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                     height=np.mean(nr_vals_t),
                     yerr=np.std(nr_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-            scatter_datapoints(ax3, w, x_pos, nr_vals_t)
+            sc.scatter_datapoints(ax3, w, x_pos, nr_vals_t)
             x_pos = 2 + w*w_sf/2 - w + g_idx*w*w_sf
             ax3.bar(x_pos,
                     height=np.mean(nw_vals_t),
                     yerr=np.std(nw_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-            scatter_datapoints(ax3, w, x_pos, nw_vals_t)
+            sc.scatter_datapoints(ax3, w, x_pos, nw_vals_t)
 
         # Trnsitions from Wake
         # control
@@ -1628,13 +1601,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(wr_vals_c),
                 yerr=np.std(wr_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax4, w, x_pos, wr_vals_c)
+        sc.scatter_datapoints(ax4, w, x_pos, wr_vals_c)
         x_pos = 2 - w + w*w_sf/2
         ax4.bar(x_pos,
                 height=np.mean(wn_vals_c),
                 yerr=np.std(wn_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax4, w, x_pos, wn_vals_c)
+        sc.scatter_datapoints(ax4, w, x_pos, wn_vals_c)
 
         # tests.
         for g_idx in range(1, num_groups):
@@ -1646,13 +1619,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                     height=np.mean(wr_vals_t),
                     yerr=np.std(wr_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-            scatter_datapoints(ax4, w, x_pos, wr_vals_t)
+            sc.scatter_datapoints(ax4, w, x_pos, wr_vals_t)
             x_pos = 2 + w*w_sf/2 - w + g_idx*w*w_sf
             ax4.bar(x_pos,
                     height=np.mean(wn_vals_t),
                     yerr=np.std(wn_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-            scatter_datapoints(ax4, w, x_pos, wn_vals_t)
+            sc.scatter_datapoints(ax4, w, x_pos, wn_vals_t)
     else:
         # staying
         # single group
@@ -1661,19 +1634,19 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(rr_vals_c),
                 yerr=np.std(rr_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos, rr_vals_c)
+        sc.scatter_datapoints(ax1, w, x_pos, rr_vals_c)
         x_pos = 2 - w/2
         ax1.bar(x_pos,
                 height=np.mean(nn_vals_c),
                 yerr=np.std(nn_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos, nn_vals_c)
+        sc.scatter_datapoints(ax1, w, x_pos, nn_vals_c)
         x_pos = 4 - w/2
         ax1.bar(x_pos,
                 height=np.mean(ww_vals_c),
                 yerr=np.std(ww_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos, ww_vals_c)
+        sc.scatter_datapoints(ax1, w, x_pos, ww_vals_c)
         # Trnsitions from REM
         # single group
         x_pos = 0 - w/2
@@ -1681,13 +1654,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(rn_vals_c),
                 yerr=np.std(rn_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-        scatter_datapoints(ax2, w, x_pos, rn_vals_c)
+        sc.scatter_datapoints(ax2, w, x_pos, rn_vals_c)
         x_pos = 2 - w/2
         ax2.bar(x_pos,
                 height=np.mean(rw_vals_c),
                 yerr=np.std(rw_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-        scatter_datapoints(ax2, w, x_pos, rw_vals_c)
+        sc.scatter_datapoints(ax2, w, x_pos, rw_vals_c)
         # Trnsitions from NREM
         # single group
         x_pos = 0 - w/2
@@ -1695,13 +1668,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(nr_vals_c),
                 yerr=np.std(nr_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-        scatter_datapoints(ax3, w, x_pos, nr_vals_c)
+        sc.scatter_datapoints(ax3, w, x_pos, nr_vals_c)
         x_pos = 2 - w/2
         ax3.bar(x_pos,
                 height=np.mean(nw_vals_c),
                 yerr=np.std(nw_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-        scatter_datapoints(ax3, w, x_pos, nw_vals_c)
+        sc.scatter_datapoints(ax3, w, x_pos, nw_vals_c)
         # Trnsitions from Wake
         # single group
         x_pos = 0 - w/2
@@ -1709,13 +1682,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(wr_vals_c),
                 yerr=np.std(wr_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-        scatter_datapoints(ax4, w, x_pos, wr_vals_c)
+        sc.scatter_datapoints(ax4, w, x_pos, wr_vals_c)
         x_pos = 2 - w/2
         ax4.bar(x_pos,
                 height=np.mean(wn_vals_c),
                 yerr=np.std(wn_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-        scatter_datapoints(ax4, w, x_pos, wn_vals_c)
+        sc.scatter_datapoints(ax4, w, x_pos, wn_vals_c)
 
     return(fig)
 
@@ -1791,13 +1764,13 @@ def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
             height=np.mean(sw_vals_c),
             yerr=np.std(sw_vals_c)/num_c,
             align='center', width=w*w_sf*0.9, capsize=6, color='gray', alpha=0.6)
-        scatter_datapoints(ax, w, x_pos, sw_vals_c)
+        sc.scatter_datapoints(ax, w, x_pos, sw_vals_c)
         x_pos = 2 - w + w*w_sf/2 # w*w_sf/2 is just for aligning the bar center
         ax.bar(x_pos,
             height=np.mean(ws_vals_c),
             yerr=np.std(ws_vals_c)/num_c,
             align='center', width=w*w_sf*0.9, capsize=6, color='gray', alpha=0.6)
-        scatter_datapoints(ax, w, x_pos, ws_vals_c)
+        sc.scatter_datapoints(ax, w, x_pos, ws_vals_c)
 
         # test group index: g_idx.
         for g_idx in range(1, num_groups):
@@ -1808,7 +1781,7 @@ def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
                 height=np.mean(sw_vals_t),
                 yerr=np.std(sw_vals_t)/num_t,
                 align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-            scatter_datapoints(ax, w, x_pos, sw_vals_t)
+            sc.scatter_datapoints(ax, w, x_pos, sw_vals_t)
 
             ws_vals_t = swtrans_mat[bidx_group_list[g_idx]][:, 1]
             x_pos = 2 + w*w_sf/2 - w + g_idx*w*w_sf
@@ -1816,7 +1789,7 @@ def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
                 height=np.mean(ws_vals_t),
                 yerr=np.std(ws_vals_t)/num_t,
                 align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-            scatter_datapoints(ax, w, x_pos, ws_vals_t)
+            sc.scatter_datapoints(ax, w, x_pos, ws_vals_t)
     else:
         # single group
         g_idx = 0
@@ -1827,7 +1800,7 @@ def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
             height=np.mean(sw_vals),
             yerr=np.std(sw_vals)/num,
             align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-        scatter_datapoints(ax, w, x_pos, sw_vals)
+        sc.scatter_datapoints(ax, w, x_pos, sw_vals)
 
         ws_vals = swtrans_mat[bidx_group_list[g_idx]][:, 1]
         x_pos = 2 + g_idx*w/2
@@ -1835,7 +1808,7 @@ def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
             height=np.mean(ws_vals),
             yerr=np.std(ws_vals)/num,
             align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-        scatter_datapoints(ax, w, x_pos, ws_vals)
+        sc.scatter_datapoints(ax, w, x_pos, ws_vals)
 
     return(fig)
 
