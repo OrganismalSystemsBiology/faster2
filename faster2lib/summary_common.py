@@ -128,3 +128,28 @@ def savefig(output_dir, basefilename, fig):
                 bbox_inches='tight', dpi=100)    
 
 
+def x_shifts(values, y_min, y_max, width):
+    #    print_log(y_min, y_max)
+    counts, _ = np.histogram(values, range=(
+        np.min([y_min, np.min(values)]), np.max([y_max, np.max(values)])), bins=25)
+    sorted_values = sorted(values)
+    shifts = []
+#    print_log(counts)
+    non_zero_counts = counts[counts > 0]
+    for c in non_zero_counts:
+        if c == 1:
+            shifts.append(0)
+        else:
+            p = np.arange(1, c+1)  # point counts
+            s = np.repeat(p, 2)[:p.size] * (-1)**p * width / \
+                10  # [-1, 1, -2, 2, ...] * width/10
+            shifts.extend(s)
+
+#     print_log(shifts)
+#     print_log(sorted_values)
+    return [np.array(shifts), sorted_values]
+
+
+def scatter_datapoints(ax, w, x_pos, values):
+    s, v = x_shifts(values, *ax.get_ylim(), w)
+    ax.scatter(x_pos + s, v, color='dimgrey')
