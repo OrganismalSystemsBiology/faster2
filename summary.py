@@ -719,7 +719,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
             csv_df = pd.DataFrame({'Time':x, f'{mgs_c}_REM_mean':y, f'{mgs_c}_REM_SEM':y_sem})
             ax1.plot(x, y, color='grey')
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
             ax1.set_ylabel('Hourly REM\n duration (min)')
 
             # NREM
@@ -729,7 +729,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
                 {f'{mgs_c}_NREM_mean': y, f'{mgs_c}_NREM_SEM': y_sem})], axis=1)
             ax2.plot(x, y, color='grey')
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
             ax2.set_ylabel('Hourly NREM\n duration (min)')
 
             # Wake
@@ -739,7 +739,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
                 {f'{mgs_c}_Wake_mean': y, f'{mgs_c}_Wake_SEM': y_sem})], axis=1)
             ax3.plot(x, y, color='grey')
             ax3.fill_between(x, y - y_sem/np.sqrt(num),
-                             y + y_sem/np.sqrt(num), color='grey', alpha=0.3)
+                             y + y_sem/np.sqrt(num), color='grey', linewidth=0, alpha=0.3)
             ax3.set_ylabel('Hourly wake\n duration (min)')
             ax3.set_xlabel('Time (hours)')
 
@@ -752,7 +752,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
                 {f'{mgs_t}_REM_mean': y, f'{mgs_t}_REM_SEM': y_sem})], axis=1)
             ax1.plot(x, y, color=stage.COLOR_REM)
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_REM, linewidth=0, alpha=0.3)
 
             # NREM
             y = stagetime_profile_stats_list[g_idx][0, 1, :]
@@ -761,7 +761,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
                 {f'{mgs_t}_NREM_mean': y, f'{mgs_t}_NREM_SEM': y_sem})], axis=1)
             ax2.plot(x, y, color=stage.COLOR_NREM)
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
             # Wake
             y = stagetime_profile_stats_list[g_idx][0, 2, :]
@@ -770,7 +770,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
                 {f'{mgs_c}_Wake_mean': y, f'{mgs_c}_Wake_SEM': y_sem})], axis=1)
             ax3.plot(x, y, color=stage.COLOR_WAKE)
             ax3.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
 
             fig.suptitle(
                 f'{mgs_c} (n={num_c}) v.s. {mgs_t} (n={num})')
@@ -801,7 +801,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
         csv_df = pd.DataFrame({'Time':x, f'{mgs_t}_REM_mean':y, f'{mgs_t}_REM_SEM':y_sem})
         ax1.plot(x, y, color=stage.COLOR_REM)
         ax1.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_REM, linewidth=0, alpha=0.3)
         ax1.set_ylabel('Hourly REM\n duration (min)')
 
         # NREM
@@ -811,7 +811,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
             {f'{mgs_t}_NREM_mean': y, f'{mgs_t}_NREM_SEM': y_sem})], axis=1)
         ax2.plot(x, y, color=stage.COLOR_NREM)
         ax2.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
         ax2.set_ylabel('Hourly NREM\n duration (min)')
 
         # Wake
@@ -821,7 +821,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
             {f'{mgs_t}_Wake_mean': y, f'{mgs_t}_Wake_SEM': y_sem})], axis=1)
         ax3.plot(x, y, color=stage.COLOR_WAKE)
         ax3.fill_between(x, y - y_sem/np.sqrt(num),
-                         y + y_sem/np.sqrt(num), color=stage.COLOR_WAKE, alpha=0.3)
+                         y + y_sem/np.sqrt(num), color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
         ax3.set_ylabel('Hourly wake\n duration (min)')
         ax3.set_xlabel('Time (hours)')
 
@@ -902,7 +902,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
             y_sem = swtrans_profile_stats_list[0][1, 0, :]/np.sqrt(num_c)
             ax1.plot(x, y, color='grey')
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
             ax1.set_ylabel('Hourly Psw')
 
             # Pws
@@ -910,7 +910,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
             y_sem = swtrans_profile_stats_list[0][1, 1, :]/np.sqrt(num_c)
             ax2.plot(x, y, color='grey')
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
             ax2.set_ylabel('Hourly `Pws')
 
             # Treatments
@@ -920,14 +920,14 @@ def draw_swtrans_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
             y_sem = swtrans_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
             ax1.plot(x, y, color=stage.COLOR_NREM)
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
             # Pws
             y = swtrans_profile_stats_list[g_idx][0, 1, :]
             y_sem = swtrans_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
             ax2.plot(x, y, color=stage.COLOR_WAKE)
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
 
             fig.suptitle(
                 f'Sleep-wake transition (Psw Pws) profile:\n{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
@@ -953,14 +953,14 @@ def draw_swtrans_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
         y_sem = swtrans_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
         ax1.plot(x, y, color=stage.COLOR_NREM)
         ax1.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
         # Pws
         y = swtrans_profile_stats_list[g_idx][0, 1, :]
         y_sem = swtrans_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
         ax2.plot(x, y, color=stage.COLOR_WAKE)
         ax2.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
         ax2.set_xlabel('Time (hours)')
 
         fig.suptitle(f'Sleep-wake transition (Psw Pws) profile:\n{mouse_groups_set[g_idx]} (n={num})')
@@ -998,21 +998,21 @@ def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, epoch_len_sec, 
         y_sem = circadian[1, 0, :]/np.sqrt(num)
         ax1.plot(x, y, color=stage.COLOR_REM)
         ax1.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_REM, linewidth=0, alpha=0.3)
 
         # NREM
         y = circadian[0, 1, :]
         y_sem = circadian[1, 1, :]/np.sqrt(num)
         ax2.plot(x, y, color=stage.COLOR_NREM)
         ax2.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
         # Wake
         y = circadian[0, 2, :]
         y_sem = circadian[1, 2, :]/np.sqrt(num)
         ax3.plot(x, y, color=stage.COLOR_WAKE)
         ax3.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
 
         fig.suptitle(
             f'Circadian stage-time profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
@@ -1071,7 +1071,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
                 num_c)
             ax1.plot(x, y, color='grey')
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
 
             # NREM
             y = stagetime_circadian_profile_stats_list[0][0, 1, :]
@@ -1079,7 +1079,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
                 num_c)
             ax2.plot(x, y, color='grey')
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
 
             # Wake
             y = stagetime_circadian_profile_stats_list[0][0, 2, :]
@@ -1087,7 +1087,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
                 num_c)
             ax3.plot(x, y, color='grey')
             ax3.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
 
             # Treatment
             num = np.sum(bidx_group_list[g_idx])
@@ -1097,7 +1097,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
                 num)
             ax1.plot(x, y, color=stage.COLOR_REM)
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_REM, linewidth=0, alpha=0.3)
 
             # NREM
             y = stagetime_circadian_profile_stats_list[g_idx][0, 1, :]
@@ -1105,7 +1105,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
                 num)
             ax2.plot(x, y, color=stage.COLOR_NREM)
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
             # Wake
             y = stagetime_circadian_profile_stats_list[g_idx][0, 2, :]
@@ -1113,7 +1113,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
                 num)
             ax3.plot(x, y, color=stage.COLOR_WAKE)
             ax3.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
 
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
@@ -1140,7 +1140,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
         y_sem = stagetime_circadian_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
         ax1.plot(x, y, color=stage.COLOR_REM)
         ax1.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_REM, linewidth=0, alpha=0.3)
         ax1.set_ylabel('Hourly REM\n duration (min)')
 
         # NREM
@@ -1148,7 +1148,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
         y_sem = stagetime_circadian_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
         ax2.plot(x, y, color=stage.COLOR_NREM)
         ax2.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
         ax2.set_ylabel('Hourly NREM\n duration (min)')
 
         # Wake
@@ -1156,7 +1156,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
         y_sem = stagetime_circadian_profile_stats_list[g_idx][1, 2, :]/np.sqrt(num)
         ax3.plot(x, y, color=stage.COLOR_WAKE)
         ax3.fill_between(x, y - y_sem/np.sqrt(num),
-                            y + y_sem/np.sqrt(num), color=stage.COLOR_WAKE, alpha=0.3)
+                            y + y_sem/np.sqrt(num), color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
         ax3.set_ylabel('Hourly wake\n duration (min)')
         ax3.set_xlabel('Time (hours)')
 
@@ -1191,14 +1191,14 @@ def draw_swtrans_circadian_profile_individual(stagetime_stats, epoch_len_sec, ou
         y_sem = circadian[1, 0, :]/np.sqrt(num)
         ax1.plot(x, y, color=stage.COLOR_NREM)
         ax1.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
         # Pws
         y = circadian[0, 1, :]
         y_sem = circadian[1, 1, :]/np.sqrt(num)
         ax2.plot(x, y, color=stage.COLOR_WAKE)
         ax2.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
         fig.suptitle(
             f'Circadian sleep-wake-transition profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
         filename = f'sleep-wake-transition_circadian_profile_I_{"_".join(stagetime_df.iloc[i,0:4].values)}'
@@ -1255,7 +1255,7 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
                 num_c)
             ax1.plot(x, y, color='grey')
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
 
             # Pws
             y = swtrans_circadian_profile_stats_list[0][0, 1, :]
@@ -1263,7 +1263,7 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
                 num_c)
             ax2.plot(x, y, color='grey')
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
 
             # Treatment
             num = np.sum(bidx_group_list[g_idx])
@@ -1273,7 +1273,7 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
                 num)
             ax1.plot(x, y, color=stage.COLOR_NREM)
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
             # Pws
             y = swtrans_circadian_profile_stats_list[g_idx][0, 1, :]
@@ -1281,7 +1281,7 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
                 num)
             ax2.plot(x, y, color=stage.COLOR_WAKE)
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
 
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
@@ -1305,7 +1305,7 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
         y_sem = swtrans_circadian_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
         ax1.plot(x, y, color=stage.COLOR_NREM)
         ax1.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
         ax1.set_ylabel('Hourly Psw')
 
         # Pws
@@ -1313,7 +1313,7 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
         y_sem = swtrans_circadian_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
         ax2.plot(x, y, color=stage.COLOR_NREM)
         ax2.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
         ax2.set_ylabel('Hourly Pws')
 
 

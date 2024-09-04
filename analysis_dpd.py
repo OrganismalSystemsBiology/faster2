@@ -603,7 +603,7 @@ def draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_le
 
         ax.plot(x, sim_mean, color='r')
         ax.fill_between(x, sim_mean - sim_sem, sim_mean +
-                        sim_sem, color='r', alpha=0.3)
+                        sim_sem, color='r', linewidth=0, alpha=0.3)
         ax.scatter(x, obs_mean, color=stage.COLOR_NREM)
         ax.vlines(x, obs_mean - obs_sem, obs_mean + obs_sem,
                   color=stage.COLOR_NREM, alpha=0.3)
@@ -685,10 +685,10 @@ def draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec, output_dir, y
 
             ax.plot(x, sim_mean_ctrl, color='grey')
             ax.fill_between(x, sim_mean_ctrl - sim_sem_ctrl,
-                            sim_mean_ctrl + sim_sem_ctrl, color='grey', alpha=0.3)
+                            sim_mean_ctrl + sim_sem_ctrl, color='grey', linewidth=0, alpha=0.3)
             ax.plot(x, sim_mean_test, color=COLOR_SERIES[1])
             ax.fill_between(x, sim_mean_test - sim_sem_test, sim_mean_test +
-                            sim_sem_test, color=COLOR_SERIES[1], alpha=0.3)
+                            sim_sem_test, color=COLOR_SERIES[1], linewidth=0, alpha=0.3)
 
             if epoch_range_basal is None:
                 fig.suptitle(
@@ -922,11 +922,11 @@ def draw_sim_dpd_group_circ_comp(sim_ts_list, delta_power_dynamics_df, epoch_len
             ax.plot(x_pos, sim_mean_ctrl_circ_mean, color="grey")
             ax.fill_between(x_pos, sim_mean_ctrl_circ_mean - sim_mean_ctrl_circ_sem,
                         sim_mean_ctrl_circ_mean + sim_mean_ctrl_circ_sem,
-                        color="grey", alpha=0.3)
+                        color="grey", linewidth=0, alpha=0.3)
             ax.plot(x_pos, sim_mean_test_circ_mean, color=COLOR_SERIES[1])
             ax.fill_between(x_pos, sim_mean_test_circ_mean - sim_mean_test_circ_sem,
                         sim_mean_test_circ_mean + sim_mean_test_circ_sem,
-                        color=COLOR_SERIES[1], alpha=0.3)
+                        color=COLOR_SERIES[1], linewidth=0, alpha=0.3)
 
             ax.scatter(np.tile(x_pos, d_num),
                        sim_mean_ctrl, color="grey", alpha=0.6)
@@ -1082,26 +1082,26 @@ def draw_barchart_of_taus_group_comp(delta_power_dynamics_df, output_dir):
             # Tau_i
             ax1.bar(0, mean_ti_c, yerr=sem_ti_c, align='center',
                     width=w, capsize=6, color=COLOR_SERIES[0], alpha=0.6)
-            summary.scatter_datapoints(ax1, w, 0, values_ti_c)
+            sc.scatter_datapoints(ax1, w, 0, values_ti_c)
 
             values_t = delta_power_dynamics_df['Tau_i'].values[bidx_group]
             mean_t = np.mean(values_t)
             sem_t = np.std(values_t)/np.sqrt(len(values_t))
             ax1.bar(1, mean_t, yerr=sem_t, align='center',
                     width=w, capsize=6, color=COLOR_SERIES[1], alpha=0.6)
-            summary.scatter_datapoints(ax1, w, 1, values_t)
+            sc.scatter_datapoints(ax1, w, 1, values_t)
 
             # Tau_d
             ax2.bar(0, mean_td_c, yerr=sem_td_c, align='center',
                     width=w, capsize=6, color=COLOR_SERIES[0], alpha=0.6)
-            summary.scatter_datapoints(ax2, w, 0, values_td_c)
+            sc.scatter_datapoints(ax2, w, 0, values_td_c)
 
             values_t = delta_power_dynamics_df['Tau_d'].values[bidx_group]
             mean_t = np.mean(values_t)
             sem_t = np.std(values_t)/np.sqrt(len(values_t))
             ax2.bar(1, mean_t, yerr=sem_t, align='center',
                     width=w, capsize=6, color=COLOR_SERIES[1], alpha=0.6)
-            summary.scatter_datapoints(ax2, w, 1, values_t)
+            sc.scatter_datapoints(ax2, w, 1, values_t)
             fig.suptitle(
                 f'Paired group comparison of Taus \n{mouse_groups_set[0]} (n={len(values_ti_c)}) v.s. {mouse_group} (n={len(values_t)})')
 
@@ -1145,14 +1145,14 @@ def draw_barchart_of_taus_all_group(delta_power_dynamics_df, output_dir):
         sem_c = np.std(values_c)/np.sqrt(len(values_c))
         ax1.bar(x_pos[0], mean_c, yerr=sem_c, align='center',
                 width=w, capsize=6, color=COLOR_SERIES[0], alpha=0.6)
-        summary.scatter_datapoints(ax1, w, x_pos[0], values_c)
+        sc.scatter_datapoints(ax1, w, x_pos[0], values_c)
         for g_idx in range(1, num_groups):
             values_t = delta_power_dynamics_df['Tau_i'].values[bidx_group_list[g_idx]]
             mean_t = np.mean(values_t)
             sem_t = np.std(values_t)/np.sqrt(len(values_t))
             ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                     width=w, capsize=6, color=COLOR_SERIES[g_idx], alpha=0.6)
-            summary.scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
+            sc.scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
 
         # Tau_d
         values_c = delta_power_dynamics_df['Tau_d'].values[bidx_group_list[0]]
@@ -1160,7 +1160,7 @@ def draw_barchart_of_taus_all_group(delta_power_dynamics_df, output_dir):
         sem_c = np.std(values_c)/np.sqrt(len(values_c))
         ax2.bar(x_pos[0], mean_c, yerr=sem_c, align='center',
                 width=w, capsize=6, color=COLOR_SERIES[0], alpha=0.6)
-        summary.scatter_datapoints(ax2, w, x_pos[0], values_c)
+        sc.scatter_datapoints(ax2, w, x_pos[0], values_c)
 
         for g_idx in range(1, num_groups):
             values_t = delta_power_dynamics_df['Tau_d'].values[bidx_group_list[g_idx]]
@@ -1168,7 +1168,7 @@ def draw_barchart_of_taus_all_group(delta_power_dynamics_df, output_dir):
             sem_t = np.std(values_t)/np.sqrt(len(values_t))
             ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                     width=w, capsize=6, color=COLOR_SERIES[g_idx], alpha=0.6)
-            summary.scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
+            sc.scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
 
     else:
         # single group
@@ -1179,7 +1179,7 @@ def draw_barchart_of_taus_all_group(delta_power_dynamics_df, output_dir):
         sem_t = np.std(values_t)/np.sqrt(len(values_t))
         ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                 width=w, capsize=6, color=COLOR_SERIES[1], alpha=0.6)
-        summary.scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
+        sc.scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
 
         # Tau_d
         values_t = delta_power_dynamics_df['Tau_d'].values[bidx_group_list[0]]
@@ -1187,7 +1187,7 @@ def draw_barchart_of_taus_all_group(delta_power_dynamics_df, output_dir):
         sem_t = np.std(values_t)/np.sqrt(len(values_t))
         ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                 width=w, capsize=6, color=COLOR_SERIES[1], alpha=0.6)
-        summary.scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
+        sc.scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
 
     fig.suptitle(r'All group comparison of Taus')
 
@@ -1246,7 +1246,7 @@ def draw_boxplot_of_asymptotes(delta_power_dynamics_df, output_dir):
         box.set(color='black', linewidth=1)
 
     for x_pos, vals in enumerate(asymp_values_list):
-        summary.scatter_datapoints(ax, w, x_pos + 1, vals)
+        sc.scatter_datapoints(ax, w, x_pos + 1, vals)
 
     ax.set_ylabel(r'Delta power [%]', fontsize=14)
     ax.set_xticklabels(xtick_str_list)
