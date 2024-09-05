@@ -450,8 +450,8 @@ class DataSet:
             mouse_info_collected_df (DataFrame): a DataFrame that contains the collected information of the mice
             sample_freq (int): sampling frequency
             epoch_len_sec (int): the length of an epoch in seconds
-            epoch_num (int): the number of all epochs processed in the previous analysis
-            epoch_range_target (str): an epoch range targeted for the analysis with this dataset
+            epoch_num (int): the number of all epochs processed in the summary analysis
+            epoch_range_target (slice): an epoch range targeted for the analysis with this dataset
             stage_ext (str): a stage file extension
             new_root_dir (str): a new root directory of the data
         

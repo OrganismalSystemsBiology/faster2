@@ -63,10 +63,13 @@ class TestFunctions(unittest.TestCase):
         eeg_vm = dataset.load_eeg_vm(0)
         np.testing.assert_array_equal((100, 1024), eeg_vm.shape)
 
-        # Test 2: read stages
+        # Test 2: read stages (check the contents)
         stages = dataset.load_stage(0)
         np.testing.assert_equal(np.sum(stages=='UNKNOWN'), 5) # counted in another script
     
+        # Test 3: read stages (check the length)
+        stages = dataset.load_stage(0)
+        np.testing.assert_equal(len(stages), 100)
 
     def test_read_voltage_matrices_dsi(self):
         exp = [[450, 800], [450, 800]]
