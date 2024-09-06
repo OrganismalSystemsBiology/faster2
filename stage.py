@@ -116,14 +116,14 @@ class CustomedGHMM(hmm.GaussianHMM):
             narr_hd = rem_mean - prn_ax[:, i] # the negative arrow head from the mean
             
             # condition 1: negative low-freq and BELOW the diagonal line
-            if arr_hd[0] > self.nr_boundary and arr_hd[1] < arr_hd[0]:
+            if arr_hd[0] > self.nr_boundary or arr_hd[1] < arr_hd[0]:
                 # condition 2: if positive high-freq > 0 then allow to grow onto the diagonal line
                 if arr_hd[1] > 0:
                     sr = self._shrink_ratio(arr_hd, rem_mean)
                 # Otherwise (negative high-freq) then only allow to reach onto the y-axis. 
                 else: 
                     sr = (self.nr_boundary - rem_mean[0])/(arr_hd[0] - rem_mean[0]) # shrink ratio
-            elif narr_hd[0] > self.nr_boundary and narr_hd[1] < narr_hd[0]:
+            elif narr_hd[0] > self.nr_boundary or narr_hd[1] < narr_hd[0]:
                 if narr_hd[1] > 0:
                     sr = self._shrink_ratio(narr_hd, rem_mean)
                 else: 
