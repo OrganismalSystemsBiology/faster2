@@ -391,11 +391,11 @@ def prep_fig_of_spindle(prs, summary_dir):
     path_spindle_distributions_NREMbeforeWAKE = os.path.join(summary_dir, 'spindle', 'spindle_distributions_NREMbeforeWAKE.jpg')
     path_spindle_distributions_NREMafterREM   = os.path.join(summary_dir, 'spindle', 'spindle_distributions_NREMafterREM.jpg')
 
-    slide.shapes.add_picture(path_spindle_density_in_NREM, Cm(0.21), Cm(3.46), Cm(10.36), Cm(4.83))
-    slide.shapes.add_picture(path_spindle_distributions_NREMbeforeREM, Cm(11.86), Cm(3.47), Cm(10.0), Cm(5))
-    slide.shapes.add_picture(path_spindle_distributions_NREMafterWAKE, Cm(22.65), Cm(3.46), Cm(10.0), Cm(5))
-    slide.shapes.add_picture(path_spindle_distributions_NREMbeforeWAKE, Cm(11.86), Cm(9.8), Cm(10.0), Cm(5))
-    slide.shapes.add_picture(path_spindle_distributions_NREMafterREM, Cm(22.65), Cm(9.8), Cm(10.0), Cm(5))
+    slide.shapes.add_picture(path_spindle_density_in_NREM, Cm(2.28), Cm(3.43), Cm(6.97), Cm(10))
+    slide.shapes.add_picture(path_spindle_distributions_NREMbeforeREM, Cm(12.65), Cm(3.67), Cm(8.28), Cm(7))
+    slide.shapes.add_picture(path_spindle_distributions_NREMafterREM, Cm(24.35), Cm(3.55), Cm(8.28), Cm(7))
+    slide.shapes.add_picture(path_spindle_distributions_NREMbeforeWAKE, Cm(12.65), Cm(12.05), Cm(8.28), Cm(7))
+    slide.shapes.add_picture(path_spindle_distributions_NREMafterWAKE, Cm(24.35), Cm(12.03), Cm(8.28), Cm(7))
 
 
 def make_slide(args):
@@ -437,7 +437,7 @@ def make_slide(args):
     # Prepare plots of delta-power dynamics (page 6)
     prep_fig_of_dpd(prs, summary_dir)
 
-    # Prepare plots of delta-power dynamics (page 7)
+    # Prepare plots of spindel (page 7)
     prep_fig_of_spindle(prs, summary_dir)
 
     path2summary_slide = os.path.join(summary_dir, 'summary.pptx')
