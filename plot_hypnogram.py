@@ -8,6 +8,8 @@ from matplotlib.figure import Figure
 from matplotlib.collections import PatchCollection
 from matplotlib.collections import LineCollection
 from matplotlib.patches import Rectangle
+import matplotlib.backends.backend_pdf
+import matplotlib._ttconv
 
 import stage
 import faster2lib.eeg_tools as et

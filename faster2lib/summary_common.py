@@ -3,6 +3,7 @@
 import os
 import matplotlib
 import matplotlib.backends.backend_pdf
+import matplotlib._ttconv
 import numpy as np
 from scipy import stats
 import stage

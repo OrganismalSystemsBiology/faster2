@@ -182,8 +182,14 @@ def prep_table_of_dpd(prs, summary_dir):
         prs (Presentation): The slide object
         summary_dir (str): The path to the summary directory
     """
+
+    dpd_path = os.path.join(summary_dir, 'delta_power_dynamics')
+    if os.path.exists(dpd_path) is False:
+        print_log('No delta power analysis data found')
+        return 
+
     df_dpd_stats = pd.read_csv(os.path.join(
-        summary_dir, 'delta_power_dynamics', 'delta-power-dynamics_stats_table.csv'))
+        dpd_path, 'delta-power-dynamics_stats_table.csv'))
 
     slide = prs.slides[5]
     table_list = get_tables_in_slide(slide)
@@ -265,6 +271,10 @@ def prep_fig_of_dpd(prs, summary_dir):
     """
     slide = prs.slides[5]
     dpd_path = os.path.join(summary_dir, 'delta_power_dynamics')
+
+    if os.path.exists(dpd_path) is False:
+        # 'No delta power analysis data found' is printed in the prep_table_of_dpd function
+        return 
 
     # delta-power dyanmics simulation (group each)
     path_dpd_sim_ge_list = select_wanted_path_list(dpd_path, 'delta-power-dynamics_GE')
@@ -407,7 +417,7 @@ def make_slide(args):
     summary_dir = args.summary_dir
 
     print_log(f'Making summary slides of {summary_dir}')
-    path2template = r'faster2lib/EEG_power_specrum_template.pptx'
+    path2template = os.path.join(os.path.dirname(__file__), r'faster2lib/EEG_power_specrum_template.pptx')
     print_log(f'The template pptx:{path2template}')
 
     prs = Presentation(path2template)
