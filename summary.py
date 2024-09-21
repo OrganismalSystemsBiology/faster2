@@ -2332,8 +2332,8 @@ def main(args):
         stage_ext = 'faster2'
 
     # add optional information
-    mouse_info_collected['epoch_range'] = args.epoch_range
-    mouse_info_collected['stage_ext'] = args.stage_ext
+    mouse_info_collected['epoch_range'] = f'{epoch_range.start}:{epoch_range.stop}'
+    mouse_info_collected['stage_ext'] = stage_ext
 
     # dump the collect_mouse_info_df into a file for external scripts
     with open(os.path.join(output_dir, 'collected_mouse_info_df.json'), 'w') as outfile:
