@@ -2,6 +2,7 @@
 """
 import os
 import matplotlib
+import matplotlib.backends.backend_pdf
 import numpy as np
 from scipy import stats
 import stage
