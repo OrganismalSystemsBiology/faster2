@@ -1,3 +1,24 @@
+# This spec file generates 7 exe files.
+# 1. stage.exe
+# 2. summary.exe
+# 3. analysis_dpd.exe
+# 4. slide.exe
+# 5. plot_hypnogram.exe
+# 6. plot_spectrum.exe
+# 7. plot_timeseries.exe
+# 
+# > pyi-makespec.exe [corresponding python scripy (*.py)] created *.spec
+# I mearged the spec files into this faster2.spec by modifying ...
+#  1. renaming the variables a, pyz, and exe. (Notice that the pyz depends on a,
+#     and the exe depends on the a and pyz.)
+#  2. update the definition of the varialble 'coll' to include the all seven trios
+#     of variables (*_a, *_pyz, and *_exe).
+#  3. build the exes by
+# > pyinstaller faster2.spec
+#  This process takes very long time (almost an hour or maybe more?)
+# 
+# Ref https://www.zacoding.com/en/post/pyinstaller-create-multiple-executables/
+
 stage_a = Analysis(
     ['stage.py'],
     pathex=[],
