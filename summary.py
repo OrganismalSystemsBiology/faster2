@@ -1845,7 +1845,7 @@ def draw_swtransition_barchart_logodds(stagetime_stats, output_dir):
     sc.savefig(output_dir, filename, fig)
 
 
-def log_psd_inv(y, normalizing_fac, normalizing_mean):
+def logpsd_inv(y, normalizing_fac, normalizing_mean):
     """ inverses the spectrum normalized PSD to get the original PSD. 
     The spectrum normalization is defined as: snorm(log(psd)),
     where log() here means a "decibel like" transformation of 10*np.log10(),
@@ -1881,7 +1881,7 @@ def conv_PSD_from_snorm_PSD(spec_norm):
     psd_norm_mat = spec_norm['psd']
     nf = spec_norm['norm_fac']
     nm = spec_norm['mean']
-    psd_mat = np.vectorize(log_psd_inv)(psd_norm_mat, nf, nm)
+    psd_mat = np.vectorize(logpsd_inv)(psd_norm_mat, nf, nm)
 
     return psd_mat
 
@@ -2106,7 +2106,7 @@ def pickle_psd_info_list(psd_info_list, output_dir, filename):
         pickle.dump(psd_info_list, pkl)
 
 
-def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, psd_type, vol_unit='V'):
+def process_psd_profile(psd_info_list, logpsd_info_list, percentage_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, psd_type, vol_unit='V'):
     # Mask for the fist halfday
     epoch_num_halfday = int(12*60*60/epoch_len_sec)
     mask_first_halfday = np.tile(
@@ -2122,23 +2122,23 @@ def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_li
 
     # PSD profiles (all day)
     psd_profiles_df = sp.make_psd_profile(psd_info_list, sample_freq, psd_type)
-    log_psd_profiles_df = sp.make_psd_profile(log_psd_info_list, sample_freq, psd_type)
+    logpsd_profiles_df = sp.make_psd_profile(logpsd_info_list, sample_freq, psd_type)
     percentage_psd_profiles_df = sp.make_psd_profile(
         percentage_psd_info_list, sample_freq, psd_type)
 
     # PSD profiles (first half-day)
     psd_profiles_first_halfday_df = sp.make_psd_profile(
         psd_info_list, sample_freq, psd_type, mask_first_halfday)
-    log_psd_profiles_first_halfday_df = sp.make_psd_profile(
-        log_psd_info_list, sample_freq, psd_type, mask_first_halfday)
+    logpsd_profiles_first_halfday_df = sp.make_psd_profile(
+        logpsd_info_list, sample_freq, psd_type, mask_first_halfday)
     percentage_psd_profiles_first_halfday_df = sp.make_psd_profile(
         percentage_psd_info_list, sample_freq, psd_type, mask_first_halfday)
 
     # PSD profiles (second half-day)
     psd_profiles_second_halfday_df = sp.make_psd_profile(
         psd_info_list, sample_freq, psd_type, mask_second_halfday)
-    log_psd_profiles_second_halfday_df = sp.make_psd_profile(
-        log_psd_info_list, sample_freq, psd_type, mask_second_halfday)
+    logpsd_profiles_second_halfday_df = sp.make_psd_profile(
+        logpsd_info_list, sample_freq, psd_type, mask_second_halfday)
     percentage_psd_profiles_second_halfday_df = sp.make_psd_profile(
         percentage_psd_info_list, sample_freq, psd_type, mask_second_halfday)
 
@@ -2146,17 +2146,17 @@ def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_li
 
     # write a table of PSD (all day)
     sp.write_psd_stats(psd_profiles_df, psd_output_dir, f'{psd_type}_allday_')
-    sp.write_psd_stats(log_psd_profiles_df, psd_output_dir, f'{psd_type}_allday_log-')
+    sp.write_psd_stats(logpsd_profiles_df, psd_output_dir, f'{psd_type}_allday_log-')
     sp.write_psd_stats(percentage_psd_profiles_df, psd_output_dir, f'{psd_type}_allday_percentage-', np.sum)
 
     # write a table of PSD (first half-day)
     sp.write_psd_stats(psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_')
-    sp.write_psd_stats(log_psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_log-')
+    sp.write_psd_stats(logpsd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_log-')
     sp.write_psd_stats(percentage_psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_percentage-', np.sum)    
 
     # write a table of PSD (second half-day)
     sp.write_psd_stats(psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_')
-    sp.write_psd_stats(log_psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_log-')
+    sp.write_psd_stats(logpsd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_log-')
     sp.write_psd_stats(percentage_psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_percentage-', np.sum)    
 
     # draw PSDs (all day)
@@ -2169,14 +2169,14 @@ def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_li
         unit = 'Unknown'
     sp.draw_PSDs_individual(psd_profiles_df, sample_freq,
                          f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_allday_')
-    sp.draw_PSDs_individual(log_psd_profiles_df, sample_freq,
+    sp.draw_PSDs_individual(logpsd_profiles_df, sample_freq,
                          f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_allday_log-')
     sp.draw_PSDs_individual(percentage_psd_profiles_df, sample_freq,
                          f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_allday_percentage-')
 
     sp.draw_PSDs_group(psd_profiles_df, sample_freq,
                     f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_allday_')
-    sp.draw_PSDs_group(log_psd_profiles_df, sample_freq,
+    sp.draw_PSDs_group(logpsd_profiles_df, sample_freq,
                     f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_allday_log-')
     sp.draw_PSDs_group(percentage_psd_profiles_df, sample_freq,
                     f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_allday_percentage-')
@@ -2184,14 +2184,14 @@ def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_li
     # draw PSDs (first halfday)
     sp.draw_PSDs_individual(psd_profiles_first_halfday_df, sample_freq,
                          f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_first-halfday_')
-    sp.draw_PSDs_individual(log_psd_profiles_first_halfday_df, sample_freq,
+    sp.draw_PSDs_individual(logpsd_profiles_first_halfday_df, sample_freq,
                          f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_first-halfday_log-')
     sp.draw_PSDs_individual(percentage_psd_profiles_first_halfday_df, sample_freq,
                          f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_first-halfday_percentage-')
 
     sp.draw_PSDs_group(psd_profiles_first_halfday_df, sample_freq,
                     f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_first-halfday_')
-    sp.draw_PSDs_group(log_psd_profiles_first_halfday_df, sample_freq,
+    sp.draw_PSDs_group(logpsd_profiles_first_halfday_df, sample_freq,
                     f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_first-halfday_log-')
     sp.draw_PSDs_group(percentage_psd_profiles_first_halfday_df, sample_freq,
                     f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_first-halfday_percentage-')
@@ -2199,14 +2199,14 @@ def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_li
     # draw PSDs (second halfday)
     sp.draw_PSDs_individual(psd_profiles_second_halfday_df, sample_freq,
                          f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_second-halfday_')
-    sp.draw_PSDs_individual(log_psd_profiles_second_halfday_df, sample_freq,
+    sp.draw_PSDs_individual(logpsd_profiles_second_halfday_df, sample_freq,
                          f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_second-halfday_log-')
     sp.draw_PSDs_individual(percentage_psd_profiles_second_halfday_df, sample_freq,
                          f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_second-halfday_percentage-')
 
     sp.draw_PSDs_group(psd_profiles_second_halfday_df, sample_freq,
                     f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_second-halfday_')
-    sp.draw_PSDs_group(log_psd_profiles_second_halfday_df, sample_freq,
+    sp.draw_PSDs_group(logpsd_profiles_second_halfday_df, sample_freq,
                     f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_second-halfday_log-')
     sp.draw_PSDs_group(percentage_psd_profiles_second_halfday_df, sample_freq,
                     f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_second-halfday_percentage-')
@@ -2277,6 +2277,61 @@ def make_psd_output_dirs(output_dir, psd_type):
     os.makedirs(os.path.join(output_dir, 'PDF'), exist_ok=True)
 
 
+def make_auc_scaled_psd_info_list(psd_info_list):
+    auc_psd_info_list = copy.deepcopy(psd_info_list)
+    for auc_psd_info in auc_psd_info_list:
+        conv_psd_norm = auc_psd_info['norm']
+        conv_psd_raw = auc_psd_info['raw']
+        auc_psd_norm_mat = np.zeros(conv_psd_norm.shape)
+        auc_psd_raw_mat = np.zeros(conv_psd_raw.shape)
+        for i, p in enumerate(conv_psd_norm): # row wise
+            auc_psd_norm_mat[i,:] = 100*p / np.sum(p) # percentage
+        auc_psd_info['norm'] = auc_psd_norm_mat
+        for i, p in enumerate(conv_psd_raw): # row wise
+            auc_psd_raw_mat[i,:] = 100*p / np.sum(p) # same result with 'norm'
+        auc_psd_info['raw'] = auc_psd_raw_mat
+
+    return auc_psd_info_list
+
+
+def make_target_psd_info(psd_info_list, sample_freq, epoch_len_sec, epoch_num, basal_days):
+    # The time domain is from 8- to 12-hour of each basal day 
+
+    # prepare the time-domain binary index
+    time_domain_start = 8 # starting time of the reference time domain
+    time_domain_end = 12  # ending time of the reference time domain
+    bidx_time_domain = np.repeat(False, epoch_num)
+    for i in range(basal_days):
+        time_domain_range = slice((time_domain_start + 24*i)*3600//epoch_len_sec, 
+                                (time_domain_end + 24*i)*3600//epoch_len_sec, None)
+        bidx_time_domain[time_domain_range] = True
+
+    # prepare the delta-power frequency binary index
+    bidx_delta_freq = sp.get_bidx_delta_freq(sp.psd_freq_bins(sample_freq))
+
+    # calculate the scale for making the delta-power in targeted NREM epochs
+    def _calc_scale(psd_mat, bidx_epoch_target, bidx_delta_freq):
+        psd_mat_target = psd_mat[bidx_epoch_target, :]
+        delta_psd_norm_target = psd_mat_target[:, bidx_delta_freq]
+        scale = 1/np.nanmean(np.nanmean(delta_psd_norm_target, axis=1))
+
+        return scale
+
+    tdd_psd_info_list = copy.deepcopy(psd_info_list)
+    for tdd_psd_info in tdd_psd_info_list:
+        psd_norm = tdd_psd_info['norm']
+        psd_raw = tdd_psd_info['raw']
+
+        bidx_epoch_target = tdd_psd_info['bidx_nrem'] & bidx_time_domain
+        scale_norm = _calc_scale(psd_norm, bidx_epoch_target, bidx_delta_freq)
+        scale_raw = _calc_scale(psd_raw, bidx_epoch_target, bidx_delta_freq)
+
+        tdd_psd_info['norm'] = psd_norm * scale_norm
+        tdd_psd_info['raw'] = psd_raw * scale_raw
+
+    return tdd_psd_info_list
+
+
 def main(args):
     epoch_len_sec = int(args.epoch_len_sec)
 
@@ -2342,9 +2397,19 @@ def main(args):
     # number of days in the data
     day_num = epoch_num * epoch_len_sec / 60 / 60 / 24
     if day_num != int(day_num):
-        raise ValueError(f'The number of days: {day_num} must be an integer.')
+        raise ValueError(f'The number of days: {day_num} must be an integer.\n'
+                         f'Check the epoch_num:{epoch_num} and epoch_len_sec:{epoch_len_sec} are correct.')
     else:
         day_num = int(day_num)
+
+    # set the number of basal days
+    if args.basal_days:
+        # use the number given by the command line option
+        basal_days = int(args.basal_days)
+    else:
+        basal_days = day_num
+
+    print_log(f'Number of days: {day_num}, Number of basal days: {basal_days}')
 
     # prepare stagetime statistics
     stagetime_stats = make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext)
@@ -2410,37 +2475,30 @@ def main(args):
 
     # log version of psd_info
     print_log('Making the log version of the PSD information')
-    log_psd_info_list = copy.deepcopy(psd_info_list)
-    for log_psd_info in log_psd_info_list:
-        log_psd_info['norm'] = 10*np.log10(log_psd_info['norm'])
-        log_psd_info['raw'] = 10*np.log10(log_psd_info['raw'])
+    logpsd_info_list = copy.deepcopy(psd_info_list)
+    for logpsd_info in logpsd_info_list:
+        logpsd_info['norm'] = 10*np.log10(logpsd_info['norm'])
+        logpsd_info['raw'] = 10*np.log10(logpsd_info['raw'])
 
-    # percentage version of psd_info
-    print_log('Making the percentage version of the PSD information')
-    percentage_psd_info_list = copy.deepcopy(psd_info_list)
-    for percentage_psd_info in percentage_psd_info_list:
-        conv_psd = percentage_psd_info['norm']
-        conv_psd_raw = percentage_psd_info['raw']
-        percentage_psd_mat = np.zeros(conv_psd.shape)
-        percentage_psd_raw_mat = np.zeros(conv_psd_raw.shape)
-        for i, p in enumerate(conv_psd): # row wise
-            percentage_psd_mat[i,:] = 100*p / np.sum(p)
-        percentage_psd_info['norm'] = percentage_psd_mat
-        for i, p in enumerate(conv_psd_raw): # row wise
-            percentage_psd_raw_mat[i,:] = 100*p / np.sum(p)
-        percentage_psd_info['raw'] = percentage_psd_raw_mat
+    # AUC scaling psd_info for each epoch 
+    auc_psd_info_list = make_auc_scaled_psd_info_list(psd_info_list)
+    auc_logpsd_info_list = make_auc_scaled_psd_info_list(logpsd_info_list)
+
+    # Time-domain NREM-delta scaling of psd_info
+    tdd_psd_info_list = make_target_psd_info(psd_info_list, sample_freq, epoch_len_sec, epoch_num, basal_days)
+    tdd_logpsd_info_list = make_target_psd_info(logpsd_info_list, sample_freq, epoch_len_sec, epoch_num, basal_days)
 
     # make output dirs for PSDs
     make_psd_output_dirs(output_dir, 'norm')
     make_psd_output_dirs(output_dir, 'raw')
 
     # Make PSD stats and plots
-    process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, 'norm')
-    process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, 'raw', vol_unit)
+    process_psd_profile(psd_info_list, logpsd_info_list, auc_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, 'norm')
+    process_psd_profile(psd_info_list, logpsd_info_list, auc_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, 'raw', vol_unit)
 
     # PSD timeseries
-    process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range, epoch_len_sec, sample_freq, output_dir, 'norm')
-    process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range, epoch_len_sec, sample_freq, output_dir, 'raw', vol_unit)
+    process_psd_timeseries(psd_info_list, auc_psd_info_list, epoch_range, epoch_len_sec, sample_freq, output_dir, 'norm')
+    process_psd_timeseries(psd_info_list, auc_psd_info_list, epoch_range, epoch_len_sec, sample_freq, output_dir, 'raw', vol_unit)
 
     dt_now = datetime.now()
     print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Ended')
@@ -2461,7 +2519,7 @@ if __name__ == '__main__':
                         help="a path to the output files (default: the first FASTER2 directory)")
     PARSER.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
     PARSER.add_argument("-u", "--unit_voltage", help="The unit of EEG voltage for the raw PSD (default: V)", default="V")
-    PARSER.add_argument("-b", "--basal_days", help="The number of basal days", default=2)
+    PARSER.add_argument("-b", "--basal_days", help="The number of basal days", default=3)
 
 
     args = PARSER.parse_args()

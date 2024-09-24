@@ -30,6 +30,50 @@ def psd_freq_bins(sample_freq):
     return freq_bins
 
 
+def get_bidx_theta_freq(freq_bins):
+    """ returns the index of theta frequency bins
+        Args:
+            freq_bins (np.array): An array of frequency bins
+        Returns:
+            np.array: The binary index of theta frequency bins for theta waves 
+    """
+    bidx_theta_freq = (freq_bins >= 4) & (freq_bins < 10)
+    return bidx_theta_freq
+
+def get_bidx_delta_freq(freq_bins):
+    """ returns the index of delta frequency bins
+        Args:
+            freq_bins (np.array): An array of frequency bins
+        Returns:
+            np.array: The binary index of delta frequency bins for delta waves 
+    """
+    # Notice: This is slightly different from the definition of delta in the stage.py
+    # The stage.py defines delta including 0 Hz for simplicity.
+    # Here, we exclude 0 Hz from delta for compatibility with the conventional definition.
+    bidx_delta_freq = (0 < freq_bins) & (freq_bins < 4)
+    return bidx_delta_freq
+
+def get_bidx_delta_wo_slow_freq(freq_bins):
+    """ returns thef index of delta frequency bins without slow waves
+        Args:
+            freq_bins (np.array): An array of frequency bins
+        Returns:
+            np.array: The binary index of delta frequency bins without slow waves for delta waves
+        """
+    bidx_delta_wo_slow_freq = (1 <= freq_bins) & (freq_bins < 4)  
+    return bidx_delta_wo_slow_freq
+
+def get_bidx_slow_freq(freq_bins):
+    """ returns the index of slow frequency bins
+        Args:
+            freq_bins (np.array): An array of frequency bins
+        Returns:
+            np.array: The binary index of slow frequency bins for slow waves
+        """
+    bidx_slow_freq = (0 < freq_bins ) & ( freq_bins < 1) 
+    return bidx_slow_freq
+
+
 def make_psd_profile(psd_info_list, sample_freq, psd_type='norm', mask=None):
     """makes summary PSD statistics of each mouse:
             psd_mean_df: summary (default: mean) of PSD profiles for each stage for each mice.
@@ -254,11 +298,10 @@ def make_psd_domain(psd_profiles_df, summary_func=np.mean):
                           for x in freq_bin_columns])
 
     # frequency domains
-    bidx_theta_freq = (freq_bins >= 4) & (freq_bins < 10)  # 15 bins
-    bidx_delta_freq = (freq_bins < 4)  # 11 bins
-    bidx_delta_wo_slow_freq = (1 <= freq_bins) & (
-        freq_bins < 4)  # 8 bins (delta without slow)
-    bidx_slow_freq = (freq_bins < 1)  # 3 bins
+    bidx_theta_freq = get_bidx_theta_freq(freq_bins)
+    bidx_delta_freq = get_bidx_delta_freq(freq_bins)
+    bidx_delta_wo_slow_freq = get_bidx_delta_wo_slow_freq(freq_bins) # delta without slow
+    bidx_slow_freq = get_bidx_slow_freq(freq_bins)
 
     # make psd_domain_df
     row_list = []
