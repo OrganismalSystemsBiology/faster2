@@ -2294,7 +2294,7 @@ def make_auc_scaled_psd_info_list(psd_info_list):
     return auc_psd_info_list
 
 
-def make_target_psd_info(psd_info_list, sample_freq, epoch_len_sec, epoch_num, basal_days):
+def make_tdd_scaled_psd_info(psd_info_list, sample_freq, epoch_len_sec, epoch_num, basal_days):
     # The time domain is from 8- to 12-hour of each basal day 
 
     # prepare the time-domain binary index
@@ -2485,8 +2485,8 @@ def main(args):
     auc_logpsd_info_list = make_auc_scaled_psd_info_list(logpsd_info_list)
 
     # Time-domain NREM-delta scaling of psd_info
-    tdd_psd_info_list = make_target_psd_info(psd_info_list, sample_freq, epoch_len_sec, epoch_num, basal_days)
-    tdd_logpsd_info_list = make_target_psd_info(logpsd_info_list, sample_freq, epoch_len_sec, epoch_num, basal_days)
+    tdd_psd_info_list = make_tdd_scaled_psd_info(psd_info_list, sample_freq, epoch_len_sec, epoch_num, basal_days)
+    tdd_logpsd_info_list = make_tdd_scaled_psd_info(logpsd_info_list, sample_freq, epoch_len_sec, epoch_num, basal_days)
 
     # make output dirs for PSDs
     make_psd_output_dirs(output_dir, 'norm')

@@ -682,14 +682,19 @@ def draw_psd_domain_power_timeseries_individual(psd_domain_power_timeseries_df, 
         domain_power_timeseries_sd[idx_all_nan] = np.nan
         domain_power_timeseries_stats_list.append(
             np.array([domain_power_timeseries_mean, domain_power_timeseries_sd]))
-    y_max = np.nanmax(np.array([ts_stats[0] for ts_stats in domain_power_timeseries_stats_list])) * 1.1
+    y_vals = np.array([ts_stats[0] for ts_stats in domain_power_timeseries_stats_list])
+    y_max = np.nanmax(y_vals)
+    y_min = np.nanmin(y_vals)
+    # add some margins
+    y_max = y_max + 0.1*(y_max - y_min)
+    y_min = y_min - 0.1*(y_max - y_min)
 
     x_max = ts_mat.shape[0]
     x = np.arange(x_max)
     for i, profile in enumerate(hourly_ts_list):
         fig = Figure(figsize=(13, 6))
         ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
-        sc.set_common_features_domain_power_timeseries(ax1, x_max, y_max)
+        sc.set_common_features_domain_power_timeseries(ax1, x_max, y_min, y_max)
 
         ax1.set_ylabel(y_label)
         ax1.set_xlabel('Time (hours)')
@@ -736,7 +741,12 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epo
 
     # pylint: disable=E1136  # pylint/issues/3139
     x_max = hourly_ts_mat.shape[1]
-    y_max = np.nanmax(np.array([ts_stats[0] for ts_stats in domain_power_timeseries_stats_list])) * 1.1
+    y_vals = np.array([ts_stats[0] for ts_stats in domain_power_timeseries_stats_list])
+    y_max = np.nanmax(y_vals)
+    y_min = np.nanmin(y_vals)
+    # add some margins
+    y_max = y_max + 0.1*(y_max - y_min)
+    y_min = y_min - 0.1*(y_max - y_min)
     x = np.arange(x_max)
     if len(mouse_groups_set) > 1:
         # contrast to group index = 0
@@ -745,7 +755,7 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epo
             fig = Figure(figsize=(13, 6))
             ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
 
-            sc.set_common_features_domain_power_timeseries(ax1, x_max, y_max)
+            sc.set_common_features_domain_power_timeseries(ax1, x_max, y_min, y_max)
 
             # Control (always the first group)
             num_c = np.sum(bidx_group_list[0])
@@ -776,7 +786,7 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epo
         fig = Figure(figsize=(13, 6))
         ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
 
-        sc.set_common_features_domain_power_timeseries(ax1, x_max, y_max)
+        sc.set_common_features_domain_power_timeseries(ax1, x_max, y_min, y_max)
 
         y = domain_power_timeseries_stats_list[g_idx][0, :]
         y_sem = domain_power_timeseries_stats_list[g_idx][1, :]/np.sqrt(num)

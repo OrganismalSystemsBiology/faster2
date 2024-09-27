@@ -102,9 +102,13 @@ def var_test(x, y):
     return {'F': F, 'df1': df1, 'df2': df2, 'p_value': p_value}
 
 
-def set_common_features_domain_power_timeseries(ax, x_max, y_max):
-    y_tick_interval = np.power(10, np.ceil(np.log10(y_max))-1)
-    ax.set_yticks(np.arange(0, y_max, y_tick_interval))
+def set_common_features_domain_power_timeseries(ax, x_max, y_min, y_max):
+    if y_min > 0:
+        # if y_min is positive, set the y-axis minimum to 0 
+        y_min = 0
+
+    y_tick_interval = np.power(10, np.ceil(np.log10(y_max - y_min))-1)
+    ax.set_yticks(np.arange(y_min, y_max, y_tick_interval))
     ax.set_xticks(np.arange(0, x_max+1, 6))
     ax.grid(dashes=(2, 2))
 
@@ -116,7 +120,7 @@ def set_common_features_domain_power_timeseries(ax, x_max, y_max):
             xy=[24*day, -0.1*y_tick_interval], width=12, height=0.1*y_tick_interval, fill=True, color=stage.COLOR_LIGHT)
         ax.add_patch(light_bar_light)
 
-    ax.set_ylim(-0.15*y_tick_interval, y_max)
+    ax.set_ylim(y_min, y_max)
 
 
 def savefig(output_dir, basefilename, fig):
