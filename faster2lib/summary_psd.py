@@ -652,11 +652,13 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
         sc.savefig(output_dir, filename, fig)
 
 
-def draw_psd_domain_power_timeseries_individual(psd_domain_power_timeseries_df, epoch_len_sec, y_label, output_dir, domain, opt_label=''):
+def draw_psd_domain_power_timeseries_individual(psd_domain_power_timeseries_df, epoch_len_sec, y_label, output_dir, 
+                                                psd_type, scaling_type, transform_type, domain, opt_label=''):
     mouse_groups = psd_domain_power_timeseries_df['Mouse group'].values
     mouse_groups_set = sorted(set(mouse_groups), key=list(
         mouse_groups).index)  # unique elements with preseved order
-    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]  
+    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]
+    pre_proc = f'{psd_type}_{scaling_type}_{transform_type}'
 
     hourly_ts_list = []
     for _, ts in psd_domain_power_timeseries_df.iloc[:,4:].iterrows():
@@ -687,9 +689,6 @@ def draw_psd_domain_power_timeseries_individual(psd_domain_power_timeseries_df, 
     y_vals = np.array([ts_stats[0] for ts_stats in domain_power_timeseries_stats_list])
     y_max = np.nanmax(y_vals)
     y_min = np.nanmin(y_vals)
-    # add some margins
-    y_max = y_max + 0.1*(y_max - y_min)
-    y_min = y_min - 0.1*(y_max - y_min)
 
     x_max = ts_mat.shape[0]
     x = np.arange(x_max)
@@ -704,17 +703,20 @@ def draw_psd_domain_power_timeseries_individual(psd_domain_power_timeseries_df, 
         ax1.plot(x, profile, color=stage.COLOR_NREM)
 
         fig.suptitle(
-            f'Power timeseries: {"  ".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}')
+            f'Power timeseries: {"  ".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}\n'
+            f'Preprocessed with: (Voltage,Scaling,Transformation) = ({psd_type}, {scaling_type}, {transform_type})')
 
-        filename = f'power-timeseries_{domain}_{opt_label}I_{"_".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}'
+        filename = f'power-timeseries_{pre_proc}_{domain}_{opt_label}I_{"_".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}'
         sc.savefig(output_dir, filename, fig)
 
 
-def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epoch_len_sec, y_label, output_dir, domain, opt_label=''):
+def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epoch_len_sec, y_label, output_dir, 
+                                             psd_type, scaling_type, transform_type, domain, opt_label=''):
     mouse_groups = psd_domain_power_timeseries_df['Mouse group'].values
     mouse_groups_set = sorted(set(mouse_groups), key=list(
         mouse_groups).index)  # unique elements with preseved order
     bidx_group_list = [mouse_groups == g for g in mouse_groups_set]  
+    pre_proc = f'{psd_type}_{scaling_type}_{transform_type}'
 
     hourly_ts_list = []
     for _, ts in psd_domain_power_timeseries_df.iloc[:,4:].iterrows():
@@ -746,9 +748,7 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epo
     y_vals = np.array([ts_stats[0] for ts_stats in domain_power_timeseries_stats_list])
     y_max = np.nanmax(y_vals)
     y_min = np.nanmin(y_vals)
-    # add some margins
-    y_max = y_max + 0.1*(y_max - y_min)
-    y_min = y_min - 0.1*(y_max - y_min)
+
     x = np.arange(x_max)
     if len(mouse_groups_set) > 1:
         # contrast to group index = 0
@@ -778,8 +778,10 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epo
                             y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
 
             fig.suptitle(
-                f'Power timeseries: {mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'power-timeseries_{domain}_{opt_label}G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+                f'Power timeseries: {mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})\n'
+                f'Preprocessed with: (Voltage,Scaling,Transformation) = ({psd_type}, {scaling_type}, {transform_type})'
+            )
+            filename = f'power-timeseries_{pre_proc}_{domain}_{opt_label}G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
             sc.savefig(output_dir, filename, fig)
     else:
         # single group
@@ -798,6 +800,8 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epo
         ax1.set_ylabel(y_label)
         ax1.set_xlabel('Time (hours)')
 
-        fig.suptitle(f'Power timeseries: {mouse_groups_set[g_idx]} (n={num})')
-        filename = f'power-timeseries_{domain}_{opt_label}G_{mouse_groups_set[g_idx]}'
+        fig.suptitle(f'Power timeseries: {mouse_groups_set[g_idx]} (n={num})\n'
+                     f'Preprocessed with: (Voltage,Scaling,Transformation) = ({psd_type}, {scaling_type}, {transform_type})'
+        )
+        filename = f'power-timeseries_{pre_proc}_{domain}_{opt_label}G_{mouse_groups_set[g_idx]}'
         sc.savefig(output_dir, filename, fig)

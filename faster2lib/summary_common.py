@@ -106,6 +106,13 @@ def set_common_features_domain_power_timeseries(ax, x_max, y_min, y_max):
     if y_min > 0:
         # if y_min is positive, set the y-axis minimum to 0 
         y_min = 0
+    else:
+        # add some bottom margin
+        y_min = y_min - 0.1*(y_max - y_min)
+
+    # add some top margin
+    y_max = y_max + 0.1*(y_max - y_min)
+
 
     y_tick_interval = np.power(10, np.ceil(np.log10(y_max - y_min))-1)
     ax.set_yticks(np.arange(y_min, y_max, y_tick_interval))
@@ -113,14 +120,14 @@ def set_common_features_domain_power_timeseries(ax, x_max, y_min, y_max):
     ax.grid(dashes=(2, 2))
 
     light_bar_base = matplotlib.patches.Rectangle(
-        xy=[0, -0.1*y_tick_interval], width=x_max, height=0.1*y_tick_interval, fill=True, color=stage.COLOR_DARK)
+        xy=[0, y_min -0.1*y_tick_interval], width=x_max, height=0.1*y_tick_interval, fill=True, color=stage.COLOR_DARK)
     ax.add_patch(light_bar_base)
     for day in range(int(x_max/24)):
         light_bar_light = matplotlib.patches.Rectangle(
-            xy=[24*day, -0.1*y_tick_interval], width=12, height=0.1*y_tick_interval, fill=True, color=stage.COLOR_LIGHT)
+            xy=[24*day, y_min -0.1*y_tick_interval], width=12, height=0.1*y_tick_interval, fill=True, color=stage.COLOR_LIGHT)
         ax.add_patch(light_bar_light)
 
-    ax.set_ylim(y_min, y_max)
+    ax.set_ylim(y_min -0.1*y_tick_interval, y_max)
 
 
 def savefig(output_dir, basefilename, fig):
