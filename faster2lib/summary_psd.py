@@ -402,7 +402,8 @@ def make_psd_stats(psd_domain_df):
     return psd_stats_df
 
 
-def make_psd_timeseries_df(psd_info_list, epoch_range, bidx_freq, stage_bidx_key=None, psd_type='norm'):
+def make_psd_timeseries_df(psd_info_list, epoch_range, bidx_freq, stage_bidx_key=None, 
+                           psd_type='norm', scaling_type='none', transform_type='linear'):
     """make timeseries of PSD with a specified stage and freq domain
 
     Args:
@@ -425,7 +426,12 @@ def make_psd_timeseries_df(psd_info_list, epoch_range, bidx_freq, stage_bidx_key
 
         conv_psd = psd_info[psd_type]
         psd_delta_timeseries = np.repeat(np.nan, epoch_range.stop - epoch_range.start)
-        psd_delta_timeseries[bidx_targeted_stage[epoch_range]] = np.apply_along_axis(np.nanmean, 1, conv_psd[bidx_targeted_stage, :][:,bidx_freq])
+        if scaling_type == 'AUC' and transform_type == 'linear':
+            # Use summation for delta power only if scaling_type is AUC and transform_type is linear
+            psd_delta_timeseries[bidx_targeted_stage[epoch_range]] = np.apply_along_axis(np.nansum, 1, conv_psd[bidx_targeted_stage, :][:,bidx_freq])
+        else:
+            # Use mean for delta power for other cases
+            psd_delta_timeseries[bidx_targeted_stage[epoch_range]] = np.apply_along_axis(np.nanmean, 1, conv_psd[bidx_targeted_stage, :][:,bidx_freq])
         psd_timeseries_df = pd.concat([psd_timeseries_df,
             pd.DataFrame([[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_delta_timeseries.tolist()])], ignore_index=True)
 
