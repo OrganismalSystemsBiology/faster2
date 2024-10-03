@@ -2104,7 +2104,21 @@ def pickle_psd_info_list(psd_info_list, output_dir, filename):
         pickle.dump(psd_info_list, pkl)
 
 
-def process_psd_profile(psd_info_list, logpsd_info_list, percentage_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, psd_type, vol_unit='V'):
+def process_psd_profile(psd_info_list, epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='', scaling_type='', transform_type='', unit='V'):
+    """ Process PSD info to make PSD profiles, do statistical tests and draw plots.
+        Args:
+            psd_info_list: list of {simple exp info, target info, psd (epoch_num, 129)} for each mouse
+            epoch_len_sec: epoch length in seconds
+            epoch_range: range of epochs to be analyzed
+            sample_freq: sampling frequency
+            output_dir: output directory
+            psd_type: 'norm' or 'raw' ... voltage distribution type
+            scaling_type: 'auc' or 'tdd' or 'none' ... PSD scaling type
+            transform_type: 'log' or 'linear' ... PSD transformation type
+            unit: unit of PSD
+    """
+    day_num = int((epoch_range.stop - epoch_range.start) * epoch_len_sec / 60 / 60 / 24)
     # Mask for the fist halfday
     epoch_num_halfday = int(12*60*60/epoch_len_sec)
     mask_first_halfday = np.tile(
@@ -2120,94 +2134,46 @@ def process_psd_profile(psd_info_list, logpsd_info_list, percentage_psd_info_lis
 
     # PSD profiles (all day)
     psd_profiles_df = sp.make_psd_profile(psd_info_list, sample_freq, psd_type)
-    logpsd_profiles_df = sp.make_psd_profile(logpsd_info_list, sample_freq, psd_type)
-    percentage_psd_profiles_df = sp.make_psd_profile(
-        percentage_psd_info_list, sample_freq, psd_type)
-
     # PSD profiles (first half-day)
     psd_profiles_first_halfday_df = sp.make_psd_profile(
         psd_info_list, sample_freq, psd_type, mask_first_halfday)
-    logpsd_profiles_first_halfday_df = sp.make_psd_profile(
-        logpsd_info_list, sample_freq, psd_type, mask_first_halfday)
-    percentage_psd_profiles_first_halfday_df = sp.make_psd_profile(
-        percentage_psd_info_list, sample_freq, psd_type, mask_first_halfday)
-
     # PSD profiles (second half-day)
     psd_profiles_second_halfday_df = sp.make_psd_profile(
         psd_info_list, sample_freq, psd_type, mask_second_halfday)
-    logpsd_profiles_second_halfday_df = sp.make_psd_profile(
-        logpsd_info_list, sample_freq, psd_type, mask_second_halfday)
-    percentage_psd_profiles_second_halfday_df = sp.make_psd_profile(
-        percentage_psd_info_list, sample_freq, psd_type, mask_second_halfday)
 
     psd_output_dir = os.path.join(output_dir, f'PSD_{psd_type}')
-
     # write a table of PSD (all day)
-    sp.write_psd_stats(psd_profiles_df, psd_output_dir, f'{psd_type}_allday_')
-    sp.write_psd_stats(logpsd_profiles_df, psd_output_dir, f'{psd_type}_allday_log-')
-    sp.write_psd_stats(percentage_psd_profiles_df, psd_output_dir, f'{psd_type}_allday_percentage-', np.sum)
-
+    sp.write_psd_stats(psd_profiles_df, psd_output_dir, f'allday_')
     # write a table of PSD (first half-day)
-    sp.write_psd_stats(psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_')
-    sp.write_psd_stats(logpsd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_log-')
-    sp.write_psd_stats(percentage_psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_percentage-', np.sum)    
-
+    sp.write_psd_stats(psd_profiles_first_halfday_df, psd_output_dir, f'first-halfday_')
     # write a table of PSD (second half-day)
-    sp.write_psd_stats(psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_')
-    sp.write_psd_stats(logpsd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_log-')
-    sp.write_psd_stats(percentage_psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_percentage-', np.sum)    
+    sp.write_psd_stats(psd_profiles_second_halfday_df, psd_output_dir, f'second-halfday_')
 
+    print(f'Drawing the PSDs (voltage distribution, PSD scaling, PSD transformation) = ({psd_type}, {scaling_type}, {transform_type})')
     # draw PSDs (all day)
-    print_log(f'Drawing the PSDs (type:{psd_type})')
-    if psd_type == 'norm':
-        unit = 'AU'
-    elif psd_type == 'raw':
-        unit = f'${vol_unit}^{2}/Hz$'
-    else:
-        unit = 'Unknown'
     sp.draw_PSDs_individual(psd_profiles_df, sample_freq,
-                         f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_allday_')
-    sp.draw_PSDs_individual(logpsd_profiles_df, sample_freq,
-                         f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_allday_log-')
-    sp.draw_PSDs_individual(percentage_psd_profiles_df, sample_freq,
-                         f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_allday_percentage-')
-
+                         f'PSD [{unit}]', psd_output_dir, 
+                         psd_type, scaling_type, transform_type, f'allday_')
     sp.draw_PSDs_group(psd_profiles_df, sample_freq,
-                    f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_allday_')
-    sp.draw_PSDs_group(logpsd_profiles_df, sample_freq,
-                    f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_allday_log-')
-    sp.draw_PSDs_group(percentage_psd_profiles_df, sample_freq,
-                    f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_allday_percentage-')
+                    f'PSD [{unit}]', psd_output_dir, 
+                    psd_type, scaling_type, transform_type, f'allday_')
 
     # draw PSDs (first halfday)
     sp.draw_PSDs_individual(psd_profiles_first_halfday_df, sample_freq,
-                         f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_first-halfday_')
-    sp.draw_PSDs_individual(logpsd_profiles_first_halfday_df, sample_freq,
-                         f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_first-halfday_log-')
-    sp.draw_PSDs_individual(percentage_psd_profiles_first_halfday_df, sample_freq,
-                         f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_first-halfday_percentage-')
-
+                         f'PSD [{unit}]', psd_output_dir, 
+                         psd_type, scaling_type, transform_type, f'first-halfday_')
     sp.draw_PSDs_group(psd_profiles_first_halfday_df, sample_freq,
-                    f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_first-halfday_')
-    sp.draw_PSDs_group(logpsd_profiles_first_halfday_df, sample_freq,
-                    f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_first-halfday_log-')
-    sp.draw_PSDs_group(percentage_psd_profiles_first_halfday_df, sample_freq,
-                    f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_first-halfday_percentage-')
+                    f'PSD [{unit}]', psd_output_dir, 
+                    psd_type, scaling_type, transform_type, f'first-halfday_')
 
     # draw PSDs (second halfday)
     sp.draw_PSDs_individual(psd_profiles_second_halfday_df, sample_freq,
-                         f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_second-halfday_')
-    sp.draw_PSDs_individual(logpsd_profiles_second_halfday_df, sample_freq,
-                         f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_second-halfday_log-')
-    sp.draw_PSDs_individual(percentage_psd_profiles_second_halfday_df, sample_freq,
-                         f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_second-halfday_percentage-')
-
+                         f'PSD [{unit}]', psd_output_dir, 
+                         psd_type, scaling_type, transform_type, f'second-halfday_')
     sp.draw_PSDs_group(psd_profiles_second_halfday_df, sample_freq,
-                    f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_second-halfday_')
-    sp.draw_PSDs_group(logpsd_profiles_second_halfday_df, sample_freq,
-                    f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_second-halfday_log-')
-    sp.draw_PSDs_group(percentage_psd_profiles_second_halfday_df, sample_freq,
-                    f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_second-halfday_percentage-')
+                    f'PSD [{unit}]', psd_output_dir, 
+                    psd_type, scaling_type, transform_type, f'second-halfday_')
+
 
 
 def process_psd_timeseries(psd_info_list, epoch_len_sec, epoch_range, sample_freq, output_dir, 
@@ -2248,7 +2214,7 @@ def process_psd_timeseries(psd_info_list, epoch_len_sec, epoch_range, sample_fre
 
     # delta in Wake
     psd_delta_timeseries_wake_df.T.to_csv(os.path.join(psd_output_dir, 
-                                                       f'power-timeseries_{psd_type}_{scaling_type}_{transform_type}_delta_Wake.csv'), 
+                                                       f'power-timeseries_delta_Wake.csv'), 
                                                        header=False)
     sp.draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_wake_df, epoch_len_sec, 
                                                    f'Hourly {scale_label} Wake delta power [{unit_label}]', psd_output_dir,
@@ -2260,7 +2226,7 @@ def process_psd_timeseries(psd_info_list, epoch_len_sec, epoch_range, sample_fre
                                                 'delta', 'Wake_')
     # delta in NREM 
     psd_delta_timeseries_nrem_df.T.to_csv(os.path.join(psd_output_dir, 
-                                                       f'power-timeseries_{psd_type}_{scaling_type}_{transform_type}_delta_NREM.csv'), 
+                                                       f'power-timeseries_delta_NREM.csv'), 
                                                        header=False)
     sp.draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_nrem_df, epoch_len_sec, 
                                                    f'Hourly {scale_label} NREM delta power [{unit_label}]', psd_output_dir, 
@@ -2272,7 +2238,7 @@ def process_psd_timeseries(psd_info_list, epoch_len_sec, epoch_range, sample_fre
                                                 'delta', 'NREM_')
     # delta in all epoch
     psd_delta_timeseries_df.T.to_csv(os.path.join(psd_output_dir, 
-                                                  f'power-timeseries_{psd_type}_{scaling_type}_{transform_type}_delta.csv'), 
+                                                  f'power-timeseries_delta.csv'), 
                                                   header=False)
     sp.draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_df, epoch_len_sec, 
                                                    f'Hourly {scale_label} delta power [{unit_label}]', psd_output_dir, 
@@ -2284,7 +2250,7 @@ def process_psd_timeseries(psd_info_list, epoch_len_sec, epoch_range, sample_fre
                                                 'delta')
     # total in Wake
     psd_total_timeseries_wake_df.T.to_csv(os.path.join(psd_output_dir, 
-                                                       f'power-timeseries_{psd_type}_{scaling_type}_{transform_type}_total_Wake.csv'), 
+                                                       f'power-timeseries_total_Wake.csv'), 
                                                        header=False)
     sp.draw_psd_domain_power_timeseries_individual(psd_total_timeseries_wake_df, epoch_len_sec, 
                                                    f'Hourly {scale_label} Wake total power [{unit_label}]', psd_output_dir, 
@@ -2526,14 +2492,43 @@ def main(args):
     make_psd_output_dirs(output_dir, 'norm')
     make_psd_output_dirs(output_dir, 'raw')
 
-    # Make PSD stats and plots
-    process_psd_profile(psd_info_list, logpsd_info_list, auc_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, 'norm')
-    process_psd_profile(psd_info_list, logpsd_info_list, auc_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, 'raw', vol_unit)
+    # Make PSD stats and plots with different preprocessing
+    #   voltage distribution: norm|raw
+    #   PSD scaling: none|AUC|TDD
+    #   PSD transformation: linear|log
+
+    # norm|raw, none, linear
+    process_psd_profile(psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='none', transform_type='linear', unit='AU')
+    process_psd_profile(psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='none', transform_type='linear', unit=f'${vol_unit}^{2}/Hz$')
+    # norm|raw, none, log
+    process_psd_profile(logpsd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='none', transform_type='log', unit='AU')
+    process_psd_profile(logpsd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='none', transform_type='log', unit=f'${vol_unit}^{2}/Hz$')
+    # norm|raw, AUC, linear
+    process_psd_profile(auc_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='AUC', transform_type='linear', unit='%')
+    process_psd_profile(auc_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='AUC', transform_type='linear', unit='%')
+    # norm|raw, AUC, log
+    process_psd_profile(logauc_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                    psd_type='norm', scaling_type='AUC', transform_type='log', unit='log(%)')
+    process_psd_profile(logauc_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='AUC', transform_type='log', unit='log(%)')
+    # norm|raw, TDD, linear
+    process_psd_profile(tdd_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='TDD', transform_type='linear', unit='AU')
+    process_psd_profile(tdd_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='TDD', transform_type='linear', unit=f'scaled ${vol_unit}^{2}/Hz$')
+    # norm|raw, TDD, log
+    process_psd_profile(logtdd_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='TDD', transform_type='log', unit='AU')
+    process_psd_profile(logtdd_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='TDD', transform_type='log', unit=f'log(scaled ${vol_unit}^{2}/Hz$)')
 
     # PSD timeseries with different preprocessing
-    # voltage distribution: norm|raw
-    # PSD scaling: none|AUC|TDD
-    # PSD transformation: linear|log
     # norm|raw, none, linear
     print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, none, linear)')
     process_psd_timeseries(psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
@@ -2541,7 +2536,7 @@ def main(args):
     print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, none, linear)')
     process_psd_timeseries(psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
                         psd_type='raw', scaling_type='none', transform_type='linear', unit=f'${vol_unit}^{2}/Hz$')
-    # norm|raw, AUC, log
+    # norm|raw, none, log
     print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, none, log)')
     process_psd_timeseries(logpsd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
                         psd_type='norm', scaling_type='none', transform_type='log', unit='AU')
@@ -2568,14 +2563,14 @@ def main(args):
                         psd_type='norm', scaling_type='TDD', transform_type='linear', unit='AU')
     print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, TDD, linear)')
     process_psd_timeseries(tdd_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
-                        psd_type='raw', scaling_type='TDD', transform_type='linear', unit=f'${vol_unit}^{2}/Hz$')
+                        psd_type='raw', scaling_type='TDD', transform_type='linear', unit=f'scaled ${vol_unit}^{2}/Hz$')
     print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, TDD, log)')
     # norm|raw, TDD, log
     process_psd_timeseries(logtdd_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
                         psd_type='norm', scaling_type='TDD', transform_type='log', unit='AU')
     print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, TDD, log)')
     process_psd_timeseries(logtdd_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
-                        psd_type='raw', scaling_type='TDD', transform_type='log', unit=f'${vol_unit}^{2}/Hz$')
+                        psd_type='raw', scaling_type='TDD', transform_type='log', unit=f'scaled ${vol_unit}^{2}/Hz$')
 
     dt_now = datetime.now()
     print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Ended')

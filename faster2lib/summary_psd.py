@@ -461,7 +461,8 @@ def write_psd_stats(psd_profiles_df, output_dir, opt_label='', summary_func=np.m
         output_dir, f'PSD_{opt_label}profile_stats_table.csv'), index=False)
 
 
-def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_label=''):
+def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, 
+                         psd_type, scaling_type, transform_type, opt_label=''):
     freq_bins = psd_freq_bins(sample_freq)
 
     # mouse_set
@@ -469,6 +470,7 @@ def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_
     # unique elements with preseved order
     mouse_set = sorted(set(mouse_list), key=mouse_list.index)
 
+    pre_proc = f'{psd_type}_{scaling_type}_{transform_type}'
     # draw individual PSDs
     for m in mouse_set:
         fig = Figure(figsize=(16, 4))
@@ -496,19 +498,23 @@ def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_
 
         mouse_tag_list = [str(x) for x in df.iloc[0, 0:4]]
         fig.suptitle(
-            f'Powerspectrum density: {"  ".join(mouse_tag_list)}')
-        filename = f'PSD_{opt_label}profile_I_{"_".join(mouse_tag_list)}'
+            f'Powerspectrum density: {"  ".join(mouse_tag_list)}\n'
+            f'Preprocessed with: (Voltage,Scaling,Transformation) = ({psd_type}, {scaling_type}, {transform_type})',
+            y=1.05)
+        filename = f'PSD_{pre_proc}_{opt_label}profile_I_{"_".join(mouse_tag_list)}'
         sc.savefig(output_dir, filename, fig)
 
 
-def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label=''):
+def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, 
+                    psd_type, scaling_type, transform_type, opt_label=''):
     freq_bins = psd_freq_bins(sample_freq)
 
     # mouse_group_set
     mouse_group_list = psd_profiles_df['Mouse group'].tolist()
     # unique elements with preseved order
     mouse_group_set = sorted(set(mouse_group_list), key=mouse_group_list.index)
-
+    pre_proc = f'{psd_type}_{scaling_type}_{transform_type}'
+    
     # draw gropued PSD
     # _c of Control (assuming index = 0 is a control mouse)
     df = psd_profiles_df[psd_profiles_df['Mouse group'] == mouse_group_set[0]]
@@ -598,8 +604,10 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
                             y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
 
             fig.suptitle(
-                f'Powerspectrum density: {mouse_group_set[0]} (n={num_c}) v.s. {mouse_group_set[g_idx]} (n={num_t})')
-            filename = f'PSD_{opt_label}profile_G_{mouse_group_set[0]}_vs_{mouse_group_set[g_idx]}'
+                f'Powerspectrum density: {mouse_group_set[0]} (n={num_c}) v.s. {mouse_group_set[g_idx]} (n={num_t})\n'
+                f'Preprocessed with: (Voltage,Scaling,Transformation) = ({psd_type}, {scaling_type}, {transform_type})',
+                y=1.05)
+            filename = f'PSD_{pre_proc}_{opt_label}profile_G_{mouse_group_set[0]}_vs_{mouse_group_set[g_idx]}'
             sc.savefig(output_dir, filename, fig)
     else:
         # single group
@@ -653,8 +661,10 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
                         y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
 
         fig.suptitle(
-            f'Powerspectrum density: {mouse_group_set[g_idx]} (n={num_t})')
-        filename = f'PSD_{opt_label}profile_G_{mouse_group_set[g_idx]}'
+            f'Powerspectrum density: {mouse_group_set[g_idx]} (n={num_t})\n'
+            f'Preprocessed with: (Voltage,Scaling,Transformation) = ({psd_type}, {scaling_type}, {transform_type})',
+            y=1.05)
+        filename = f'PSD_{pre_proc}_{opt_label}profile_G_{mouse_group_set[g_idx]}'
         sc.savefig(output_dir, filename, fig)
 
 
