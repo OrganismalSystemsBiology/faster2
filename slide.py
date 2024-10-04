@@ -271,7 +271,7 @@ def prep_fig_of_dpd(prs, summary_dir):
         prs (Presentation): The slide object
         summary_dir (str): The path to the summary directory
     """
-    slide = prs.slides[5]
+    slide = prs.slides[8]
     dpd_path = os.path.join(summary_dir, 'delta_power_dynamics')
 
     if os.path.exists(dpd_path) is False:
@@ -362,7 +362,7 @@ def prep_fig_of_power_timeseries(prs, summary_dir):
 
 
 def prep_fig_of_psd(prs, summary_dir):
-    """Prepare plots of PSD (page 3,4,5)
+    """Prepare plots of PSD
     Args:
         prs (Presentation): The slide object
         summary_dir (str): The path to the summary directory
@@ -393,7 +393,7 @@ def prep_fig_of_spindle(prs, summary_dir):
         prs (Presentation): The slide object
         summary_dir (str): The path to the summary directory
     """
-    slide = prs.slides[6]
+    slide = prs.slides[9]
 
     if os.path.exists(os.path.join(summary_dir, 'spindle')) is False:
         print_log('No spindle data found')
