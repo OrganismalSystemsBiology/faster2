@@ -1610,7 +1610,7 @@ def main(args, summary_dir, output_dir):
 
     # read delta-power CSV file
     path_to_delta_power_csv = os.path.join(
-        summary_dir, 'PSD_norm', 'power-timeseries_norm_delta_percentage.csv')
+        summary_dir, 'PSD_norm', 'power-timeseries_norm_none_linear_delta.csv')
     try:
         (csv_head, csv_body) = read_delta_power_csv(path_to_delta_power_csv)
     except FileNotFoundError as err:

@@ -8,6 +8,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 from pptx import Presentation
 from pptx.util import Cm
 import pandas as pd
+import numpy as np
 
 def initialize_logger(log_file):
     logger = getLogger()
@@ -191,7 +192,7 @@ def prep_table_of_dpd(prs, summary_dir):
     df_dpd_stats = pd.read_csv(os.path.join(
         dpd_path, 'delta-power-dynamics_stats_table.csv'))
 
-    slide = prs.slides[5]
+    slide = prs.slides[8]
     table_list = get_tables_in_slide(slide)
     table_map = map_table_label(table_list)
 
@@ -205,18 +206,19 @@ def prep_table_of_psd(prs, summary_dir):
         prs (Presentation): The slide object
         summary_dir (str): The path to the summary directory
     """
-    time_domains = ['allday', 'first-halfday', 'second-halfday']
-    slide_idx = [2, 3, 4]
+    time_domains = np.tile(['allday', 'first-halfday', 'second-halfday'], 2)
+    transform_types = np.repeat(['linear', 'log'], 3)
+    slide_idx = [2, 3, 4, 5, 6, 7]
 
-    for td, si in zip(time_domains, slide_idx):
+    for si, tf, td in zip(slide_idx, transform_types, time_domains):
         df_psd_ff = pd.read_csv(os.path.join(
-            summary_dir, 'PSD_raw', f'PSD_raw_{td}_profile_stats_table.csv'))
+            summary_dir, 'PSD_raw', f'PSD_raw_none_{tf}_{td}_profile_stats_table.csv'))
         df_psd_ft = pd.read_csv(os.path.join(
-            summary_dir, 'PSD_norm', f'PSD_norm_{td}_profile_stats_table.csv'))
+            summary_dir, 'PSD_norm', f'PSD_norm_none_{tf}_{td}_profile_stats_table.csv'))
         df_psd_tf = pd.read_csv(os.path.join(
-            summary_dir, 'PSD_raw', f'PSD_raw_{td}_percentage-profile_stats_table.csv'))
+            summary_dir, 'PSD_raw', f'PSD_raw_TDD_{tf}_{td}_profile_stats_table.csv'))
         df_psd_tt = pd.read_csv(os.path.join(
-            summary_dir, 'PSD_norm', f'PSD_norm_{td}_percentage-profile_stats_table.csv'))
+            summary_dir, 'PSD_norm', f'PSD_norm_AUC_{tf}_{td}_profile_stats_table.csv'))
 
         slide = prs.slides[si]
         table_list = get_tables_in_slide(slide)
@@ -331,18 +333,18 @@ def prep_fig_of_power_timeseries(prs, summary_dir):
     slide = prs.slides[1]
 
     # (voltage normalization, spectrum normalization, left, top)
-    parm_list = [('raw', '', 1.98, 4.2),
-                 ('raw', 'percentage_', 1.98, 11.5),
-                 ('norm', '', 18.0, 4.2),
-                 ('norm', 'percentage_', 18.0, 11.5)]
+    parm_list = [('raw', 'none', 2.01, 3.43),
+                 ('raw', 'TDD', 2.01, 11.5),
+                 ('norm', 'none', 17.64, 3.43),
+                 ('norm', 'AUC', 17.64, 11.5)]
 
-    for vol_norm_type, spec_norm_type, left, top in parm_list:
+    for vol_dist_type, scaling_type, left, top in parm_list:
         path_pwr_ts_delta_wake = select_wanted_path(os.path.join(
-            summary_dir, f'PSD_{vol_norm_type}'), f'power-timeseries_{vol_norm_type}_delta_{spec_norm_type}Wake_G')
+            summary_dir, f'PSD_{vol_dist_type}'), f'power-timeseries_{vol_dist_type}_{scaling_type}_linear_delta_Wake_G')
         path_pwr_ts_delta_nrem = select_wanted_path(os.path.join(
-            summary_dir, f'PSD_{vol_norm_type}'), f'power-timeseries_{vol_norm_type}_delta_{spec_norm_type}NREM_G')
+            summary_dir, f'PSD_{vol_dist_type}'), f'power-timeseries_{vol_dist_type}_{scaling_type}_linear_delta_NREM_G')
         path_pwr_ts_delta_all = select_wanted_path(os.path.join(
-            summary_dir, f'PSD_{vol_norm_type}'), f'power-timeseries_{vol_norm_type}_delta_{spec_norm_type}G')
+            summary_dir, f'PSD_{vol_dist_type}'), f'power-timeseries_{vol_dist_type}_{scaling_type}_linear_delta_G')
 
         picture1 = slide.shapes.add_picture(
             path_pwr_ts_delta_wake, Cm(left), Cm(top), Cm(15.26), Cm(2.44))
@@ -365,19 +367,21 @@ def prep_fig_of_psd(prs, summary_dir):
         prs (Presentation): The slide object
         summary_dir (str): The path to the summary directory
     """
-    time_domains = ['allday', 'first-halfday', 'second-halfday']
-    slide_idx = [2, 3, 4]
-    # voltage normalization, spectrum normalization, left, top
-    parm_list = [('raw', '', 1.98, 4.65),
-                 ('norm', '', 18.2, 4.65),
-                 ('raw', 'percentage-', 1.98, 12.23),
-                 ('norm', 'percentage-', 18.2, 12.23)]
+    time_domains = np.tile(['allday', 'first-halfday', 'second-halfday'], 2)
+    transform_types = np.repeat(['linear', 'log'], 3)
 
-    for si, td in zip(slide_idx, time_domains):
+    slide_idx = [2, 3, 4, 5, 6, 7]
+    # voltage normalization, spectrum normalization, left, top
+    parm_list = [('raw', 'none', 1.98, 3.94),
+                 ('norm', 'none', 18.2, 3.94),
+                 ('raw', 'TDD', 1.98, 12.23),
+                 ('norm', 'AUC', 18.2, 12.23)]
+
+    for si, tf, td in zip(slide_idx, transform_types, time_domains):
         slide = prs.slides[si]
-        for vol_norm_type, spec_norm_type, left, top in parm_list:
+        for vol_dist_type, scaling_type, left, top in parm_list:
             path_psd = select_wanted_path(os.path.join(
-                summary_dir, f'PSD_{vol_norm_type}'), f'PSD_{vol_norm_type}_{td}_{spec_norm_type}profile_G')
+                summary_dir, f'PSD_{vol_dist_type}'), f'PSD_{vol_dist_type}_{scaling_type}_{tf}_{td}_profile_G')
             slide.shapes.add_picture(path_psd, Cm(
                 left), Cm(top), Cm(14.84), Cm(4.5))
 
@@ -429,10 +433,10 @@ def make_slide(args):
     # Prepare the stage stats (page 1)
     prep_table_of_stage_stats(prs, summary_dir)
 
-    # Prepare tables of the PDS stats (page 3,4,5)
+    # Prepare tables of the PDS stats (page 3,4,5,6,7,8)
     prep_table_of_psd(prs, summary_dir)
 
-    # Prepare the table of delta-power dynamics (page 6)
+    # Prepare the table of delta-power dynamics (page 9)
     prep_table_of_dpd(prs, summary_dir)
 
     # Prepare plots of stage stats (page 1)
@@ -441,13 +445,13 @@ def make_slide(args):
     # Prepare plots of power timeseries (page 2)
     prep_fig_of_power_timeseries(prs, summary_dir)
 
-    # Prepare plots of PSD (page 3,4,5)
+    # Prepare plots of PSD (page 3,4,5,6,7,8)
     prep_fig_of_psd(prs, summary_dir)
 
-    # Prepare plots of delta-power dynamics (page 6)
+    # Prepare plots of delta-power dynamics (page 9)
     prep_fig_of_dpd(prs, summary_dir)
 
-    # Prepare plots of spindel (page 7)
+    # Prepare plots of spindel (page 10)
     prep_fig_of_spindle(prs, summary_dir)
 
     path2summary_slide = os.path.join(summary_dir, 'summary.pptx')

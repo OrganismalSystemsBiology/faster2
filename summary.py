@@ -47,14 +47,14 @@ def print_log(msg):
     if 'log' in globals():
         log.info(msg)
     else:
-        print(msg)
+        print_log(msg)
 
 
 def print_log_exception(msg):
     if 'log' in globals():
         log.exception(msg)
     else:
-        print(msg)
+        print_log(msg)
 
 
 def collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext=None, stage_ext=None):
@@ -2119,6 +2119,8 @@ def process_psd_profile(psd_info_list, epoch_len_sec, epoch_range, sample_freq, 
             unit: unit of PSD
     """
     day_num = int((epoch_range.stop - epoch_range.start) * epoch_len_sec / 60 / 60 / 24)
+    pre_proc = f'{psd_type}_{scaling_type}_{transform_type}'
+
     # Mask for the fist halfday
     epoch_num_halfday = int(12*60*60/epoch_len_sec)
     mask_first_halfday = np.tile(
@@ -2140,16 +2142,15 @@ def process_psd_profile(psd_info_list, epoch_len_sec, epoch_range, sample_freq, 
     # PSD profiles (second half-day)
     psd_profiles_second_halfday_df = sp.make_psd_profile(
         psd_info_list, sample_freq, psd_type, mask_second_halfday)
-
     psd_output_dir = os.path.join(output_dir, f'PSD_{psd_type}')
     # write a table of PSD (all day)
-    sp.write_psd_stats(psd_profiles_df, psd_output_dir, f'allday_')
+    sp.write_psd_stats(psd_profiles_df, psd_output_dir, f'{pre_proc}_allday_')
     # write a table of PSD (first half-day)
-    sp.write_psd_stats(psd_profiles_first_halfday_df, psd_output_dir, f'first-halfday_')
+    sp.write_psd_stats(psd_profiles_first_halfday_df, psd_output_dir, f'{pre_proc}_first-halfday_')
     # write a table of PSD (second half-day)
-    sp.write_psd_stats(psd_profiles_second_halfday_df, psd_output_dir, f'second-halfday_')
+    sp.write_psd_stats(psd_profiles_second_halfday_df, psd_output_dir, f'{pre_proc}_second-halfday_')
 
-    print(f'Drawing the PSDs (voltage distribution, PSD scaling, PSD transformation) = ({psd_type}, {scaling_type}, {transform_type})')
+    print_log(f'Drawing the PSDs (voltage distribution, PSD scaling, PSD transformation) = ({psd_type}, {scaling_type}, {transform_type})')
     # draw PSDs (all day)
     sp.draw_PSDs_individual(psd_profiles_df, sample_freq,
                          f'PSD [{unit}]', psd_output_dir, 
@@ -2182,21 +2183,21 @@ def process_psd_timeseries(psd_info_list, epoch_len_sec, epoch_range, sample_fre
     bidx_delta_freq = sp.get_bidx_delta_freq(freq_bins)
     bidx_all_freq = np.full(len(freq_bins), True)
 
-    print(f'...making the delta-power timeseries in Wake')
+    print_log(f'...making the delta-power timeseries in Wake')
     psd_delta_timeseries_wake_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_wake', 
                                                              psd_type, scaling_type,transform_type)
-    print(f'...making the delta-power timeseries in NREM')
+    print_log(f'...making the delta-power timeseries in NREM')
     psd_delta_timeseries_nrem_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem', 
                                                              psd_type, scaling_type,transform_type)
-    print(f'...making the delta-power timeseries in all stages')
+    print_log(f'...making the delta-power timeseries in all stages')
     psd_delta_timeseries_df      = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, None, 
                                                              psd_type, scaling_type,transform_type)
-    print(f'...making the total-power timeseries in Wake')
+    print_log(f'...making the total-power timeseries in Wake')
     psd_total_timeseries_wake_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_all_freq, 'bidx_wake', 
                                                              psd_type, scaling_type,transform_type)
 
     # draw delta-power timeseries
-    print(f'...drawing the power timeseries')
+    print_log(f'...drawing the power timeseries')
     psd_output_dir = os.path.join(output_dir, f'PSD_{psd_type}')
 
     if transform_type == 'log':
@@ -2211,10 +2212,10 @@ def process_psd_timeseries(psd_info_list, epoch_len_sec, epoch_range, sample_fre
     else:
         scale_label = ''
     
-
+    pre_proc = f'{psd_type}_{scaling_type}_{transform_type}'
     # delta in Wake
     psd_delta_timeseries_wake_df.T.to_csv(os.path.join(psd_output_dir, 
-                                                       f'power-timeseries_delta_Wake.csv'), 
+                                                       f'power-timeseries_{pre_proc}_delta_Wake.csv'), 
                                                        header=False)
     sp.draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_wake_df, epoch_len_sec, 
                                                    f'Hourly {scale_label} Wake delta power [{unit_label}]', psd_output_dir,
@@ -2226,7 +2227,7 @@ def process_psd_timeseries(psd_info_list, epoch_len_sec, epoch_range, sample_fre
                                                 'delta', 'Wake_')
     # delta in NREM 
     psd_delta_timeseries_nrem_df.T.to_csv(os.path.join(psd_output_dir, 
-                                                       f'power-timeseries_delta_NREM.csv'), 
+                                                       f'power-timeseries_{pre_proc}_delta_NREM.csv'), 
                                                        header=False)
     sp.draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_nrem_df, epoch_len_sec, 
                                                    f'Hourly {scale_label} NREM delta power [{unit_label}]', psd_output_dir, 
@@ -2238,7 +2239,7 @@ def process_psd_timeseries(psd_info_list, epoch_len_sec, epoch_range, sample_fre
                                                 'delta', 'NREM_')
     # delta in all epoch
     psd_delta_timeseries_df.T.to_csv(os.path.join(psd_output_dir, 
-                                                  f'power-timeseries_delta.csv'), 
+                                                  f'power-timeseries_{pre_proc}_delta.csv'), 
                                                   header=False)
     sp.draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_df, epoch_len_sec, 
                                                    f'Hourly {scale_label} delta power [{unit_label}]', psd_output_dir, 
@@ -2250,7 +2251,7 @@ def process_psd_timeseries(psd_info_list, epoch_len_sec, epoch_range, sample_fre
                                                 'delta')
     # total in Wake
     psd_total_timeseries_wake_df.T.to_csv(os.path.join(psd_output_dir, 
-                                                       f'power-timeseries_total_Wake.csv'), 
+                                                       f'power-timeseries_{pre_proc}_total_Wake.csv'), 
                                                        header=False)
     sp.draw_psd_domain_power_timeseries_individual(psd_total_timeseries_wake_df, epoch_len_sec, 
                                                    f'Hourly {scale_label} Wake total power [{unit_label}]', psd_output_dir, 
@@ -2477,15 +2478,15 @@ def main(args):
     logpsd_info_list = make_log_psd(psd_info_list)
 
     # AUC scaling psd_info for each epoch 
-    print('Making the AUC-scaled version of the PSD information')
+    print_log('Making the area-under-curve (AUC) scaled version of the PSD information')
     auc_psd_info_list = make_auc_scaled_psd_info_list(psd_info_list)
-    print('Making the log-transformed AUC-scaled version of the PSD information')
+    print_log('Making the log-transformed AUC-scaled version of the PSD information')
     logauc_psd_info_list = make_log_psd(auc_psd_info_list)
 
     # Time-domain NREM-delta scaling of psd_info
-    print('Making the time-domin-delta-power-scaled version of the PSD information')
+    print_log('Making the time-domin-delta-power (TDD) scaled version of the PSD information')
     tdd_psd_info_list = make_tdd_scaled_psd_info(psd_info_list, sample_freq, epoch_len_sec, epoch_num, basal_days)
-    print('Making the log-transformed time-domin-delta-power-scaled version of the log-PSD information')
+    print_log('Making the log-transformed TDD-scaled version of the log-PSD information')
     logtdd_psd_info_list = make_log_psd(tdd_psd_info_list)
 
     # make output dirs for PSDs
@@ -2530,45 +2531,45 @@ def main(args):
 
     # PSD timeseries with different preprocessing
     # norm|raw, none, linear
-    print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, none, linear)')
+    print_log(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, none, linear)')
     process_psd_timeseries(psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
                         psd_type='norm', scaling_type='none', transform_type='linear', unit='AU')
-    print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, none, linear)')
+    print_log(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, none, linear)')
     process_psd_timeseries(psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
                         psd_type='raw', scaling_type='none', transform_type='linear', unit=f'${vol_unit}^{2}/Hz$')
     # norm|raw, none, log
-    print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, none, log)')
+    print_log(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, none, log)')
     process_psd_timeseries(logpsd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
                         psd_type='norm', scaling_type='none', transform_type='log', unit='AU')
-    print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, none, log)')
+    print_log(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, none, log)')
     process_psd_timeseries(logpsd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
                         psd_type='raw', scaling_type='none', transform_type='log', unit=f'${vol_unit}^{2}/Hz$')
     # norm|raw, AUC, linear
-    print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, AUC, linear)')
+    print_log(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, AUC, linear)')
     process_psd_timeseries(auc_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
                         psd_type='norm', scaling_type='AUC', transform_type='linear', unit='%')
-    print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, AUC, linear)')
+    print_log(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, AUC, linear)')
     process_psd_timeseries(auc_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
                         psd_type='raw', scaling_type='AUC', transform_type='linear', unit='%')
     # norm|raw, AUC, log
-    print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, AUC, log)')
+    print_log(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, AUC, log)')
     process_psd_timeseries(logauc_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
                         psd_type='norm', scaling_type='AUC', transform_type='log', unit='%')
-    print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, AUC, log)')
+    print_log(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, AUC, log)')
     process_psd_timeseries(logauc_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
                         psd_type='raw', scaling_type='AUC', transform_type='log', unit='%')
     # norm|raw, TDD, linear
-    print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, TDD, linear)')
+    print_log(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, TDD, linear)')
     process_psd_timeseries(tdd_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
                         psd_type='norm', scaling_type='TDD', transform_type='linear', unit='AU')
-    print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, TDD, linear)')
+    print_log(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, TDD, linear)')
     process_psd_timeseries(tdd_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
                         psd_type='raw', scaling_type='TDD', transform_type='linear', unit=f'scaled ${vol_unit}^{2}/Hz$')
-    print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, TDD, log)')
+    print_log(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, TDD, log)')
     # norm|raw, TDD, log
     process_psd_timeseries(logtdd_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
                         psd_type='norm', scaling_type='TDD', transform_type='log', unit='AU')
-    print(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, TDD, log)')
+    print_log(f'With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, TDD, log)')
     process_psd_timeseries(logtdd_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
                         psd_type='raw', scaling_type='TDD', transform_type='log', unit=f'scaled ${vol_unit}^{2}/Hz$')
 
