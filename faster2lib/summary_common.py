@@ -76,7 +76,7 @@ def test_two_sample(x, y):
     
 def var_test(x, y):
     """ Performs an F test to compare the variances of two samples.
-        This function is same as R's var.test()
+        This function is equivalent to R's var.test()
     """
     df1 = len(x) - 1
     df2 = len(y) - 1
@@ -175,9 +175,9 @@ def stat_stars(p_value):
 
 
 def mack_skillings(dat):
-    ''' Calculate Mack-Skillings statistics and p-value.
-    This function calculates Mack-Skillings statistics and p-value. 
-    Mack-Skillings statistics is a nonparametric test for the equality of k treatments in a two-way layout 
+    ''' Calculate the Mack-Skillings statistics and p-value.
+    This function calculates the Mack-Skillings statistics and p-value. 
+    The Mack-Skillings test is a nonparametric test for the equality of k treatments in a two-way layout 
     with at least one observation for every treatment-block combination.
     Args:
         dat: 3D numpy array of shape (n, k, r) where n is the number of blocks, k is the number of treatments, and r is the number of repeats.
@@ -194,7 +194,7 @@ def mack_skillings(dat):
     vs = np.sum((np.nansum(rnk, axis=2).T/qs), axis=1) # mean rank-sums in each treatment
     ve = [np.sum(cs[:,j]*(qs + 1)/(2*qs)) for j in range(k-1)] # expected mean rank-sums of each treatment
     v = vs[:-1] - ve
-    css = cs[:, :-1] # degree of freedom of rank-sums of treatments is k-1
+    css = cs[:, :-1] # The degree of freedom of rank-sums of treatments is k-1
     sigma = -np.dot(css.T*(qs+1)/(12*qs**2), css) # covariance of rank-sums between treatments
     sigma_diag = np.array([np.sum(css[:,s]*(qs - css[:,s])*(qs + 1)/(12*qs**2)) for s in range(k-1)]) # variance of rank-sums of each treatment
     np.fill_diagonal(sigma, sigma_diag)
