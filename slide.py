@@ -199,6 +199,32 @@ def prep_table_of_dpd(prs, summary_dir):
     set_dataframe_to_table(df_dpd_stats.fillna(' '), table_map['DPD-STATS'])
 
 
+def prep_table_of_spindle(prs, summary_dir):
+    """Prepare tables of the spindle
+
+    Args:
+        prs (Presentation): The slide object
+        summary_dir (str): The path to the summary directory
+    """
+
+    spindle_path = os.path.join(summary_dir, 'spindle')
+    if os.path.exists(spindle_path) is False:
+        # 'No spindle data found' is printed in the prep_fig_of_spindle function
+        return 
+
+    df_spindle_dense_stats = pd.read_csv(os.path.join(
+        spindle_path, 'spindle_density_in_NREM_stats.csv'))
+    df_spindle_dist_stats = pd.read_csv(os.path.join(
+        spindle_path, 'spindle_distribution_stats.csv'))
+
+    slide = prs.slides[9]
+    table_list = get_tables_in_slide(slide)
+    table_map = map_table_label(table_list)
+
+    set_dataframe_to_table(df_spindle_dense_stats.fillna(' '), table_map['SPINDLE-IN-NREM'])
+    set_dataframe_to_table(df_spindle_dist_stats.fillna(' '), table_map['SPINDLE-DISTRIBUTION'])
+
+
 def prep_table_of_psd(prs, summary_dir):
     """Prepare tables of the PDS stats
 
@@ -438,6 +464,9 @@ def make_slide(args):
 
     # Prepare the table of delta-power dynamics (page 9)
     prep_table_of_dpd(prs, summary_dir)
+
+    # Prepare the table of spindle (page 10)
+    prep_table_of_spindle(prs, summary_dir)
 
     # Prepare plots of stage stats (page 1)
     prep_fig_of_stage_stats(prs, summary_dir)
