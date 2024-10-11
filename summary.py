@@ -2409,7 +2409,7 @@ def main(args):
     else:
         basal_days = day_num
 
-    print_log(f'Number of days: {day_num}, Number of basal days: {basal_days}')
+    print_log(f'Number of days: {day_num}, Number of basal days for the time-domain-delta scaling: {basal_days}')
 
     # prepare stagetime statistics
     stagetime_stats = make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext)

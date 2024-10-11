@@ -757,7 +757,7 @@ def draw_2d_plot_of_taus_group_comp(delta_power_dynamics_df, output_dir):
         # error area (control)
         if np.sum(bidx_group_ctrl)>1:
             ell_ctrl = patches.Ellipse(
-            mean_ctrl, w_ctrl[0], w_ctrl[1], 180. + angle_ctrl, facecolor='none', edgecolor='grey')
+            mean_ctrl, w_ctrl[0], w_ctrl[1], angle=180. + angle_ctrl, facecolor='none', edgecolor='grey')
             ax.add_patch(ell_ctrl)
 
         # error area (test)
@@ -772,7 +772,7 @@ def draw_2d_plot_of_taus_group_comp(delta_power_dynamics_df, output_dir):
             angle = np.arctan(v[1, 0] / v[0, 0])
             angle = 180. * angle / np.pi  # convert to degrees
             ell = patches.Ellipse(
-                mean, w[0], w[1], 180. + angle, facecolor='none', edgecolor=COLOR_SERIES[1])
+                mean, w[0], w[1], angle=180. + angle, facecolor='none', edgecolor=COLOR_SERIES[1])
             ax.add_patch(ell)
 
         # update limits if necesary
@@ -827,7 +827,7 @@ def draw_2d_plot_of_taus_all_group(delta_power_dynamics_df, output_dir):
             angle = np.arctan(v[1, 0] / v[0, 0])
             angle = 180. * angle / np.pi  # convert to degrees
             ell = patches.Ellipse(
-                mean, w[0], w[1], 180. + angle, facecolor='none', edgecolor=COLOR_SERIES[set_no])
+                mean, w[0], w[1], angle=180. + angle, facecolor='none', edgecolor=COLOR_SERIES[set_no])
             ax.add_patch(ell)
 
         # update limits if necesary
@@ -1342,7 +1342,7 @@ def make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_s
         a_row = pd.DataFrame([{'Experiment label': exp_label, 'Mouse group': mouse_group, 'Mouse ID': mouse_id, 'Device label': device_label,
                             'Lower_asymptote': low_asymp, 'Upper_asymptote': up_asymp}])
 
-        asymptote_df = pd.concat([asymptote_df, a_row])
+        asymptote_df = pd.concat([asymptote_df if not asymptote_df.empty else None, a_row])
 
     return asymptote_df
 
@@ -1369,7 +1369,7 @@ def do_analysis(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summari
     """
     # Estimate the asymptotes
     asymptote_df = make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summarised, csv_head, csv_body, output_dir)
-    asymptote_medians_df = asymptote_df.groupby('Mouse group').median()
+    asymptote_medians_df = asymptote_df.groupby('Mouse group').median(numeric_only=True)
 
     ## Initialize dataframe and lists to store results
     delta_power_dynamics_df = pd.DataFrame(columns=['Experiment label', 'Mouse group', 'Mouse ID', 'Device label',
@@ -1440,7 +1440,7 @@ def do_analysis(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summari
                                'Tau_i': opt_taus[0]/3600, 'Tau_d':opt_taus[1]/3600, 'S0':opt_taus[2], 'Num_of_D-episode':num_of_D_episode,
                                'R2_score':r2_score(obs_ts[bidx_valid_obs], sim_ts[bidx_valid_obs])}])
 
-        delta_power_dynamics_df = pd.concat([delta_power_dynamics_df, a_row])
+        delta_power_dynamics_df = pd.concat([delta_power_dynamics_df if not delta_power_dynamics_df.empty else None, a_row])
         sim_ts_list.append(sim_ts)
         obs_ts_list.append(obs_ts)
 

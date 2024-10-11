@@ -194,7 +194,7 @@ def load_collected_mouse_info(summary_dir):
 
     mouse_info_collected['mouse_info'] = pd.read_json(json_str_wrapped, orient="table")
 
-    format_str = "%Y-%m-%dT%H:%M:%S.%fZ"
+    format_str = "%Y-%m-%dT%H:%M:%S.%f"
     mouse_info_collected['mouse_info']['exp_start_string'] = [datetime.strptime(a, format_str) for a in mouse_info_collected['mouse_info']['exp_start_string']]
 
     return mouse_info_collected
