@@ -68,14 +68,7 @@ def test_two_sample(x, y):
             p_value = stats.ranksums(xx, yy)[1]
 
         # stars
-        if not np.isnan(p_value) and p_value < 0.001:
-            stars = '***'
-        elif p_value < 0.01:
-            stars = '**'
-        elif p_value < 0.05:
-            stars = '*'
-        else:
-            stars = ''
+        stars = stat_stars(p_value)
 
     res = {'p_value': p_value, 'stars': stars, 'method': method}
     return res
@@ -166,3 +159,45 @@ def x_shifts(values, y_min, y_max, width):
 def scatter_datapoints(ax, w, x_pos, values):
     s, v = x_shifts(values, *ax.get_ylim(), w)
     ax.scatter(x_pos + s, v, color='dimgrey')
+
+
+def stat_stars(p_value):
+    # stars
+    if not np.isnan(p_value) and p_value < 0.001:
+        stars = '***'
+    elif p_value < 0.01:
+        stars = '**'
+    elif p_value < 0.05:
+        stars = '*'
+    else:
+        stars = ''
+    return stars
+
+
+def mack_skillings(dat):
+    ''' Calculate Mack-Skillings statistics and p-value.
+    This function calculates Mack-Skillings statistics and p-value. 
+    Mack-Skillings statistics is a nonparametric test for the equality of k treatments in a two-way layout 
+    with at least one observation for every treatment-block combination.
+    Args:
+        dat: 3D numpy array of shape (n, k, r) where n is the number of blocks, k is the number of treatments, and r is the number of repeats.
+    Returns:
+        ms: Mack-Skillings statistics
+        p: p-value
+    
+    Reference: P334-335 of "Nonparametric Statistical Methods" by Myles Hollander and Douglas A. Wolfe, 2nd Edition, 1999.
+    '''
+    n, k, r = dat.shape # number of blocks (n), treatments (k), repeats (r)
+    cs = np.apply_along_axis(lambda x: np.count_nonzero(~np.isnan(x)), 2, dat) # count of repeated observaions in each cell
+    qs = np.apply_along_axis(np.nansum, 1, cs) # sum of observation counts in each block
+    rnk = np.array([stats.rankdata(x, nan_policy='omit').reshape(k, r) for x in dat]) # ranks in each block
+    vs = np.sum((np.nansum(rnk, axis=2).T/qs), axis=1) # mean rank-sums in each treatment
+    ve = [np.sum(cs[:,j]*(qs + 1)/(2*qs)) for j in range(k-1)] # expected mean rank-sums of each treatment
+    v = vs[:-1] - ve
+    css = cs[:, :-1] # degree of freedom of rank-sums of treatments is k-1
+    sigma = -np.dot(css.T*(qs+1)/(12*qs**2), css) # covariance of rank-sums between treatments
+    sigma_diag = np.array([np.sum(css[:,s]*(qs - css[:,s])*(qs + 1)/(12*qs**2)) for s in range(k-1)]) # variance of rank-sums of each treatment
+    np.fill_diagonal(sigma, sigma_diag)
+    ms = v @ np.linalg.inv(sigma) @ v.T # Mack-Skillings statistics: the sum of normalized rank-sums
+    p = 1 - stats.chi2.cdf(ms, k-1) # p-value
+    return ms, p
