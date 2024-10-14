@@ -264,7 +264,6 @@ def make_target_psd_info(mouse_info_df, epoch_range, epoch_len_sec, sample_freq,
         # PSD without normalization
         conv_psd_raw = np.apply_along_axis(
             lambda y, nfft=n_fft: stage.psd(y, nfft, sample_freq), 1, eeg_vm_org)
-        
 
         psd_info_list.append({'exp_label': exp_label,
                               'mouse_group': mouse_group,
