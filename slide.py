@@ -144,7 +144,7 @@ def assign_page_title(prs, title):
         prs (Presentation): The slide object
         title (str): The slide title to be inserted
     """
-    for si in range(7):
+    for si in range(10):
         slide = prs.slides[si]
         txt_frms = get_text_frames_in_slide(slide, 'SUMMARY LABEL')
         try:
