@@ -3,6 +3,7 @@
     based on results of summary.py
 """
 import os
+import io
 import sys
 import argparse
 import json
@@ -854,7 +855,7 @@ def draw_sim_dpd_group_circ_comp(sim_ts_list, delta_power_dynamics_df, epoch_len
 
     if len(mouse_set) < 2:
         # nothing to do if there's only one group
-        return (0)
+        return (pd.DataFrame())
     else:
         # Use the frist as control, the followings as tests one by one
         bidx_group_ctrl = (np.array(mouse_list) == mouse_set[0])
@@ -1567,8 +1568,13 @@ def main(args, summary_dir, output_dir):
         print_log(
             f'Failed to find collected_mouse_info_df.json. Check the summary folder path is valid. {err}')
         return
-    mouse_info_collected['mouse_info'] = pd.read_json(
-        mouse_info_collected['mouse_info'], orient="table")
+        # This is a batch for bridging the inconsistency between Pandas 1.5 and 2.0
+    json_str = mouse_info_collected['mouse_info']
+    json_str_wrapped = io.StringIO(json_str.replace("datetime", "string"))
+
+    mouse_info_collected['mouse_info'] = pd.read_json(json_str_wrapped, orient="table")
+
+
 
     # basic parameters of the summary
     mouse_info_df = mouse_info_collected['mouse_info']

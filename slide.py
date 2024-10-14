@@ -216,6 +216,7 @@ def prep_table_of_spindle(prs, summary_dir):
         spindle_path, 'spindle_density_in_NREM_stats.csv'))
     df_spindle_dist_stats = pd.read_csv(os.path.join(
         spindle_path, 'spindle_distribution_stats.csv'))
+    
 
     slide = prs.slides[9]
     table_list = get_tables_in_slide(slide)

@@ -29,7 +29,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.4.9'
+FASTER2_NAME = 'FASTER2 version 0.5.0'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
@@ -369,7 +369,7 @@ def plot_scatter2D(points_2D, classes, means, covariances, colors, xlabel, ylabe
             angle = np.arctan(v[1, 0] / v[0, 0])
             angle = 180. * angle / np.pi  # convert to degrees
             ell = mpl.patches.Ellipse(
-                mean, w[0], w[1], 180. + angle, facecolor='none', edgecolor=color)
+                mean, w[0], w[1], angle=180. + angle, facecolor='none', edgecolor=color)
             ax.add_patch(ell)
     if diag_line == True:
         ax.plot([-20, 20], [-20, 20], color='gray', linewidth=0.7)
@@ -973,15 +973,15 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
 
     mouse_info_df = et.read_mouse_info(data_dir)
     for i, r in mouse_info_df.iterrows():
-        device_id = r[0].strip()
-        mouse_group = r[1].strip()
-        mouse_id = r[2].strip()
-        dob = r[3]
-        note = r[4]
+        device_id = r.iloc[0].strip()
+        mouse_group = r.iloc[1].strip()
+        mouse_id = r.iloc[2].strip()
+        dob = r.iloc[3]
+        note = r.iloc[4]
 
         print_log(f'#### {FASTER2_NAME} ###################################')
         print_log(f'#### [{i+1}] Device_id: {device_id}')
-        print_log(f'Reading voltages')
+        print_log('Reading voltages')
         print_log(
             f'Epoch num:{epoch_num}  Epoch length:{epoch_len_sec} [s]  Sampling frequency: {sample_freq} [Hz]')
         (eeg_vm_org, emg_vm_org, not_yet_pickled) = et.read_voltage_matrices(
@@ -1123,7 +1123,7 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
             f.write(f'# Staged by {FASTER2_NAME}\n')
         with open(stage_file_path, 'a') as f:
             stage_table.to_csv(f, header=True, index=False,
-                               line_terminator='\n')
+                               lineterminator='\n')
 
         path2figures = os.path.join(result_dir, 'figure', f'{device_id}')
         os.makedirs(path2figures, exist_ok=True)
