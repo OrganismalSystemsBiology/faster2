@@ -1,163 +1,24 @@
-import dask.dataframe as dd
-from dask.diagnostics import ProgressBar
+
 import pandas as pd
 import os
+import io
+import json
+import re
+import mne
 import numpy as np
 from glob import glob
-import chardet
-import locale
-import re
 from datetime import datetime, timedelta
+from pathlib import Path
+import locale
+import chardet
+import pickle
+import faster2lib.dsi_tools as dt
 
-
-class DSI_TXT_Reader:
-    def __init__(self, dataroot, label, signal_type, epoch_len_sec=8, sample_freq=100):
-        # arguments 
-        #   dataroot ... path to folder containing the datafiles
-        #   label ...  e.g. ID46553
-        #   datatype ... 'EEG' or 'EMG'
-        #   sampling_freq ... sampling frequency (default 100 Hz)
-
-        self._dataroot = dataroot
-        self._label = label
-        self._filepaths_of_opened_file = []
-        self._data_buffer = pd.DataFrame()
-        self._signal_type = signal_type
-        self._epoch_len_sec = epoch_len_sec
-        self._sample_freq = sample_freq
-        self.norm_fac = 1
-        
-    # read epochs using the epoch index in the directory
-    # arguments 
-    #   signal_type ... EEG or EMG
-    #   epoch_start ... starting epoch number (1-start index, inclusive)
-    #   epoch_end ... ending epoch number (1-start index, inclusive)
-    def read_epochs(self, epoch_start, epoch_end):
-        idx_start = int((epoch_start - 1)*self._epoch_len_sec*self._sample_freq) # 0-start index
-        idx_end   = int(epoch_end*self._epoch_len_sec*self._sample_freq - 1) # 0-start index
-
-        hour_start = int(idx_start/self._sample_freq/3600)
-        hour_end   = int(idx_end/self._sample_freq/3600)
-        
-        filepaths = []
-        for hour in range(hour_start, hour_end+1):
-            file_number = hour
-            filename = '%s.%s.%04d.txt' % (self._label, self._signal_type, file_number)
-            filepaths.append(os.path.join(self._dataroot, filename))
-
-        # check encodings
-        enc = encode_lookup(filepaths[0])
-
-        if not set(filepaths).issubset(self._filepaths_of_opened_file):
-            # read files
-            dask_dataframe = dd.read_csv(filepaths,
-                                         engine='python',
-                                         dtype={'time':np.float64, 'value':np.float64}, 
-                                         names=['time', 'value'], skiprows=5, header=None,
-                                         encoding=enc)
-            print(f'Reading {len(filepaths)} {self._signal_type} files in {self._dataroot}:')
-            with ProgressBar():
-                self._data_buffer = dask_dataframe.compute()
-            
-            # update filepahts list
-            self._filepaths_of_opened_file = filepaths
-        
-
-        sec_start = (epoch_start - 1)*self._epoch_len_sec
-        sec_end   = epoch_end*self._epoch_len_sec
-        
-        idx_start_in_buf = np.mod(idx_start, 3600*self._sample_freq)
-        idx_end_in_buf = 3600*self._sample_freq*hour_end + np.mod(idx_end, 3600*self._sample_freq)
-        buf_values = self._data_buffer.value.values
-        values = np.copy(buf_values[idx_start_in_buf:(idx_end_in_buf+1)])
-        times = np.arange(sec_start, sec_end, 1/self._sample_freq)
-        
-        res_data = pd.DataFrame({'time':times, 'value':values})
-        
-        return(res_data)
-
-
-    # read epochs using the datetime information in the comment line
-    # arguments 
-    #   signal_type ... EEG or EMG
-    #   start_datetime ... starting datetime (inclusive)
-    #   end_datetime   ... ending datetime (not inclusive)
-    def read_epochs_by_datetime(self, start_datetime, end_datetime):
-
-        glob_path = os.path.join(self._dataroot, f'{self._label}.{self._signal_type}*')
-        file_list = glob(glob_path)
-        if len(file_list) == 0: 
-            raise LookupError(f'No dsi.txt file found:{glob_path}')
-
-
-        # check encodings
-        enc = encode_lookup(file_list[0])
-
-        # get start datetimes of each file
-        print('Parsing the start time of each file')
-        file_datetimes = []
-        pat = re.compile(r'(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})')
-        for path in file_list:
-            with open(path, 'r', encoding=enc) as f:
-                f.readline() # ignore the first line
-                second_line = f.readline() # take the second line
-            
-            # Assuming the second line contains a line like '# Time: 2018/01/26 11:56:00'
-            pat = re.compile(r'(\d{4}/\d{2}/\d{2}\s+\d{2}:\d{2}:\d{2})')
-            mat = pat.search(second_line)    
-            
-            if mat:
-                datetime_str = mat.group(1)
-            else:
-                print(f'Failed to get start datetime of {path}')
-                raise(AttributeError(f'Failed to get start datetime of {path}'))
-            
-            file_start_datetime = datetime.strptime(datetime_str, '%Y/%m/%d %H:%M:%S')   
-            file_datetimes.append(file_start_datetime)
-        file_datetimes = np.array(file_datetimes)
-
-        # make the binary index of the interval between start_ and end_datetime
-        bidx_targetfiles = (file_datetimes >= start_datetime) & (file_datetimes < end_datetime)
-        # include the previous file of the first file if the first file does not start at the start_datetime
-        idx_first = np.where(bidx_targetfiles)[0][0] # first file's index
-        if idx_first > 0 and file_datetimes[idx_first] > start_datetime:
-            idx_first = idx_first - 1
-            bidx_targetfiles[idx_first] = True
-
-        filepaths = np.array(file_list)[bidx_targetfiles].tolist()
-
-        if not set(filepaths).issubset(self._filepaths_of_opened_file):
-            # read files
-            dask_dataframe = dd.read_csv(filepaths,
-                                         engine='python',
-                                         dtype={'time':np.float64, 'value':np.float64}, 
-                                         names=['time', 'value'], skiprows=5, header=None,
-                                         encoding=enc)
-            print(f'Reading {len(filepaths)} {self._signal_type} files in {self._dataroot}:')
-            with ProgressBar():
-                self._data_buffer = dask_dataframe.compute()
-            
-            # update filepahts list
-            self._filepaths_of_opened_file = filepaths
-        
-            # assign absolute timestamps to rows
-            print('Assigning absolute timestamps to rows')
-            nrow = self._data_buffer.shape[0]
-            times = np.arange(0, nrow)/self._sample_freq
-            timestamps = [file_datetimes[idx_first] + timedelta(seconds=t) for t in times]
-            self._data_buffer.time = timestamps
-
-        bidx_target_rows =  (self._data_buffer.time >= start_datetime) & (self._data_buffer.time < end_datetime)
-        buf_values = self._data_buffer.value.values
-        values = np.copy(buf_values[bidx_target_rows])
-        sec_start = (start_datetime - file_datetimes[0]).total_seconds()
-        sec_end = (end_datetime - file_datetimes[0]).total_seconds()
-        times = np.arange(sec_start, sec_end, 1/self._sample_freq)
-        
-        res_data = pd.DataFrame({'time':times, 'value':values})
-        
-        return(res_data)
-
+def print_log(msg):
+    if 'log' in globals():
+        log.debug(msg)
+    else:
+        print(msg)
 
 def read_stages(stage_folder_path, label, type='auto'):
     stage_file_path = os.path.join(stage_folder_path, f'{label}.{type}.stage.csv')
@@ -269,3 +130,384 @@ def encode_lookup(target_path):
         enc = locale.getpreferredencoding()
 
     return enc
+
+
+def read_mouse_info(data_dir, mouse_info_ext=None):
+    """This function reads the mouse.info.csv file
+    and returns a DataFrame with fixed column names.
+
+    Args:
+        data_dir (str): A path to the data directory that contains the mouse.info.csv
+        mouse_info_ext (str): A sub-extention of the mouse.info.[HERE].csv
+
+
+        The data directory should include two information files:
+        1. exp.info.csv,
+        2. mouse.info.csv,
+        and one directory named "raw" that contains all EEG/EMG data to be processed
+
+    Returns:
+        DataFrame: A dataframe with a fixed column names
+    """
+
+    if mouse_info_ext:
+        sub_ext = f'{mouse_info_ext}.'
+    else:
+        sub_ext = ''
+    filepath = os.path.join(data_dir, f"mouse.info.{sub_ext}csv")
+
+    try:
+        codename = encode_lookup(filepath)
+    except LookupError as lkup_err:
+        print_log(lkup_err)
+        exit(1)
+
+    csv_df = pd.read_csv(filepath,
+                         engine="python",
+                         dtype={'Device label': str, 'Mouse group': str,
+                                'Mouse ID': str, 'DOB': str, 'Stats report': str, 'Note': str},
+                         names=["Device label", "Mouse group",
+                                "Mouse ID", "DOB", "Stats report", "Note"],
+                         skiprows=1,
+                         header=None,
+                         skipinitialspace=True,
+                         encoding=codename)
+
+    return csv_df
+
+
+def load_collected_mouse_info(summary_dir):
+    # read the collected mouse information used for the summary
+    # Here is the 'epoch range' information
+    try:
+        with open(os.path.join(summary_dir, 'collected_mouse_info_df.json'), 'r',
+                    encoding='UTF-8') as infile:
+            mouse_info_collected = json.load(infile)
+    except FileNotFoundError as err:
+        print(
+            f'Failed to find collected_mouse_info_df.json. Check the summary folder path is valid. {err}')
+        exit(1)
+    
+    # This is a patch for bridging the inconsistency between Pandas 1.5 and 2.0
+    json_str = mouse_info_collected['mouse_info']
+    json_str_wrapped = io.StringIO(json_str.replace("datetime", "string"))
+
+    mouse_info_collected['mouse_info'] = pd.read_json(json_str_wrapped, orient="table")
+
+    format_str = "%Y-%m-%dT%H:%M:%S.%f"
+    mouse_info_collected['mouse_info']['exp_start_string'] = [datetime.strptime(a, format_str) for a in mouse_info_collected['mouse_info']['exp_start_string']]
+
+    return mouse_info_collected
+
+
+def read_exp_info(data_dir):
+    """This function reads the exp.info.csv file
+    and returns a DataFrame with fixed column names.
+
+    Args:
+        data_dir (str): A path to the data directory that contains the exp.info.csv
+
+    Returns:
+        DataFrame: A DataFrame with a fixed column names
+    """
+
+    filepath = os.path.join(data_dir, "exp.info.csv")
+
+    csv_df = pd.read_csv(filepath,
+                         engine="python",
+                         dtype={"Experiment label":str, "Rack label":str,
+                                "Start datetime":str, "End datetime":str, "Sampling freq":int},
+                         names=["Experiment label", "Rack label", "Start datetime", 
+                                "End datetime", "Sampling freq"],
+                         skiprows=1,
+                         header=None)
+
+    return csv_df
+
+
+def find_edf_files(data_dir):
+    """returns list of edf files in the directory
+
+    Args:
+        data_dir (str): A path to the data directory
+
+    Returns:
+        [list]: A list returned by glob()
+    """
+    return glob(os.path.join(data_dir, '*.edf'))
+
+
+def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch_num,
+                          start_datetime=None):
+    """ This function reads data files of EEG and EMG, then returns matrices
+    in the shape of (epochs, signals).
+
+    Args:
+        data_dir (str): a path to the dirctory that contains either dsi.txt/, pkl/ directory,
+        or an EDF file.
+        device_id (str): a transmitter ID (e.g., ID47476) or channel ID (e.g., 09).
+        sample_freq (int): sampling frequency
+        epoch_len_sec (int): the length of an epoch in seconds
+        epoch_num (int): the number of epochs to be read.
+        start_datetime (datetime): start datetime of the analysis (used only for EDF file and
+        dsi.txt).
+
+    Returns:
+        (np.array(2), np.arrray(2), bool): a pair of voltage 2D matrices in a tuple
+        and a switch to tell if there was pickled data.
+
+    Note:
+        This function looks into the data_dir/ and first try to read pkl files. If pkl files
+        are not found, it tries to read an EDF file. If the EDF file is also not found, it
+        tries to read dsi.txt files.
+    """
+
+    if os.path.exists(os.path.join(data_dir, 'pkl', f'{device_id}_EEG.pkl')):
+        # if it exists, read the pkl file
+        not_yet_pickled = False
+        # Try to read pickled data
+        pkl_path = os.path.join(data_dir, 'pkl', f'{device_id}_EEG.pkl')
+        with open(pkl_path, 'rb') as pkl:
+            print_log(f'Reading {pkl_path}')
+            eeg_vm = pickle.load(pkl)
+
+        pkl_path = os.path.join(data_dir, 'pkl', f'{device_id}_EMG.pkl')
+        with open(pkl_path, 'rb') as pkl:
+            print_log(f'Reading {pkl_path}')
+            emg_vm = pickle.load(pkl)
+
+    elif len(find_edf_files(data_dir)) > 0:
+        # try to read EDF file
+        not_yet_pickled = True
+        # read EDF file
+        edf_file = find_edf_files(data_dir)
+        if len(edf_file) != 1:
+            raise FileNotFoundError(
+                f'Too many EDF files were found:{edf_file}. '
+                'FASTER2 assumes there is only one file.')
+        edf_file = edf_file[0]
+
+        raw = mne.io.read_raw_edf(edf_file)
+        if type(raw.info['meas_date']) is datetime:#for MNE version>=0.20 (by Okami)
+                measurement_start_datetime = raw.info['meas_date']
+                measurement_start_datetime = measurement_start_datetime.replace(tzinfo=None)
+        else:
+                measurement_start_datetime = datetime.utcfromtimestamp(
+                raw.info['meas_date'][0]) + timedelta(microseconds=raw.info['meas_date'][1])
+        try:
+            if isinstance(start_datetime, datetime) and (measurement_start_datetime < start_datetime):
+                start_offset_sec = (
+                    start_datetime - measurement_start_datetime).total_seconds()
+                end_offset_sec = start_offset_sec + epoch_num * epoch_len_sec
+                bidx = (raw.times >= start_offset_sec) & (
+                    raw.times < end_offset_sec)
+                start_slice = np.where(bidx)[0][0]
+                end_slice = np.where(bidx)[0][-1]+1
+                eeg = raw.get_data(f'EEG{device_id}',
+                                   start_slice, end_slice)[0]
+                emg = raw.get_data(f'EMG{device_id}',
+                                   start_slice, end_slice)[0]
+            else:
+                eeg = raw.get_data(f'EEG{device_id}')[0]
+                emg = raw.get_data(f'EMG{device_id}')[0]
+        except ValueError:
+            print_log(f'Failed to extract the data of "{device_id}" from {edf_file}. '
+                      f'Check the channel name: "EEG/EMG{device_id}" is in the EDF file.')
+            raise
+        except IndexError:
+            print_log(f'Failed to extract the data of "{device_id}" from {edf_file}. '
+                      f'Check the exp.info start datetime: "{start_datetime}" is consistent with EDF file. '
+                      f'The start datetime of the EDF file is {measurement_start_datetime}')
+            raise
+        raw.close()
+        try:
+            eeg_vm = eeg.reshape(-1, epoch_len_sec * sample_freq)
+            emg_vm = emg.reshape(-1, epoch_len_sec * sample_freq)
+        except ValueError:
+            print_log(f'Failed to extract {epoch_num} epochs from {edf_file}. '
+                      'Check the validity of the epoch number, start datetime, '
+                      'and sampling frequency.')
+            raise
+    elif os.path.exists(os.path.join(data_dir, 'dsi.txt')):
+        # try to read dsi.txt
+        not_yet_pickled = True
+        try:
+            dsi_reader_eeg = dt.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'),
+                                               f'{device_id}', 'EEG',
+                                               sample_freq=sample_freq)
+            dsi_reader_emg = dt.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'),
+                                               f'{device_id}', 'EMG',
+                                               sample_freq=sample_freq)
+            if isinstance(start_datetime, datetime):
+                end_datetime = start_datetime + \
+                    timedelta(seconds=epoch_len_sec*epoch_num)
+                eeg_df = dsi_reader_eeg.read_epochs_by_datetime(
+                    start_datetime, end_datetime)
+                emg_df = dsi_reader_emg.read_epochs_by_datetime(
+                    start_datetime, end_datetime)
+            else:
+                eeg_df = dsi_reader_eeg.read_epochs(1, epoch_num)
+                emg_df = dsi_reader_emg.read_epochs(1, epoch_num)
+            eeg_vm = eeg_df.value.values.reshape(-1,
+                                                 epoch_len_sec * sample_freq)
+            emg_vm = emg_df.value.values.reshape(-1,
+                                                 epoch_len_sec * sample_freq)
+        except FileNotFoundError:
+            print_log(
+                f'The dsi.txt file for {device_id} was not found in {data_dir}.')
+            raise
+    else:
+        raise FileNotFoundError(
+            f'Data file was not found for device {device_id} in {data_dir}.')
+
+    expected_shape = (epoch_num, sample_freq * epoch_len_sec)
+    if (eeg_vm.shape != expected_shape) or (emg_vm.shape != expected_shape):
+        raise ValueError(f'Unexpected shape of matrices EEG:{eeg_vm.shape} or EMG:{emg_vm.shape}. '
+                         f'Expected shape is {expected_shape}. Check the validity of '
+                         'the data files or configurations '
+                         'such as the epoch number and the sampling frequency.')
+
+    return (eeg_vm, emg_vm, not_yet_pickled)
+
+
+def interpret_datetimestr(datetime_str):
+    """ Find a datetime string and convert it to a datatime object
+    allowing some variant forms
+
+    Args:
+        datetime_str (string): a string containing datetime
+
+    Returns:
+        a datetime object
+
+    Raises:
+        ValueError: raised when interpretation is failed
+    """
+
+    datestr_patterns = [r'(\d{4})(\d{2})(\d{2})',
+                        r'(\d{4})/(\d{1,2})/(\d{1,2})',
+                        r'(\d{4})-(\d{1,2})-(\d{1,2})']
+
+    timestr_patterns = [r'(\d{2})(\d{2})(\d{2})',
+                        r'(\d{1,2}):(\d{1,2}):(\d{1,2})',
+                        r'(\d{1,2})-(\d{1,2})-(\d{1,2})']
+
+    datetime_obj = None
+    for pat in datestr_patterns:
+        matched = re.search(pat, datetime_str)
+        if matched:
+            year = int(matched.group(1))
+            month = int(matched.group(2))
+            day = int(matched.group(3))
+            datetime_str = re.sub(pat, '', datetime_str)
+
+            for pat_time in timestr_patterns:
+                matched_time = re.search(pat_time, datetime_str)
+                if matched_time:
+                    hour = int(matched_time.group(1))
+                    minuite = int(matched_time.group(2))
+                    second = int(matched_time.group(3))
+                    datetime_obj = datetime(year, month, day,
+                                            hour, minuite, second)
+                    break
+            if not matched_time:
+                datetime_obj = datetime(year, month, day)
+    if not datetime_obj:
+        raise ValueError(
+            'failed to interpret datetime string \'{}\''.format(datetime_str))
+
+    return datetime_obj
+
+
+def interpret_exp_info(exp_info_df, epoch_len_sec):
+    try:
+        start_datetime_str = exp_info_df['Start datetime'].values[0]
+        end_datetime_str = exp_info_df['End datetime'].values[0]
+        sample_freq = int(exp_info_df['Sampling freq'].values[0])
+        exp_label = exp_info_df['Experiment label'].values[0]
+        rack_label = exp_info_df['Rack label'].values[0]
+    except KeyError as key_err:
+        print_log(
+            f'Failed to parse the column: {key_err} in exp.info.csv. Check the headers.')
+        exit(1)
+
+    start_datetime = interpret_datetimestr(start_datetime_str)
+    end_datetime = interpret_datetimestr(end_datetime_str)
+
+    epoch_num = int(
+        (end_datetime - start_datetime).total_seconds() / epoch_len_sec)
+
+    return (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime)
+
+
+class DataSet:
+    """ Class to manage the dataset used for the previous analysis (stage.py or summary.py)
+    """
+    def __init__(self, mouse_info_collected_df, sample_freq, epoch_len_sec, 
+                 epoch_num, epoch_range_target, stage_ext, new_root_dir=None):
+        """ Initialize the dataset
+        Args:
+            mouse_info_collected_df (DataFrame): a DataFrame that contains the collected information of the mice
+            sample_freq (int): sampling frequency
+            epoch_len_sec (int): the length of an epoch in seconds
+            epoch_num (int): the number of all epochs processed in the summary analysis
+            epoch_range_target (slice): an epoch range targeted for the analysis with this dataset
+            stage_ext (str): a stage file extension
+            new_root_dir (str): a new root directory of the data
+        
+        """
+        self.mouse_info_collected_df = mouse_info_collected_df.copy()
+        self.sample_freq = sample_freq
+        self.epoch_len_sec = epoch_len_sec
+        self.epoch_num = epoch_num
+        self.epoch_range_target = epoch_range_target
+        self.stage_ext = stage_ext
+
+        # change the root directory of the data if needed
+        if new_root_dir:
+            for i, r in self.mouse_info_collected_df.iterrows():
+                faster_dir = Path(r['FASTER_DIR'])
+                new_faster_dir = Path(new_root_dir, *faster_dir.parts[1:])
+                self.mouse_info_collected_df.loc[i, 'FASTER_DIR'] = new_faster_dir
+
+        # set the default stage_ext
+        if not self.stage_ext:
+            self.stage_ext = 'faster2'
+
+    def load_eeg_vm(self, idx: int):
+        """ Load the data of the mouse specified by the index
+
+        Args:idx    index of the mouse_info_collected_df
+        
+        """
+        r = self.mouse_info_collected_df.iloc[idx]
+        device_label = r['Device label'].strip()
+        faster_dir = Path(r['FASTER_DIR'])
+        data_dir = faster_dir / 'data'
+        start_date_time = r['exp_start_string']
+
+        eeg_vm, _, _ = read_voltage_matrices(data_dir, device_label, self.sample_freq, 
+                                 self.epoch_len_sec, self.epoch_num, start_date_time)
+        
+        if self.epoch_range_target:
+            eeg_vm = eeg_vm[self.epoch_range_target,:]
+
+        return eeg_vm
+    
+    def load_stage(self, idx: int):
+        """ Load the data of the mouse specified by the index
+
+        Args:idx    index of the mouse_info_collected_df
+        
+        """
+        r = self.mouse_info_collected_df.iloc[idx]
+        device_label = r['Device label'].strip()
+        faster_dir = Path(r['FASTER_DIR'])
+        result_dir = faster_dir / 'result'
+        
+        stages = read_stages(result_dir, device_label, self.stage_ext)    
+
+        if self.epoch_range_target:
+            stages = stages[self.epoch_range_target]
+
+        return stages

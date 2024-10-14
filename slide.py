@@ -8,6 +8,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 from pptx import Presentation
 from pptx.util import Cm
 import pandas as pd
+import numpy as np
 
 def initialize_logger(log_file):
     logger = getLogger()
@@ -143,7 +144,7 @@ def assign_page_title(prs, title):
         prs (Presentation): The slide object
         title (str): The slide title to be inserted
     """
-    for si in range(6):
+    for si in range(10):
         slide = prs.slides[si]
         txt_frms = get_text_frames_in_slide(slide, 'SUMMARY LABEL')
         try:
@@ -182,14 +183,47 @@ def prep_table_of_dpd(prs, summary_dir):
         prs (Presentation): The slide object
         summary_dir (str): The path to the summary directory
     """
-    df_dpd_stats = pd.read_csv(os.path.join(
-        summary_dir, 'delta_power_dynamics', 'delta-power-dynamics_stats_table.csv'))
 
-    slide = prs.slides[5]
+    dpd_path = os.path.join(summary_dir, 'delta_power_dynamics')
+    if os.path.exists(dpd_path) is False:
+        print_log('No delta power analysis data found')
+        return 
+
+    df_dpd_stats = pd.read_csv(os.path.join(
+        dpd_path, 'delta-power-dynamics_stats_table.csv'))
+
+    slide = prs.slides[8]
     table_list = get_tables_in_slide(slide)
     table_map = map_table_label(table_list)
 
     set_dataframe_to_table(df_dpd_stats.fillna(' '), table_map['DPD-STATS'])
+
+
+def prep_table_of_spindle(prs, summary_dir):
+    """Prepare tables of the spindle
+
+    Args:
+        prs (Presentation): The slide object
+        summary_dir (str): The path to the summary directory
+    """
+
+    spindle_path = os.path.join(summary_dir, 'spindle')
+    if os.path.exists(spindle_path) is False:
+        # 'No spindle data found' is printed in the prep_fig_of_spindle function
+        return 
+
+    df_spindle_dense_stats = pd.read_csv(os.path.join(
+        spindle_path, 'spindle_density_in_NREM_stats.csv'))
+    df_spindle_dist_stats = pd.read_csv(os.path.join(
+        spindle_path, 'spindle_distribution_stats.csv'))
+    
+
+    slide = prs.slides[9]
+    table_list = get_tables_in_slide(slide)
+    table_map = map_table_label(table_list)
+
+    set_dataframe_to_table(df_spindle_dense_stats.fillna(' '), table_map['SPINDLE-IN-NREM'])
+    set_dataframe_to_table(df_spindle_dist_stats.fillna(' '), table_map['SPINDLE-DISTRIBUTION'])
 
 
 def prep_table_of_psd(prs, summary_dir):
@@ -199,18 +233,19 @@ def prep_table_of_psd(prs, summary_dir):
         prs (Presentation): The slide object
         summary_dir (str): The path to the summary directory
     """
-    time_domains = ['allday', 'first-halfday', 'second-halfday']
-    slide_idx = [2, 3, 4]
+    time_domains = np.tile(['allday', 'first-halfday', 'second-halfday'], 2)
+    transform_types = np.repeat(['linear', 'log'], 3)
+    slide_idx = [2, 3, 4, 5, 6, 7]
 
-    for td, si in zip(time_domains, slide_idx):
+    for si, tf, td in zip(slide_idx, transform_types, time_domains):
         df_psd_ff = pd.read_csv(os.path.join(
-            summary_dir, 'PSD_raw', f'PSD_raw_{td}_profile_stats_table.csv'))
+            summary_dir, 'PSD_raw', f'PSD_raw_none_{tf}_{td}_profile_stats_table.csv'))
         df_psd_ft = pd.read_csv(os.path.join(
-            summary_dir, 'PSD_norm', f'PSD_norm_{td}_profile_stats_table.csv'))
+            summary_dir, 'PSD_norm', f'PSD_norm_none_{tf}_{td}_profile_stats_table.csv'))
         df_psd_tf = pd.read_csv(os.path.join(
-            summary_dir, 'PSD_raw', f'PSD_raw_{td}_percentage-profile_stats_table.csv'))
+            summary_dir, 'PSD_raw', f'PSD_raw_TDD_{tf}_{td}_profile_stats_table.csv'))
         df_psd_tt = pd.read_csv(os.path.join(
-            summary_dir, 'PSD_norm', f'PSD_norm_{td}_percentage-profile_stats_table.csv'))
+            summary_dir, 'PSD_norm', f'PSD_norm_AUC_{tf}_{td}_profile_stats_table.csv'))
 
         slide = prs.slides[si]
         table_list = get_tables_in_slide(slide)
@@ -263,8 +298,12 @@ def prep_fig_of_dpd(prs, summary_dir):
         prs (Presentation): The slide object
         summary_dir (str): The path to the summary directory
     """
-    slide = prs.slides[5]
+    slide = prs.slides[8]
     dpd_path = os.path.join(summary_dir, 'delta_power_dynamics')
+
+    if os.path.exists(dpd_path) is False:
+        # 'No delta power analysis data found' is printed in the prep_table_of_dpd function
+        return 
 
     # delta-power dyanmics simulation (group each)
     path_dpd_sim_ge_list = select_wanted_path_list(dpd_path, 'delta-power-dynamics_GE')
@@ -321,18 +360,18 @@ def prep_fig_of_power_timeseries(prs, summary_dir):
     slide = prs.slides[1]
 
     # (voltage normalization, spectrum normalization, left, top)
-    parm_list = [('raw', '', 1.98, 4.2),
-                 ('raw', 'percentage_', 1.98, 11.5),
-                 ('norm', '', 18.0, 4.2),
-                 ('norm', 'percentage_', 18.0, 11.5)]
+    parm_list = [('raw', 'none', 2.01, 3.43),
+                 ('raw', 'TDD', 2.01, 11.5),
+                 ('norm', 'none', 17.64, 3.43),
+                 ('norm', 'AUC', 17.64, 11.5)]
 
-    for vol_norm_type, spec_norm_type, left, top in parm_list:
+    for vol_dist_type, scaling_type, left, top in parm_list:
         path_pwr_ts_delta_wake = select_wanted_path(os.path.join(
-            summary_dir, f'PSD_{vol_norm_type}'), f'power-timeseries_{vol_norm_type}_delta_{spec_norm_type}Wake_G')
+            summary_dir, f'PSD_{vol_dist_type}'), f'power-timeseries_{vol_dist_type}_{scaling_type}_linear_delta_Wake_G')
         path_pwr_ts_delta_nrem = select_wanted_path(os.path.join(
-            summary_dir, f'PSD_{vol_norm_type}'), f'power-timeseries_{vol_norm_type}_delta_{spec_norm_type}NREM_G')
+            summary_dir, f'PSD_{vol_dist_type}'), f'power-timeseries_{vol_dist_type}_{scaling_type}_linear_delta_NREM_G')
         path_pwr_ts_delta_all = select_wanted_path(os.path.join(
-            summary_dir, f'PSD_{vol_norm_type}'), f'power-timeseries_{vol_norm_type}_delta_{spec_norm_type}G')
+            summary_dir, f'PSD_{vol_dist_type}'), f'power-timeseries_{vol_dist_type}_{scaling_type}_linear_delta_G')
 
         picture1 = slide.shapes.add_picture(
             path_pwr_ts_delta_wake, Cm(left), Cm(top), Cm(15.26), Cm(2.44))
@@ -350,26 +389,54 @@ def prep_fig_of_power_timeseries(prs, summary_dir):
 
 
 def prep_fig_of_psd(prs, summary_dir):
-    """Prepare plots of PSD (page 3,4,5)
+    """Prepare plots of PSD
     Args:
         prs (Presentation): The slide object
         summary_dir (str): The path to the summary directory
     """
-    time_domains = ['allday', 'first-halfday', 'second-halfday']
-    slide_idx = [2, 3, 4]
-    # voltage normalization, spectrum normalization, left, top
-    parm_list = [('raw', '', 1.98, 4.65),
-                 ('norm', '', 18.2, 4.65),
-                 ('raw', 'percentage-', 1.98, 12.23),
-                 ('norm', 'percentage-', 18.2, 12.23)]
+    time_domains = np.tile(['allday', 'first-halfday', 'second-halfday'], 2)
+    transform_types = np.repeat(['linear', 'log'], 3)
 
-    for si, td in zip(slide_idx, time_domains):
+    slide_idx = [2, 3, 4, 5, 6, 7]
+    # voltage normalization, spectrum normalization, left, top
+    parm_list = [('raw', 'none', 1.98, 3.94),
+                 ('norm', 'none', 18.2, 3.94),
+                 ('raw', 'TDD', 1.98, 12.23),
+                 ('norm', 'AUC', 18.2, 12.23)]
+
+    for si, tf, td in zip(slide_idx, transform_types, time_domains):
         slide = prs.slides[si]
-        for vol_norm_type, spec_norm_type, left, top in parm_list:
+        for vol_dist_type, scaling_type, left, top in parm_list:
             path_psd = select_wanted_path(os.path.join(
-                summary_dir, f'PSD_{vol_norm_type}'), f'PSD_{vol_norm_type}_{td}_{spec_norm_type}profile_G')
+                summary_dir, f'PSD_{vol_dist_type}'), f'PSD_{vol_dist_type}_{scaling_type}_{tf}_{td}_profile_G')
             slide.shapes.add_picture(path_psd, Cm(
                 left), Cm(top), Cm(14.84), Cm(4.5))
+
+
+def prep_fig_of_spindle(prs, summary_dir):
+    """Prepare plots of spindle (page 7)
+
+    Args:
+        prs (Presentation): The slide object
+        summary_dir (str): The path to the summary directory
+    """
+    slide = prs.slides[9]
+
+    if os.path.exists(os.path.join(summary_dir, 'spindle')) is False:
+        print_log('No spindle data found')
+        return 
+
+    path_spindle_density_in_NREM              = os.path.join(summary_dir, 'spindle', f'spindle_density_in_NREM.jpg')
+    path_spindle_distributions_NREMbeforeREM  = os.path.join(summary_dir, 'spindle', 'spindle_distributions_NREMbeforeREM.jpg')
+    path_spindle_distributions_NREMafterWAKE  = os.path.join(summary_dir, 'spindle', 'spindle_distributions_NREMafterWAKE.jpg')
+    path_spindle_distributions_NREMbeforeWAKE = os.path.join(summary_dir, 'spindle', 'spindle_distributions_NREMbeforeWAKE.jpg')
+    path_spindle_distributions_NREMafterREM   = os.path.join(summary_dir, 'spindle', 'spindle_distributions_NREMafterREM.jpg')
+
+    slide.shapes.add_picture(path_spindle_density_in_NREM, Cm(2.28), Cm(3.43), Cm(6.97), Cm(10))
+    slide.shapes.add_picture(path_spindle_distributions_NREMbeforeREM, Cm(12.65), Cm(3.67), Cm(8.28), Cm(7))
+    slide.shapes.add_picture(path_spindle_distributions_NREMafterREM, Cm(24.35), Cm(3.55), Cm(8.28), Cm(7))
+    slide.shapes.add_picture(path_spindle_distributions_NREMbeforeWAKE, Cm(12.65), Cm(12.05), Cm(8.28), Cm(7))
+    slide.shapes.add_picture(path_spindle_distributions_NREMafterWAKE, Cm(24.35), Cm(12.03), Cm(8.28), Cm(7))
 
 
 def make_slide(args):
@@ -381,7 +448,7 @@ def make_slide(args):
     summary_dir = args.summary_dir
 
     print_log(f'Making summary slides of {summary_dir}')
-    path2template = r'faster2lib/EEG_power_specrum_template.pptx'
+    path2template = os.path.join(os.path.dirname(__file__), r'faster2lib/EEG_power_specrum_template.pptx')
     print_log(f'The template pptx:{path2template}')
 
     prs = Presentation(path2template)
@@ -393,11 +460,14 @@ def make_slide(args):
     # Prepare the stage stats (page 1)
     prep_table_of_stage_stats(prs, summary_dir)
 
-    # Prepare tables of the PDS stats (page 3,4,5)
+    # Prepare tables of the PDS stats (page 3,4,5,6,7,8)
     prep_table_of_psd(prs, summary_dir)
 
-    # Prepare the table of delta-power dynamics (page 6)
+    # Prepare the table of delta-power dynamics (page 9)
     prep_table_of_dpd(prs, summary_dir)
+
+    # Prepare the table of spindle (page 10)
+    prep_table_of_spindle(prs, summary_dir)
 
     # Prepare plots of stage stats (page 1)
     prep_fig_of_stage_stats(prs, summary_dir)
@@ -405,11 +475,14 @@ def make_slide(args):
     # Prepare plots of power timeseries (page 2)
     prep_fig_of_power_timeseries(prs, summary_dir)
 
-    # Prepare plots of PSD (page 3,4,5)
+    # Prepare plots of PSD (page 3,4,5,6,7,8)
     prep_fig_of_psd(prs, summary_dir)
 
-    # Prepare plots of delta-power dynamics (page 6)
+    # Prepare plots of delta-power dynamics (page 9)
     prep_fig_of_dpd(prs, summary_dir)
+
+    # Prepare plots of spindel (page 10)
+    prep_fig_of_spindle(prs, summary_dir)
 
     path2summary_slide = os.path.join(summary_dir, 'summary.pptx')
     prs.save(path2summary_slide)

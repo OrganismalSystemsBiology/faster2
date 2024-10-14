@@ -6,6 +6,7 @@ import sys
 import datetime
 sys.path.append('../')
 import summary as ps
+import faster2lib.eeg_tools as et
 import faster2lib.summary_psd as summary_psd
 import faster2lib.summary_common as summary_common
 import stage
@@ -56,7 +57,7 @@ class  TestFunctions(unittest.TestCase):
         cls.sample_freq = 100
         cls.n_fft = int(256 * cls.sample_freq/100) # assures frequency bins compatibe among different sampleling frequencies
 
-        (cls.eeg_vm_org, _, _) = stage.read_voltage_matrices(
+        (cls.eeg_vm_org, _, _) = et.read_voltage_matrices(
             data_dir, device_id, cls.sample_freq, EPOCH_LEN_SEC, epoch_num, start_datetime)
 
         # Sample stage call
@@ -312,22 +313,11 @@ class  TestFunctions(unittest.TestCase):
         
         # check 4: Within the range (index:100-1800), if the all of bidx_[rem, nrem, wake] of an epoch are false, then the epoch is not a good epoch
         idx = np.where(~true_if_any_stage_found[100:])[0] + 100 + 8
-        np.testing.assert_array_equal(np.array([158,  159,  162,  164,  174,  175,  176,  177,  178,  179,  180,
-                                                181,  182,  183,  184,  185,  186,  187,  188,  189,  190,  191,
-                                                192,  193,  194,  195,  196,  197,  198,  199,  203,  204,  205,
-                                                206,  208,  210,  212,  218,  219,  221,  222,  223,  224,  229,
-                                                230,  231,  232,  233,  234,  235,  238,  239,  240,  245,  246,
-                                                289,  290,  293,  314,  335,  346,  347,  350,  362,  363,  364,
-                                                371,  383,  389,  397,  401,  402,  403,  404,  412,  428,  470,
-                                                475,  480,  647,  754,  757,  762,  776,  795,  833,  835,  838,
-                                                839,  862,  866,  868,  871,  872,  890,  898,  900,  952,  959,
-                                                960,  969,  970,  976,  993, 1018, 1020, 1021, 1034, 1035, 1040,
-                                                1041, 1042, 1043, 1053, 1054, 1056, 1070, 1076, 1112, 1115, 1121,
-                                                1122, 1123, 1143, 1213, 1377, 1378, 1379, 1380, 1390, 1394, 1415,
-                                                1416, 1417, 1457, 1458, 1463, 1499, 1500, 1501, 1502, 1508, 1509,
-                                                1511, 1515, 1516, 1517, 1518, 1519, 1523, 1528, 1529, 1531, 1534,
-                                                1536, 1537, 1538, 1539, 1543, 1562, 1563, 1565, 1566, 1567, 1577,
-                                                1624, 1755]), idx) # row numbers in the excel file
+        # staged epochs in psd_info should be consistent with the stage file's diagnosis
+        stage_diag = et.read_stages_with_eeg_diagnosis(os.path.join(mif['FASTER_DIR'].item(), 'result'), mif['Device label'].item(), type='faster2_1800')
+        idx_nogood = np.where(~((stage_diag[1][100:]<0.1) & (stage_diag[2][100:]<0.1)))[0] + 100 + 8
+        np.testing.assert_array_equal(idx_nogood, idx)
+
         # check 5: 'NOT of bidx_target' is the 'NOT of the good epochs (no staged epoch in the check 4)'
         np.testing.assert_array_equal(np.where(~psd_info_list[0]['bidx_target'])[0][100:]+8, idx)
         

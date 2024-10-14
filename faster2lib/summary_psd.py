@@ -30,8 +30,52 @@ def psd_freq_bins(sample_freq):
     return freq_bins
 
 
+def get_bidx_theta_freq(freq_bins):
+    """ returns the index of theta frequency bins
+        Args:
+            freq_bins (np.array): An array of frequency bins
+        Returns:
+            np.array: The binary index of theta frequency bins for theta waves 
+    """
+    bidx_theta_freq = (freq_bins >= 4) & (freq_bins < 10)
+    return bidx_theta_freq
+
+def get_bidx_delta_freq(freq_bins):
+    """ returns the index of delta frequency bins
+        Args:
+            freq_bins (np.array): An array of frequency bins
+        Returns:
+            np.array: The binary index of delta frequency bins for delta waves 
+    """
+    # Notice: This is slightly different from the definition of delta in the stage.py
+    # The stage.py defines delta including 0 Hz for simplicity.
+    # Here, we exclude 0 Hz from delta for compatibility with the conventional definition.
+    bidx_delta_freq = (0 < freq_bins) & (freq_bins < 4)
+    return bidx_delta_freq
+
+def get_bidx_delta_wo_slow_freq(freq_bins):
+    """ returns thef index of delta frequency bins without slow waves
+        Args:
+            freq_bins (np.array): An array of frequency bins
+        Returns:
+            np.array: The binary index of delta frequency bins without slow waves for delta waves
+        """
+    bidx_delta_wo_slow_freq = (1 <= freq_bins) & (freq_bins < 4)  
+    return bidx_delta_wo_slow_freq
+
+def get_bidx_slow_freq(freq_bins):
+    """ returns the index of slow frequency bins
+        Args:
+            freq_bins (np.array): An array of frequency bins
+        Returns:
+            np.array: The binary index of slow frequency bins for slow waves
+        """
+    bidx_slow_freq = (0 < freq_bins ) & ( freq_bins < 1) 
+    return bidx_slow_freq
+
+
 def make_psd_profile(psd_info_list, sample_freq, psd_type='norm', mask=None):
-    """makes summary PSD statics of each mouse:
+    """makes summary PSD statistics of each mouse:
             psd_mean_df: summary (default: mean) of PSD profiles for each stage for each mice.
 
     Arguments:
@@ -99,7 +143,7 @@ def make_psd_profile(psd_info_list, sample_freq, psd_type='norm', mask=None):
 
 def make_target_psd_info(mouse_info_df, epoch_range, epoch_len_sec, sample_freq,
                          stage_ext):
-    """makes PSD information sets for subsequent static analysis for each mouse:
+    """makes PSD information sets for subsequent statistical analysis for each mouse:
     Arguments:
         mouse_info_df {pd.DataFram} -- a dataframe given by mouse_info_collected()
         sample_freq {int} -- sampling frequency
@@ -149,7 +193,7 @@ def make_target_psd_info(mouse_info_df, epoch_range, epoch_len_sec, sample_freq,
 
         # Read the voltage (EMG is also necessary for marking unknown epochs)
         # pylint: disable=unused-variable
-        (eeg_vm_org, emg_vm_org, not_yet_pickled) = stage.read_voltage_matrices(
+        (eeg_vm_org, emg_vm_org, not_yet_pickled) = et.read_voltage_matrices(
             os.path.join(faster_dir, 'data'), device_label, sample_freq, epoch_len_sec,
             epoch_num, start_datetime)
 
@@ -231,6 +275,7 @@ def make_target_psd_info(mouse_info_df, epoch_range, epoch_len_sec, sample_freq,
                               'bidx_wake': bidx_wake,
                               'bidx_unknown': bidx_unknown,
                               'bidx_target': bidx_target,
+                              'freq_bins': psd_freq_bins(sample_freq),
                               'norm': conv_psd,
                               'raw': conv_psd_raw})
 
@@ -254,11 +299,10 @@ def make_psd_domain(psd_profiles_df, summary_func=np.mean):
                           for x in freq_bin_columns])
 
     # frequency domains
-    bidx_theta_freq = (freq_bins >= 4) & (freq_bins < 10)  # 15 bins
-    bidx_delta_freq = (freq_bins < 4)  # 11 bins
-    bidx_delta_wo_slow_freq = (1 <= freq_bins) & (
-        freq_bins < 4)  # 8 bins (delta without slow)
-    bidx_slow_freq = (freq_bins < 1)  # 3 bins
+    bidx_theta_freq = get_bidx_theta_freq(freq_bins)
+    bidx_delta_freq = get_bidx_delta_freq(freq_bins)
+    bidx_delta_wo_slow_freq = get_bidx_delta_wo_slow_freq(freq_bins) # delta without slow
+    bidx_slow_freq = get_bidx_slow_freq(freq_bins)
 
     # make psd_domain_df
     row_list = []
@@ -357,7 +401,8 @@ def make_psd_stats(psd_domain_df):
     return psd_stats_df
 
 
-def make_psd_timeseries_df(psd_info_list, epoch_range, bidx_freq, stage_bidx_key=None, psd_type='norm'):
+def make_psd_timeseries_df(psd_info_list, epoch_range, bidx_freq, stage_bidx_key=None, 
+                           psd_type='norm', scaling_type='none', transform_type='linear'):
     """make timeseries of PSD with a specified stage and freq domain
 
     Args:
@@ -380,7 +425,12 @@ def make_psd_timeseries_df(psd_info_list, epoch_range, bidx_freq, stage_bidx_key
 
         conv_psd = psd_info[psd_type]
         psd_delta_timeseries = np.repeat(np.nan, epoch_range.stop - epoch_range.start)
-        psd_delta_timeseries[bidx_targeted_stage[epoch_range]] = np.apply_along_axis(np.nanmean, 1, conv_psd[bidx_targeted_stage, :][:,bidx_freq])
+        if scaling_type == 'AUC' and transform_type == 'linear':
+            # Use summation for delta power only if scaling_type is AUC and transform_type is linear
+            psd_delta_timeseries[bidx_targeted_stage[epoch_range]] = np.apply_along_axis(np.nansum, 1, conv_psd[bidx_targeted_stage, :][:,bidx_freq])
+        else:
+            # Use mean for delta power for other cases
+            psd_delta_timeseries[bidx_targeted_stage[epoch_range]] = np.apply_along_axis(np.nanmean, 1, conv_psd[bidx_targeted_stage, :][:,bidx_freq])
         psd_timeseries_df = pd.concat([psd_timeseries_df,
             pd.DataFrame([[psd_info['exp_label'], psd_info['mouse_group'], psd_info['mouse_id'], psd_info['device_label']] + psd_delta_timeseries.tolist()])], ignore_index=True)
 
@@ -410,7 +460,8 @@ def write_psd_stats(psd_profiles_df, output_dir, opt_label='', summary_func=np.m
         output_dir, f'PSD_{opt_label}profile_stats_table.csv'), index=False)
 
 
-def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_label=''):
+def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, 
+                         psd_type, scaling_type, transform_type, opt_label=''):
     freq_bins = psd_freq_bins(sample_freq)
 
     # mouse_set
@@ -418,6 +469,7 @@ def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_
     # unique elements with preseved order
     mouse_set = sorted(set(mouse_list), key=mouse_list.index)
 
+    pre_proc = f'{psd_type}_{scaling_type}_{transform_type}'
     # draw individual PSDs
     for m in mouse_set:
         fig = Figure(figsize=(16, 4))
@@ -445,19 +497,23 @@ def draw_PSDs_individual(psd_profiles_df, sample_freq, y_label, output_dir, opt_
 
         mouse_tag_list = [str(x) for x in df.iloc[0, 0:4]]
         fig.suptitle(
-            f'Powerspectrum density: {"  ".join(mouse_tag_list)}')
-        filename = f'PSD_{opt_label}profile_I_{"_".join(mouse_tag_list)}'
+            f'Powerspectrum density: {"  ".join(mouse_tag_list)}\n'
+            f'Preprocessed with: (Voltage,Scaling,Transformation) = ({psd_type}, {scaling_type}, {transform_type})',
+            y=1.05)
+        filename = f'PSD_{pre_proc}_{opt_label}profile_I_{"_".join(mouse_tag_list)}'
         sc.savefig(output_dir, filename, fig)
 
 
-def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label=''):
+def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, 
+                    psd_type, scaling_type, transform_type, opt_label=''):
     freq_bins = psd_freq_bins(sample_freq)
 
     # mouse_group_set
     mouse_group_list = psd_profiles_df['Mouse group'].tolist()
     # unique elements with preseved order
     mouse_group_set = sorted(set(mouse_group_list), key=mouse_group_list.index)
-
+    pre_proc = f'{psd_type}_{scaling_type}_{transform_type}'
+    
     # draw gropued PSD
     # _c of Control (assuming index = 0 is a control mouse)
     df = psd_profiles_df[psd_profiles_df['Mouse group'] == mouse_group_set[0]]
@@ -547,8 +603,10 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
                             y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
 
             fig.suptitle(
-                f'Powerspectrum density: {mouse_group_set[0]} (n={num_c}) v.s. {mouse_group_set[g_idx]} (n={num_t})')
-            filename = f'PSD_{opt_label}profile_G_{mouse_group_set[0]}_vs_{mouse_group_set[g_idx]}'
+                f'Powerspectrum density: {mouse_group_set[0]} (n={num_c}) v.s. {mouse_group_set[g_idx]} (n={num_t})\n'
+                f'Preprocessed with: (Voltage,Scaling,Transformation) = ({psd_type}, {scaling_type}, {transform_type})',
+                y=1.05)
+            filename = f'PSD_{pre_proc}_{opt_label}profile_G_{mouse_group_set[0]}_vs_{mouse_group_set[g_idx]}'
             sc.savefig(output_dir, filename, fig)
     else:
         # single group
@@ -602,16 +660,20 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir, opt_label
                         y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
 
         fig.suptitle(
-            f'Powerspectrum density: {mouse_group_set[g_idx]} (n={num_t})')
-        filename = f'PSD_{opt_label}profile_G_{mouse_group_set[g_idx]}'
+            f'Powerspectrum density: {mouse_group_set[g_idx]} (n={num_t})\n'
+            f'Preprocessed with: (Voltage,Scaling,Transformation) = ({psd_type}, {scaling_type}, {transform_type})',
+            y=1.05)
+        filename = f'PSD_{pre_proc}_{opt_label}profile_G_{mouse_group_set[g_idx]}'
         sc.savefig(output_dir, filename, fig)
 
 
-def draw_psd_domain_power_timeseries_individual(psd_domain_power_timeseries_df, epoch_len_sec, y_label, output_dir, domain, opt_label=''):
+def draw_psd_domain_power_timeseries_individual(psd_domain_power_timeseries_df, epoch_len_sec, y_label, output_dir, 
+                                                psd_type, scaling_type, transform_type, domain, opt_label=''):
     mouse_groups = psd_domain_power_timeseries_df['Mouse group'].values
     mouse_groups_set = sorted(set(mouse_groups), key=list(
         mouse_groups).index)  # unique elements with preseved order
-    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]  
+    bidx_group_list = [mouse_groups == g for g in mouse_groups_set]
+    pre_proc = f'{psd_type}_{scaling_type}_{transform_type}'
 
     hourly_ts_list = []
     for _, ts in psd_domain_power_timeseries_df.iloc[:,4:].iterrows():
@@ -639,14 +701,16 @@ def draw_psd_domain_power_timeseries_individual(psd_domain_power_timeseries_df, 
         domain_power_timeseries_sd[idx_all_nan] = np.nan
         domain_power_timeseries_stats_list.append(
             np.array([domain_power_timeseries_mean, domain_power_timeseries_sd]))
-    y_max = np.nanmax(np.array([ts_stats[0] for ts_stats in domain_power_timeseries_stats_list])) * 1.1
+    y_vals = np.array([ts_stats[0] for ts_stats in domain_power_timeseries_stats_list])
+    y_max = np.nanmax(y_vals)
+    y_min = np.nanmin(y_vals)
 
     x_max = ts_mat.shape[0]
     x = np.arange(x_max)
     for i, profile in enumerate(hourly_ts_list):
         fig = Figure(figsize=(13, 6))
         ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
-        sc.set_common_features_domain_power_timeseries(ax1, x_max, y_max)
+        sc.set_common_features_domain_power_timeseries(ax1, x_max, y_min, y_max)
 
         ax1.set_ylabel(y_label)
         ax1.set_xlabel('Time (hours)')
@@ -654,17 +718,20 @@ def draw_psd_domain_power_timeseries_individual(psd_domain_power_timeseries_df, 
         ax1.plot(x, profile, color=stage.COLOR_NREM)
 
         fig.suptitle(
-            f'Power timeseries: {"  ".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}')
+            f'Power timeseries: {"  ".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}\n'
+            f'Preprocessed with: (Voltage,Scaling,Transformation) = ({psd_type}, {scaling_type}, {transform_type})')
 
-        filename = f'power-timeseries_{domain}_{opt_label}I_{"_".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}'
+        filename = f'power-timeseries_{pre_proc}_{domain}_{opt_label}I_{"_".join(psd_domain_power_timeseries_df.iloc[i,0:4].values)}'
         sc.savefig(output_dir, filename, fig)
 
 
-def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epoch_len_sec, y_label, output_dir, domain, opt_label=''):
+def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epoch_len_sec, y_label, output_dir, 
+                                             psd_type, scaling_type, transform_type, domain, opt_label=''):
     mouse_groups = psd_domain_power_timeseries_df['Mouse group'].values
     mouse_groups_set = sorted(set(mouse_groups), key=list(
         mouse_groups).index)  # unique elements with preseved order
     bidx_group_list = [mouse_groups == g for g in mouse_groups_set]  
+    pre_proc = f'{psd_type}_{scaling_type}_{transform_type}'
 
     hourly_ts_list = []
     for _, ts in psd_domain_power_timeseries_df.iloc[:,4:].iterrows():
@@ -693,7 +760,10 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epo
 
     # pylint: disable=E1136  # pylint/issues/3139
     x_max = hourly_ts_mat.shape[1]
-    y_max = np.nanmax(np.array([ts_stats[0] for ts_stats in domain_power_timeseries_stats_list])) * 1.1
+    y_vals = np.array([ts_stats[0] for ts_stats in domain_power_timeseries_stats_list])
+    y_max = np.nanmax(y_vals)
+    y_min = np.nanmin(y_vals)
+
     x = np.arange(x_max)
     if len(mouse_groups_set) > 1:
         # contrast to group index = 0
@@ -702,7 +772,7 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epo
             fig = Figure(figsize=(13, 6))
             ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
 
-            sc.set_common_features_domain_power_timeseries(ax1, x_max, y_max)
+            sc.set_common_features_domain_power_timeseries(ax1, x_max, y_min, y_max)
 
             # Control (always the first group)
             num_c = np.sum(bidx_group_list[0])
@@ -723,8 +793,10 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epo
                             y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
 
             fig.suptitle(
-                f'Power timeseries: {mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
-            filename = f'power-timeseries_{domain}_{opt_label}G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
+                f'Power timeseries: {mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})\n'
+                f'Preprocessed with: (Voltage,Scaling,Transformation) = ({psd_type}, {scaling_type}, {transform_type})'
+            )
+            filename = f'power-timeseries_{pre_proc}_{domain}_{opt_label}G_{mouse_groups_set[0]}_vs_{mouse_groups_set[g_idx]}'
             sc.savefig(output_dir, filename, fig)
     else:
         # single group
@@ -733,7 +805,7 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epo
         fig = Figure(figsize=(13, 6))
         ax1 = fig.add_subplot(111, xmargin=0, ymargin=0)
 
-        sc.set_common_features_domain_power_timeseries(ax1, x_max, y_max)
+        sc.set_common_features_domain_power_timeseries(ax1, x_max, y_min, y_max)
 
         y = domain_power_timeseries_stats_list[g_idx][0, :]
         y_sem = domain_power_timeseries_stats_list[g_idx][1, :]/np.sqrt(num)
@@ -743,6 +815,8 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epo
         ax1.set_ylabel(y_label)
         ax1.set_xlabel('Time (hours)')
 
-        fig.suptitle(f'Power timeseries: {mouse_groups_set[g_idx]} (n={num})')
-        filename = f'power-timeseries_{domain}_{opt_label}G_{mouse_groups_set[g_idx]}'
+        fig.suptitle(f'Power timeseries: {mouse_groups_set[g_idx]} (n={num})\n'
+                     f'Preprocessed with: (Voltage,Scaling,Transformation) = ({psd_type}, {scaling_type}, {transform_type})'
+        )
+        filename = f'power-timeseries_{pre_proc}_{domain}_{opt_label}G_{mouse_groups_set[g_idx]}'
         sc.savefig(output_dir, filename, fig)

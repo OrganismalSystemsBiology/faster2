@@ -2,6 +2,8 @@
 """
 import os
 import matplotlib
+import matplotlib.backends.backend_pdf
+import matplotlib._ttconv
 import numpy as np
 from scipy import stats
 import stage
@@ -66,14 +68,7 @@ def test_two_sample(x, y):
             p_value = stats.ranksums(xx, yy)[1]
 
         # stars
-        if not np.isnan(p_value) and p_value < 0.001:
-            stars = '***'
-        elif p_value < 0.01:
-            stars = '**'
-        elif p_value < 0.05:
-            stars = '*'
-        else:
-            stars = ''
+        stars = stat_stars(p_value)
 
     res = {'p_value': p_value, 'stars': stars, 'method': method}
     return res
@@ -81,7 +76,7 @@ def test_two_sample(x, y):
     
 def var_test(x, y):
     """ Performs an F test to compare the variances of two samples.
-        This function is same as R's var.test()
+        This function is equivalent to R's var.test()
     """
     df1 = len(x) - 1
     df2 = len(y) - 1
@@ -100,21 +95,32 @@ def var_test(x, y):
     return {'F': F, 'df1': df1, 'df2': df2, 'p_value': p_value}
 
 
-def set_common_features_domain_power_timeseries(ax, x_max, y_max):
-    y_tick_interval = np.power(10, np.ceil(np.log10(y_max))-1)
-    ax.set_yticks(np.arange(0, y_max, y_tick_interval))
+def set_common_features_domain_power_timeseries(ax, x_max, y_min, y_max):
+    if y_min > 0:
+        # if y_min is positive, set the y-axis minimum to 0 
+        y_min = 0
+    else:
+        # add some bottom margin
+        y_min = y_min - 0.1*(y_max - y_min)
+
+    # add some top margin
+    y_max = y_max + 0.1*(y_max - y_min)
+
+
+    y_tick_interval = np.power(10, np.ceil(np.log10(y_max - y_min))-1)
+    ax.set_yticks(np.arange(y_min, y_max, y_tick_interval))
     ax.set_xticks(np.arange(0, x_max+1, 6))
     ax.grid(dashes=(2, 2))
 
     light_bar_base = matplotlib.patches.Rectangle(
-        xy=[0, -0.1*y_tick_interval], width=x_max, height=0.1*y_tick_interval, fill=True, color=stage.COLOR_DARK)
+        xy=[0, y_min -0.1*y_tick_interval], width=x_max, height=0.1*y_tick_interval, fill=True, color=stage.COLOR_DARK)
     ax.add_patch(light_bar_base)
     for day in range(int(x_max/24)):
         light_bar_light = matplotlib.patches.Rectangle(
-            xy=[24*day, -0.1*y_tick_interval], width=12, height=0.1*y_tick_interval, fill=True, color=stage.COLOR_LIGHT)
+            xy=[24*day, y_min -0.1*y_tick_interval], width=12, height=0.1*y_tick_interval, fill=True, color=stage.COLOR_LIGHT)
         ax.add_patch(light_bar_light)
 
-    ax.set_ylim(-0.15*y_tick_interval, y_max)
+    ax.set_ylim(y_min -0.1*y_tick_interval, y_max)
 
 
 def savefig(output_dir, basefilename, fig):
@@ -128,3 +134,70 @@ def savefig(output_dir, basefilename, fig):
                 bbox_inches='tight', dpi=100)    
 
 
+def x_shifts(values, y_min, y_max, width):
+    #    print_log(y_min, y_max)
+    counts, _ = np.histogram(values, range=(
+        np.min([y_min, np.min(values)]), np.max([y_max, np.max(values)])), bins=25)
+    sorted_values = sorted(values)
+    shifts = []
+#    print_log(counts)
+    non_zero_counts = counts[counts > 0]
+    for c in non_zero_counts:
+        if c == 1:
+            shifts.append(0)
+        else:
+            p = np.arange(1, c+1)  # point counts
+            s = np.repeat(p, 2)[:p.size] * (-1)**p * width / \
+                10  # [-1, 1, -2, 2, ...] * width/10
+            shifts.extend(s)
+
+#     print_log(shifts)
+#     print_log(sorted_values)
+    return [np.array(shifts), sorted_values]
+
+
+def scatter_datapoints(ax, w, x_pos, values):
+    s, v = x_shifts(values, *ax.get_ylim(), w)
+    ax.scatter(x_pos + s, v, color='dimgrey')
+
+
+def stat_stars(p_value):
+    # stars
+    if not np.isnan(p_value) and p_value < 0.001:
+        stars = '***'
+    elif p_value < 0.01:
+        stars = '**'
+    elif p_value < 0.05:
+        stars = '*'
+    else:
+        stars = ''
+    return stars
+
+
+def mack_skillings(dat):
+    ''' Calculate the Mack-Skillings statistics and p-value.
+    This function calculates the Mack-Skillings statistics and p-value. 
+    The Mack-Skillings test is a nonparametric test for the equality of k treatments in a two-way layout 
+    with at least one observation for every treatment-block combination.
+    Args:
+        dat: 3D numpy array of shape (n, k, r) where n is the number of blocks, k is the number of treatments, and r is the number of repeats.
+    Returns:
+        ms: Mack-Skillings statistics
+        p: p-value
+    
+    Reference: P334-335 of "Nonparametric Statistical Methods" by Myles Hollander and Douglas A. Wolfe, 2nd Edition, 1999.
+    '''
+    n, k, r = dat.shape # number of blocks (n), treatments (k), repeats (r)
+    cs = np.apply_along_axis(lambda x: np.count_nonzero(~np.isnan(x)), 2, dat) # count of repeated observaions in each cell
+    qs = np.apply_along_axis(np.nansum, 1, cs) # sum of observation counts in each block
+    rnk = np.array([stats.rankdata(x, nan_policy='omit').reshape(k, r) for x in dat]) # ranks in each block
+    vs = np.sum((np.nansum(rnk, axis=2).T/qs), axis=1) # mean rank-sums in each treatment
+    ve = [np.sum(cs[:,j]*(qs + 1)/(2*qs)) for j in range(k-1)] # expected mean rank-sums of each treatment
+    v = vs[:-1] - ve
+    css = cs[:, :-1] # The degree of freedom of rank-sums of treatments is k-1
+    sigma = -np.dot(css.T*(qs+1)/(12*qs**2), css) # covariance of rank-sums between treatments
+    sigma_diag = np.array([np.sum(css[:,s]*(qs - css[:,s])*(qs + 1)/(12*qs**2)) for s in range(k-1)]) # variance of rank-sums of each treatment
+    np.fill_diagonal(sigma, sigma_diag)
+    ms = v @ np.linalg.inv(sigma) @ v.T # Mack-Skillings statistics: the sum of normalized rank-sums
+    p = 1 - stats.chi2.cdf(ms, k-1) # p-value
+    return ms, p

@@ -1,9 +1,9 @@
 Device label,Mouse group,Mouse ID,DOB,Stats report, Note
-09,WT, Kcnq1-1-1_ctrl_1, 2019/07/03, No,  上段1 EEG signal 異常
-10,WT, Kcnq1-1-1_ctrl_2, 2019/07/03, Yes, 上段2 
-11,KO, Kcnq1-1-1_1,      2020/07/02, No, 上段3 pre-recording中に断水
-12,KO, Kcnq1-1-1_3,      2020/07/02, Yes, 上段4
-13,WT, Kcnq1-1-1_ctrl_3, 2020/07/03, Yes, 下段1
-14,WT, Kcnq1-1-1_ctrl_4, 2020/07/03, Yes, 下段2 
-15,KO, Kcnq1-1-1_4,      2020/07/02, Yes, 下段3
-16,KO, Kcnq1-1-1_6,      2020/07/02, Yes, 下段4
+09,WT, GOI1-1-1_ctrl_1, 2019/07/03, No,  上段1 EEG signal 異常
+10,WT, GOI1-1-1_ctrl_2, 2019/07/03, Yes, 上段2 
+11,KO, GOI1-1-1_1,      2020/07/02, No, 上段3 pre-recording中に断水
+12,KO, GOI1-1-1_3,      2020/07/02, Yes, 上段4
+13,WT, GOI1-1-1_ctrl_3, 2020/07/03, Yes, 下段1
+14,WT, GOI1-1-1_ctrl_4, 2020/07/03, Yes, 下段2 
+15,KO, GOI1-1-1_4,      2020/07/02, Yes, 下段3
+16,KO, GOI1-1-1_6,      2020/07/02, Yes, 下段4

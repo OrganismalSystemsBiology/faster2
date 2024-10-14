@@ -29,7 +29,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.4.7'
+FASTER2_NAME = 'FASTER2 version 0.5.0'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'
@@ -109,25 +109,18 @@ class CustomedGHMM(hmm.GaussianHMM):
                 sr = 1
             w[i] = w[i] * sr
         
-        # confine the REM cluster within negative low-freq and above the diagonal line
+        # confine the REM cluster within negative low-freq
         prn_ax = v@np.diag(w)  # 3x3 matrix: each column is the principal axis
         for i in range(3):
             arr_hd = rem_mean + prn_ax[:, i] # the arrow head from the mean
             narr_hd = rem_mean - prn_ax[:, i] # the negative arrow head from the mean
             
-            # condition 1: negative low-freq and BELOW the diagonal line
-            if arr_hd[0] > self.nr_boundary and arr_hd[1] < arr_hd[0]:
+            # confine the REM cluster within negative low-freq 
+            if arr_hd[0] > self.nr_boundary:
                 # condition 2: if positive high-freq > 0 then allow to grow onto the diagonal line
-                if arr_hd[1] > 0:
-                    sr = self._shrink_ratio(arr_hd, rem_mean)
-                # Otherwise (negative high-freq) then only allow to reach onto the y-axis. 
-                else: 
-                    sr = (self.nr_boundary - rem_mean[0])/(arr_hd[0] - rem_mean[0]) # shrink ratio
-            elif narr_hd[0] > self.nr_boundary and narr_hd[1] < narr_hd[0]:
-                if narr_hd[1] > 0:
-                    sr = self._shrink_ratio(narr_hd, rem_mean)
-                else: 
-                    sr = (self.nr_boundary - rem_mean[0])/(narr_hd[0] - rem_mean[0]) # shrink ratio
+                sr = (self.nr_boundary - rem_mean[0])/(arr_hd[0] - rem_mean[0]) # shrink ratio
+            elif narr_hd[0] > self.nr_boundary:
+                sr = (self.nr_boundary - rem_mean[0])/(narr_hd[0] - rem_mean[0]) # shrink ratio
             else:
                 sr = 1
             w[i] = w[i] * sr
@@ -318,286 +311,6 @@ def print_log_exception(msg):
         print(msg)
 
 
-def read_mouse_info(data_dir, mouse_info_ext=None):
-    """This function reads the mouse.info.csv file
-    and returns a DataFrame with fixed column names.
-
-    Args:
-        data_dir (str): A path to the data directory that contains the mouse.info.csv
-        mouse_info_ext (str): A sub-extention of the mouse.info.[HERE].csv
-
-
-        The data directory should include two information files:
-        1. exp.info.csv,
-        2. mouse.info.csv,
-        and one directory named "raw" that contains all EEG/EMG data to be processed
-
-    Returns:
-        DataFrame: A dataframe with a fixed column names
-    """
-
-    if mouse_info_ext:
-        sub_ext = f'{mouse_info_ext}.'
-    else:
-        sub_ext = ''
-    filepath = os.path.join(data_dir, f"mouse.info.{sub_ext}csv")
-
-    try:
-        codename = et.encode_lookup(filepath)
-    except LookupError as lkup_err:
-        print_log(lkup_err)
-        exit(1)
-
-    csv_df = pd.read_csv(filepath,
-                         engine="python",
-                         dtype={'Device label': str, 'Mouse group': str,
-                                'Mouse ID': str, 'DOB': str, 'Stats report': str, 'Note': str},
-                         names=["Device label", "Mouse group",
-                                "Mouse ID", "DOB", "Stats report", "Note"],
-                         skiprows=1,
-                         header=None,
-                         skipinitialspace=True,
-                         encoding=codename)
-
-    return csv_df
-
-
-def read_exp_info(data_dir):
-    """This function reads the exp.info.csv file
-    and returns a DataFrame with fixed column names.
-
-    Args:
-        data_dir (str): A path to the data directory that contains the exp.info.csv
-
-    Returns:
-        DataFrame: A DataFrame with a fixed column names
-    """
-
-    filepath = os.path.join(data_dir, "exp.info.csv")
-
-    csv_df = pd.read_csv(filepath,
-                         engine="python",
-                         dtype={"Experiment label":str, "Rack label":str,
-                                "Start datetime":str, "End datetime":str, "Sampling freq":int},
-                         names=["Experiment label", "Rack label", "Start datetime", 
-                                "End datetime", "Sampling freq"],
-                         skiprows=1,
-                         header=None)
-
-    return csv_df
-
-
-def find_edf_files(data_dir):
-    """returns list of edf files in the directory
-
-    Args:
-        data_dir (str): A path to the data directory
-
-    Returns:
-        [list]: A list returned by glob()
-    """
-    return glob(os.path.join(data_dir, '*.edf'))
-
-
-def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch_num,
-                          start_datetime=None):
-    """ This function reads data files of EEG and EMG, then returns matrices
-    in the shape of (epochs, signals).
-
-    Args:
-        data_dir (str): a path to the dirctory that contains either dsi.txt/, pkl/ directory,
-        or an EDF file.
-        device_id (str): a transmitter ID (e.g., ID47476) or channel ID (e.g., 09).
-        sample_freq (int): sampling frequency
-        epoch_len_sec (int): the length of an epoch in seconds
-        epoch_num (int): the number of epochs to be read.
-        start_datetime (datetime): start datetime of the analysis (used only for EDF file and
-        dsi.txt).
-
-    Returns:
-        (np.array(2), np.arrray(2), bool): a pair of voltage 2D matrices in a tuple
-        and a switch to tell if there was pickled data.
-
-    Note:
-        This function looks into the data_dir/ and first try to read pkl files. If pkl files
-        are not found, it tries to read an EDF file. If the EDF file is also not found, it
-        tries to read dsi.txt files.
-    """
-
-    if os.path.exists(os.path.join(data_dir, 'pkl', f'{device_id}_EEG.pkl')):
-        # if it exists, read the pkl file
-        not_yet_pickled = False
-        # Try to read pickled data
-        pkl_path = os.path.join(data_dir, 'pkl', f'{device_id}_EEG.pkl')
-        with open(pkl_path, 'rb') as pkl:
-            print_log(f'Reading {pkl_path}')
-            eeg_vm = pickle.load(pkl)
-
-        pkl_path = os.path.join(data_dir, 'pkl', f'{device_id}_EMG.pkl')
-        with open(pkl_path, 'rb') as pkl:
-            print_log(f'Reading {pkl_path}')
-            emg_vm = pickle.load(pkl)
-
-    elif len(find_edf_files(data_dir)) > 0:
-        # try to read EDF file
-        not_yet_pickled = True
-        # read EDF file
-        edf_file = find_edf_files(data_dir)
-        if len(edf_file) != 1:
-            raise FileNotFoundError(
-                f'Too many EDF files were found:{edf_file}. '
-                'FASTER2 assumes there is only one file.')
-        edf_file = edf_file[0]
-
-        raw = mne.io.read_raw_edf(edf_file)
-        measurement_start_datetime = datetime.utcfromtimestamp(
-            raw.info['meas_date'][0]) + timedelta(microseconds=raw.info['meas_date'][1])
-        try:
-            if isinstance(start_datetime, datetime) and (measurement_start_datetime < start_datetime):
-                start_offset_sec = (
-                    start_datetime - measurement_start_datetime).total_seconds()
-                end_offset_sec = start_offset_sec + epoch_num * epoch_len_sec
-                bidx = (raw.times >= start_offset_sec) & (
-                    raw.times < end_offset_sec)
-                start_slice = np.where(bidx)[0][0]
-                end_slice = np.where(bidx)[0][-1]+1
-                eeg = raw.get_data(f'EEG{device_id}',
-                                   start_slice, end_slice)[0]
-                emg = raw.get_data(f'EMG{device_id}',
-                                   start_slice, end_slice)[0]
-            else:
-                eeg = raw.get_data(f'EEG{device_id}')[0]
-                emg = raw.get_data(f'EMG{device_id}')[0]
-        except ValueError:
-            print_log(f'Failed to extract the data of "{device_id}" from {edf_file}. '
-                      f'Check the channel name: "EEG/EMG{device_id}" is in the EDF file.')
-            raise
-        except IndexError:
-            print_log(f'Failed to extract the data of "{device_id}" from {edf_file}. '
-                      f'Check the exp.info start datetime: "{start_datetime}" is consistent with EDF file. '
-                      f'The start datetime of the EDF file is {measurement_start_datetime}')
-            raise
-        raw.close()
-        try:
-            eeg_vm = eeg.reshape(-1, epoch_len_sec * sample_freq)
-            emg_vm = emg.reshape(-1, epoch_len_sec * sample_freq)
-        except ValueError:
-            print_log(f'Failed to extract {epoch_num} epochs from {edf_file}. '
-                      'Check the validity of the epoch number, start datetime, '
-                      'and sampling frequency.')
-            raise
-    elif os.path.exists(os.path.join(data_dir, 'dsi.txt')):
-        # try to read dsi.txt
-        not_yet_pickled = True
-        try:
-            dsi_reader_eeg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'),
-                                               f'{device_id}', 'EEG',
-                                               sample_freq=sample_freq)
-            dsi_reader_emg = et.DSI_TXT_Reader(os.path.join(data_dir, 'dsi.txt/'),
-                                               f'{device_id}', 'EMG',
-                                               sample_freq=sample_freq)
-            if isinstance(start_datetime, datetime):
-                end_datetime = start_datetime + \
-                    timedelta(seconds=epoch_len_sec*epoch_num)
-                eeg_df = dsi_reader_eeg.read_epochs_by_datetime(
-                    start_datetime, end_datetime)
-                emg_df = dsi_reader_emg.read_epochs_by_datetime(
-                    start_datetime, end_datetime)
-            else:
-                eeg_df = dsi_reader_eeg.read_epochs(1, epoch_num)
-                emg_df = dsi_reader_emg.read_epochs(1, epoch_num)
-            eeg_vm = eeg_df.value.values.reshape(-1,
-                                                 epoch_len_sec * sample_freq)
-            emg_vm = emg_df.value.values.reshape(-1,
-                                                 epoch_len_sec * sample_freq)
-        except FileNotFoundError:
-            print_log(
-                f'The dsi.txt file for {device_id} was not found in {data_dir}.')
-            raise
-    else:
-        raise FileNotFoundError(
-            f'Data file was not found for device {device_id} in {data_dir}.')
-
-    expected_shape = (epoch_num, sample_freq * epoch_len_sec)
-    if (eeg_vm.shape != expected_shape) or (emg_vm.shape != expected_shape):
-        raise ValueError(f'Unexpected shape of matrices EEG:{eeg_vm.shape} or EMG:{emg_vm.shape}. '
-                         f'Expected shape is {expected_shape}. Check the validity of '
-                         'the data files or configurations '
-                         'such as the epoch number and the sampling frequency.')
-
-    return (eeg_vm, emg_vm, not_yet_pickled)
-
-
-def interpret_datetimestr(datetime_str):
-    """ Find a datetime string and convert it to a datatime object
-    allowing some variant forms
-
-    Args:
-        datetime_str (string): a string containing datetime
-
-    Returns:
-        a datetime object
-
-    Raises:
-        ValueError: raised when interpretation is failed
-    """
-
-    datestr_patterns = [r'(\d{4})(\d{2})(\d{2})',
-                        r'(\d{4})/(\d{1,2})/(\d{1,2})',
-                        r'(\d{4})-(\d{1,2})-(\d{1,2})']
-
-    timestr_patterns = [r'(\d{2})(\d{2})(\d{2})',
-                        r'(\d{1,2}):(\d{1,2}):(\d{1,2})',
-                        r'(\d{1,2})-(\d{1,2})-(\d{1,2})']
-
-    datetime_obj = None
-    for pat in datestr_patterns:
-        matched = re.search(pat, datetime_str)
-        if matched:
-            year = int(matched.group(1))
-            month = int(matched.group(2))
-            day = int(matched.group(3))
-            datetime_str = re.sub(pat, '', datetime_str)
-
-            for pat_time in timestr_patterns:
-                matched_time = re.search(pat_time, datetime_str)
-                if matched_time:
-                    hour = int(matched_time.group(1))
-                    minuite = int(matched_time.group(2))
-                    second = int(matched_time.group(3))
-                    datetime_obj = datetime(year, month, day,
-                                            hour, minuite, second)
-                    break
-            if not matched_time:
-                datetime_obj = datetime(year, month, day)
-    if not datetime_obj:
-        raise ValueError(
-            'failed to interpret datetime string \'{}\''.format(datetime_str))
-
-    return datetime_obj
-
-
-def interpret_exp_info(exp_info_df, epoch_len_sec):
-    try:
-        start_datetime_str = exp_info_df['Start datetime'].values[0]
-        end_datetime_str = exp_info_df['End datetime'].values[0]
-        sample_freq = int(exp_info_df['Sampling freq'].values[0])
-        exp_label = exp_info_df['Experiment label'].values[0]
-        rack_label = exp_info_df['Rack label'].values[0]
-    except KeyError as key_err:
-        print_log(
-            f'Failed to parse the column: {key_err} in exp.info.csv. Check the headers.')
-        exit(1)
-
-    start_datetime = interpret_datetimestr(start_datetime_str)
-    end_datetime = interpret_datetimestr(end_datetime_str)
-
-    epoch_num = int(
-        (end_datetime - start_datetime).total_seconds() / epoch_len_sec)
-
-    return (epoch_num, sample_freq, exp_label, rack_label, start_datetime, end_datetime)
-
-
 def psd(y, n_fft, sample_freq):
     return signal.welch(y, nfft=n_fft, fs=sample_freq)[1][0:129]
 
@@ -656,7 +369,7 @@ def plot_scatter2D(points_2D, classes, means, covariances, colors, xlabel, ylabe
             angle = np.arctan(v[1, 0] / v[0, 0])
             angle = 180. * angle / np.pi  # convert to degrees
             ell = mpl.patches.Ellipse(
-                mean, w[0], w[1], 180. + angle, facecolor='none', edgecolor=color)
+                mean, w[0], w[1], angle=180. + angle, facecolor='none', edgecolor=color)
             ax.add_patch(ell)
     if diag_line == True:
         ax.plot([-20, 20], [-20, 20], color='gray', linewidth=0.7)
@@ -1235,9 +948,9 @@ def voltage_normalize(v_mat):
 def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filter=False, no_signal_filter=False, draw_pdf_plot=False):
     """ main """
 
-    exp_info_df = read_exp_info(data_dir)
+    exp_info_df = et.read_exp_info(data_dir)
     (epoch_num, sample_freq, exp_label, rack_label, start_datetime,
-     end_datetime) = interpret_exp_info(exp_info_df, epoch_len_sec)
+     end_datetime) = et.interpret_exp_info(exp_info_df, epoch_len_sec)
 
     # assures frequency bins compatibe among different sampling frequencies
     n_fft = int(256 * sample_freq/100)
@@ -1258,20 +971,20 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
 
     rem_floor = np.sum(np.sqrt([n_muscle_freq, n_theta_freq]))
 
-    mouse_info_df = read_mouse_info(data_dir)
+    mouse_info_df = et.read_mouse_info(data_dir)
     for i, r in mouse_info_df.iterrows():
-        device_id = r[0].strip()
-        mouse_group = r[1].strip()
-        mouse_id = r[2].strip()
-        dob = r[3]
-        note = r[4]
+        device_id = r.iloc[0].strip()
+        mouse_group = r.iloc[1].strip()
+        mouse_id = r.iloc[2].strip()
+        dob = r.iloc[3]
+        note = r.iloc[4]
 
         print_log(f'#### {FASTER2_NAME} ###################################')
         print_log(f'#### [{i+1}] Device_id: {device_id}')
-        print_log(f'Reading voltages')
+        print_log('Reading voltages')
         print_log(
             f'Epoch num:{epoch_num}  Epoch length:{epoch_len_sec} [s]  Sampling frequency: {sample_freq} [Hz]')
-        (eeg_vm_org, emg_vm_org, not_yet_pickled) = read_voltage_matrices(
+        (eeg_vm_org, emg_vm_org, not_yet_pickled) = et.read_voltage_matrices(
             data_dir, device_id, sample_freq, epoch_len_sec, epoch_num, start_datetime)
 
         if (pickle_input_data and not_yet_pickled):
@@ -1410,7 +1123,7 @@ def main(data_dir, result_dir, pickle_input_data, epoch_len_sec, heart_beat_filt
             f.write(f'# Staged by {FASTER2_NAME}\n')
         with open(stage_file_path, 'a') as f:
             stage_table.to_csv(f, header=True, index=False,
-                               line_terminator='\n')
+                               lineterminator='\n')
 
         path2figures = os.path.join(result_dir, 'figure', f'{device_id}')
         os.makedirs(path2figures, exist_ok=True)

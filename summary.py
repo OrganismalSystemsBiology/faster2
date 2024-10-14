@@ -24,8 +24,6 @@ import logging
 from logging import getLogger, StreamHandler, FileHandler, Formatter
 
 
-DOMAIN_NAMES = ['Slow', 'Delta w/o slow', 'Delta', 'Theta']
-
 def initialize_logger(log_file):
     logger = getLogger()
     logger.setLevel(logging.INFO)
@@ -49,14 +47,14 @@ def print_log(msg):
     if 'log' in globals():
         log.info(msg)
     else:
-        print(msg)
+        print_log(msg)
 
 
 def print_log_exception(msg):
     if 'log' in globals():
         log.exception(msg)
     else:
-        print(msg)
+        print_log(msg)
 
 
 def collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext=None, stage_ext=None):
@@ -79,11 +77,11 @@ def collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext=None, s
     for faster_dir in faster_dir_list:
         data_dir = os.path.join(faster_dir, 'data')
 
-        exp_info_df = stage.read_exp_info(data_dir)
+        exp_info_df = et.read_exp_info(data_dir)
         # not used variable: rack_label, start_datetime, end_datetime
         # pylint: disable=unused-variable
         (epoch_num, sample_freq, exp_label, rack_label, \
-            start_datetime, end_datetime) = stage.interpret_exp_info(exp_info_df, epoch_len_sec)
+            start_datetime, end_datetime) = et.interpret_exp_info(exp_info_df, epoch_len_sec)
         if (epoch_num_stored != None) and epoch_num != epoch_num_stored:
             raise ValueError('epoch number must be equal among the all dataset')
         else:
@@ -93,7 +91,7 @@ def collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext=None, s
         else:
             sample_freq_stored = sample_freq
 
-        m_info = stage.read_mouse_info(data_dir, mouse_info_ext)
+        m_info = et.read_mouse_info(data_dir, mouse_info_ext)
         m_info['Experiment label'] = exp_label
         m_info['FASTER_DIR'] = faster_dir
         m_info['exp_start_datetime'] = start_datetime
@@ -719,7 +717,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
             csv_df = pd.DataFrame({'Time':x, f'{mgs_c}_REM_mean':y, f'{mgs_c}_REM_SEM':y_sem})
             ax1.plot(x, y, color='grey')
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
             ax1.set_ylabel('Hourly REM\n duration (min)')
 
             # NREM
@@ -729,7 +727,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
                 {f'{mgs_c}_NREM_mean': y, f'{mgs_c}_NREM_SEM': y_sem})], axis=1)
             ax2.plot(x, y, color='grey')
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
             ax2.set_ylabel('Hourly NREM\n duration (min)')
 
             # Wake
@@ -739,7 +737,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
                 {f'{mgs_c}_Wake_mean': y, f'{mgs_c}_Wake_SEM': y_sem})], axis=1)
             ax3.plot(x, y, color='grey')
             ax3.fill_between(x, y - y_sem/np.sqrt(num),
-                             y + y_sem/np.sqrt(num), color='grey', alpha=0.3)
+                             y + y_sem/np.sqrt(num), color='grey', linewidth=0, alpha=0.3)
             ax3.set_ylabel('Hourly wake\n duration (min)')
             ax3.set_xlabel('Time (hours)')
 
@@ -752,7 +750,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
                 {f'{mgs_t}_REM_mean': y, f'{mgs_t}_REM_SEM': y_sem})], axis=1)
             ax1.plot(x, y, color=stage.COLOR_REM)
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_REM, linewidth=0, alpha=0.3)
 
             # NREM
             y = stagetime_profile_stats_list[g_idx][0, 1, :]
@@ -761,7 +759,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
                 {f'{mgs_t}_NREM_mean': y, f'{mgs_t}_NREM_SEM': y_sem})], axis=1)
             ax2.plot(x, y, color=stage.COLOR_NREM)
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
             # Wake
             y = stagetime_profile_stats_list[g_idx][0, 2, :]
@@ -770,7 +768,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
                 {f'{mgs_c}_Wake_mean': y, f'{mgs_c}_Wake_SEM': y_sem})], axis=1)
             ax3.plot(x, y, color=stage.COLOR_WAKE)
             ax3.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
 
             fig.suptitle(
                 f'{mgs_c} (n={num_c}) v.s. {mgs_t} (n={num})')
@@ -801,7 +799,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
         csv_df = pd.DataFrame({'Time':x, f'{mgs_t}_REM_mean':y, f'{mgs_t}_REM_SEM':y_sem})
         ax1.plot(x, y, color=stage.COLOR_REM)
         ax1.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_REM, linewidth=0, alpha=0.3)
         ax1.set_ylabel('Hourly REM\n duration (min)')
 
         # NREM
@@ -811,7 +809,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
             {f'{mgs_t}_NREM_mean': y, f'{mgs_t}_NREM_SEM': y_sem})], axis=1)
         ax2.plot(x, y, color=stage.COLOR_NREM)
         ax2.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
         ax2.set_ylabel('Hourly NREM\n duration (min)')
 
         # Wake
@@ -821,7 +819,7 @@ def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
             {f'{mgs_t}_Wake_mean': y, f'{mgs_t}_Wake_SEM': y_sem})], axis=1)
         ax3.plot(x, y, color=stage.COLOR_WAKE)
         ax3.fill_between(x, y - y_sem/np.sqrt(num),
-                         y + y_sem/np.sqrt(num), color=stage.COLOR_WAKE, alpha=0.3)
+                         y + y_sem/np.sqrt(num), color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
         ax3.set_ylabel('Hourly wake\n duration (min)')
         ax3.set_xlabel('Time (hours)')
 
@@ -902,7 +900,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
             y_sem = swtrans_profile_stats_list[0][1, 0, :]/np.sqrt(num_c)
             ax1.plot(x, y, color='grey')
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
             ax1.set_ylabel('Hourly Psw')
 
             # Pws
@@ -910,7 +908,7 @@ def draw_swtrans_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
             y_sem = swtrans_profile_stats_list[0][1, 1, :]/np.sqrt(num_c)
             ax2.plot(x, y, color='grey')
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
             ax2.set_ylabel('Hourly `Pws')
 
             # Treatments
@@ -920,14 +918,14 @@ def draw_swtrans_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
             y_sem = swtrans_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
             ax1.plot(x, y, color=stage.COLOR_NREM)
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
             # Pws
             y = swtrans_profile_stats_list[g_idx][0, 1, :]
             y_sem = swtrans_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
             ax2.plot(x, y, color=stage.COLOR_WAKE)
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
 
             fig.suptitle(
                 f'Sleep-wake transition (Psw Pws) profile:\n{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
@@ -953,14 +951,14 @@ def draw_swtrans_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
         y_sem = swtrans_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
         ax1.plot(x, y, color=stage.COLOR_NREM)
         ax1.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
         # Pws
         y = swtrans_profile_stats_list[g_idx][0, 1, :]
         y_sem = swtrans_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
         ax2.plot(x, y, color=stage.COLOR_WAKE)
         ax2.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
         ax2.set_xlabel('Time (hours)')
 
         fig.suptitle(f'Sleep-wake transition (Psw Pws) profile:\n{mouse_groups_set[g_idx]} (n={num})')
@@ -998,21 +996,21 @@ def draw_stagetime_circadian_profile_indiviudal(stagetime_stats, epoch_len_sec, 
         y_sem = circadian[1, 0, :]/np.sqrt(num)
         ax1.plot(x, y, color=stage.COLOR_REM)
         ax1.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_REM, linewidth=0, alpha=0.3)
 
         # NREM
         y = circadian[0, 1, :]
         y_sem = circadian[1, 1, :]/np.sqrt(num)
         ax2.plot(x, y, color=stage.COLOR_NREM)
         ax2.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
         # Wake
         y = circadian[0, 2, :]
         y_sem = circadian[1, 2, :]/np.sqrt(num)
         ax3.plot(x, y, color=stage.COLOR_WAKE)
         ax3.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
 
         fig.suptitle(
             f'Circadian stage-time profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
@@ -1071,7 +1069,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
                 num_c)
             ax1.plot(x, y, color='grey')
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
 
             # NREM
             y = stagetime_circadian_profile_stats_list[0][0, 1, :]
@@ -1079,7 +1077,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
                 num_c)
             ax2.plot(x, y, color='grey')
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
 
             # Wake
             y = stagetime_circadian_profile_stats_list[0][0, 2, :]
@@ -1087,7 +1085,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
                 num_c)
             ax3.plot(x, y, color='grey')
             ax3.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
 
             # Treatment
             num = np.sum(bidx_group_list[g_idx])
@@ -1097,7 +1095,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
                 num)
             ax1.plot(x, y, color=stage.COLOR_REM)
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_REM, linewidth=0, alpha=0.3)
 
             # NREM
             y = stagetime_circadian_profile_stats_list[g_idx][0, 1, :]
@@ -1105,7 +1103,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
                 num)
             ax2.plot(x, y, color=stage.COLOR_NREM)
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
             # Wake
             y = stagetime_circadian_profile_stats_list[g_idx][0, 2, :]
@@ -1113,7 +1111,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
                 num)
             ax3.plot(x, y, color=stage.COLOR_WAKE)
             ax3.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
 
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
@@ -1140,7 +1138,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
         y_sem = stagetime_circadian_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
         ax1.plot(x, y, color=stage.COLOR_REM)
         ax1.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_REM, linewidth=0, alpha=0.3)
         ax1.set_ylabel('Hourly REM\n duration (min)')
 
         # NREM
@@ -1148,7 +1146,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
         y_sem = stagetime_circadian_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
         ax2.plot(x, y, color=stage.COLOR_NREM)
         ax2.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
         ax2.set_ylabel('Hourly NREM\n duration (min)')
 
         # Wake
@@ -1156,7 +1154,7 @@ def draw_stagetime_circadian_profile_grouped(stagetime_stats, output_dir):
         y_sem = stagetime_circadian_profile_stats_list[g_idx][1, 2, :]/np.sqrt(num)
         ax3.plot(x, y, color=stage.COLOR_WAKE)
         ax3.fill_between(x, y - y_sem/np.sqrt(num),
-                            y + y_sem/np.sqrt(num), color=stage.COLOR_WAKE, alpha=0.3)
+                            y + y_sem/np.sqrt(num), color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
         ax3.set_ylabel('Hourly wake\n duration (min)')
         ax3.set_xlabel('Time (hours)')
 
@@ -1191,14 +1189,14 @@ def draw_swtrans_circadian_profile_individual(stagetime_stats, epoch_len_sec, ou
         y_sem = circadian[1, 0, :]/np.sqrt(num)
         ax1.plot(x, y, color=stage.COLOR_NREM)
         ax1.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
         # Pws
         y = circadian[0, 1, :]
         y_sem = circadian[1, 1, :]/np.sqrt(num)
         ax2.plot(x, y, color=stage.COLOR_WAKE)
         ax2.fill_between(x, y - y_sem,
-                         y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                         y + y_sem, color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
         fig.suptitle(
             f'Circadian sleep-wake-transition profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
         filename = f'sleep-wake-transition_circadian_profile_I_{"_".join(stagetime_df.iloc[i,0:4].values)}'
@@ -1255,7 +1253,7 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
                 num_c)
             ax1.plot(x, y, color='grey')
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
 
             # Pws
             y = swtrans_circadian_profile_stats_list[0][0, 1, :]
@@ -1263,7 +1261,7 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
                 num_c)
             ax2.plot(x, y, color='grey')
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color='grey', alpha=0.3)
+                             y + y_sem, color='grey', linewidth=0, alpha=0.3)
 
             # Treatment
             num = np.sum(bidx_group_list[g_idx])
@@ -1273,7 +1271,7 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
                 num)
             ax1.plot(x, y, color=stage.COLOR_NREM)
             ax1.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
             # Pws
             y = swtrans_circadian_profile_stats_list[g_idx][0, 1, :]
@@ -1281,7 +1279,7 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
                 num)
             ax2.plot(x, y, color=stage.COLOR_WAKE)
             ax2.fill_between(x, y - y_sem,
-                             y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                             y + y_sem, color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
 
             fig.suptitle(
                 f'{mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})')
@@ -1305,7 +1303,7 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
         y_sem = swtrans_circadian_profile_stats_list[g_idx][1, 0, :]/np.sqrt(num)
         ax1.plot(x, y, color=stage.COLOR_NREM)
         ax1.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
         ax1.set_ylabel('Hourly Psw')
 
         # Pws
@@ -1313,40 +1311,13 @@ def draw_swtrans_circadian_profile_grouped(stagetime_stats, output_dir):
         y_sem = swtrans_circadian_profile_stats_list[g_idx][1, 1, :]/np.sqrt(num)
         ax2.plot(x, y, color=stage.COLOR_NREM)
         ax2.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
         ax2.set_ylabel('Hourly Pws')
 
 
         fig.suptitle(f'{mouse_groups_set[g_idx]} (n={num})')
         filename = f'sleep-wake-transition_circadian_profile_G_{mouse_groups_set[g_idx]}'
         sc.savefig(output_dir, filename, fig)
-
-
-def x_shifts(values, y_min, y_max, width):
-    #    print_log(y_min, y_max)
-    counts, _ = np.histogram(values, range=(
-        np.min([y_min, np.min(values)]), np.max([y_max, np.max(values)])), bins=25)
-    sorted_values = sorted(values)
-    shifts = []
-#    print_log(counts)
-    non_zero_counts = counts[counts > 0]
-    for c in non_zero_counts:
-        if c == 1:
-            shifts.append(0)
-        else:
-            p = np.arange(1, c+1)  # point counts
-            s = np.repeat(p, 2)[:p.size] * (-1)**p * width / \
-                10  # [-1, 1, -2, 2, ...] * width/10
-            shifts.extend(s)
-
-#     print_log(shifts)
-#     print_log(sorted_values)
-    return [np.array(shifts), sorted_values]
-
-
-def scatter_datapoints(ax, w, x_pos, values):
-    s, v = x_shifts(values, *ax.get_ylim(), w)
-    ax.scatter(x_pos + s, v, color='dimgrey')
 
 
 def draw_stagetime_barchart(stagetime_stats, output_dir):
@@ -1385,14 +1356,14 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
         sem_c = np.std(values_c)/np.sqrt(len(values_c))
         ax1.bar(x_pos[0], mean_c, yerr=sem_c, align='center',
                 width=w, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos[0], values_c)
+        sc.scatter_datapoints(ax1, w, x_pos[0], values_c)
         for g_idx in range(1, num_groups):
             values_t = stagetime_df['REM'].values[bidx_group_list[g_idx]]
             mean_t = np.mean(values_t)
             sem_t = np.std(values_t)/np.sqrt(len(values_t))
             ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                     width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-            scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
+            sc.scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
 
         # NREM
         values_c = stagetime_df['NREM'].values[bidx_group_list[0]]
@@ -1400,7 +1371,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
         sem_c = np.std(values_c)/np.sqrt(len(values_c))
         ax2.bar(x_pos[0], mean_c, yerr=sem_c, align='center',
                 width=w, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax2, w, x_pos[0], values_c)
+        sc.scatter_datapoints(ax2, w, x_pos[0], values_c)
 
         for g_idx in range(1, num_groups):
             values_t = stagetime_df['NREM'].values[bidx_group_list[g_idx]]
@@ -1408,7 +1379,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
             sem_t = np.std(values_t)/np.sqrt(len(values_t))
             ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                     width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-            scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
+            sc.scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
 
         # Wake
         values_c = stagetime_df['Wake'].values[bidx_group_list[0]]
@@ -1416,7 +1387,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
         sem_c = np.std(values_c)/np.sqrt(len(values_c))
         ax3.bar(x_pos[0], mean_c, yerr=sem_c, align='center',
                 width=w, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax3, w, x_pos[0], values_c)
+        sc.scatter_datapoints(ax3, w, x_pos[0], values_c)
 
         for g_idx in range(1, num_groups):
             values_t = stagetime_df['Wake'].values[bidx_group_list[g_idx]]
@@ -1424,7 +1395,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
             sem_t = np.std(values_t)/np.sqrt(len(values_t))
             ax3.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                     width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-            scatter_datapoints(ax3, w, x_pos[g_idx], values_t)
+            sc.scatter_datapoints(ax3, w, x_pos[g_idx], values_t)
     else:
         # single group
         g_idx = 0
@@ -1434,7 +1405,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
         sem_t = np.std(values_t)/np.sqrt(len(values_t))
         ax1.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                 width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
+        sc.scatter_datapoints(ax1, w, x_pos[g_idx], values_t)
 
         # NREM
         values_t = stagetime_df['NREM'].values[bidx_group_list[0]]
@@ -1442,7 +1413,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
         sem_t = np.std(values_t)/np.sqrt(len(values_t))
         ax2.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                 width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-        scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
+        sc.scatter_datapoints(ax2, w, x_pos[g_idx], values_t)
 
         # Wake
         values_t = stagetime_df['Wake'].values[bidx_group_list[0]]
@@ -1450,7 +1421,7 @@ def draw_stagetime_barchart(stagetime_stats, output_dir):
         sem_t = np.std(values_t)/np.sqrt(len(values_t))
         ax3.bar(x_pos[g_idx], mean_t, yerr=sem_t, align='center',
                 width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-        scatter_datapoints(ax3, w, x_pos[g_idx], values_t)
+        sc.scatter_datapoints(ax3, w, x_pos[g_idx], values_t)
 
     fig.suptitle('Stage-times')
     filename = 'stage-time_barchart'
@@ -1506,19 +1477,19 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(rr_vals_c),
                 yerr=np.std(rr_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos, rr_vals_c)
+        sc.scatter_datapoints(ax1, w, x_pos, rr_vals_c)
         x_pos = 2 - w + w*w_sf/2
         ax1.bar(x_pos,
                 height=np.mean(nn_vals_c),
                 yerr=np.std(nn_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos, nn_vals_c)
+        sc.scatter_datapoints(ax1, w, x_pos, nn_vals_c)
         x_pos = 4 - w + w*w_sf/2 
         ax1.bar(x_pos,
                 height=np.mean(ww_vals_c),
                 yerr=np.std(ww_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos, ww_vals_c)
+        sc.scatter_datapoints(ax1, w, x_pos, ww_vals_c)
 
         # tests.
         for g_idx in range(1, num_groups):
@@ -1536,19 +1507,19 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                     height=np.mean(rr_vals_t),
                     yerr=np.std(rr_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-            scatter_datapoints(ax1, w, x_pos, rr_vals_t)
+            sc.scatter_datapoints(ax1, w, x_pos, rr_vals_t)
             x_pos = 2 + w*w_sf/2 - w + g_idx*w*w_sf
             ax1.bar(x_pos,
                     height=np.mean(nn_vals_t),
                     yerr=np.std(nn_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-            scatter_datapoints(ax1, w, x_pos, nn_vals_t)
+            sc.scatter_datapoints(ax1, w, x_pos, nn_vals_t)
             x_pos = 4 + w*w_sf/2 - w + g_idx*w*w_sf
             ax1.bar(x_pos,
                     height=np.mean(ww_vals_t),
                     yerr=np.std(ww_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-            scatter_datapoints(ax1, w, x_pos, ww_vals_t)
+            sc.scatter_datapoints(ax1, w, x_pos, ww_vals_t)
 
         # Trnsitions from REM
         # control
@@ -1557,13 +1528,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(rn_vals_c),
                 yerr=np.std(rn_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax2, w, x_pos, rn_vals_c)
+        sc.scatter_datapoints(ax2, w, x_pos, rn_vals_c)
         x_pos = 2 - w + w*w_sf/2
         ax2.bar(x_pos,
                 height=np.mean(rw_vals_c),
                 yerr=np.std(rw_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax2, w, x_pos, rw_vals_c)
+        sc.scatter_datapoints(ax2, w, x_pos, rw_vals_c)
 
         # tests.
         for g_idx in range(1, num_groups):
@@ -1580,13 +1551,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                     height=np.mean(rn_vals_t),
                     yerr=np.std(rn_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-            scatter_datapoints(ax2, w, x_pos, rn_vals_t)
+            sc.scatter_datapoints(ax2, w, x_pos, rn_vals_t)
             x_pos = 2 + w*w_sf/2 - w + g_idx*w*w_sf
             ax2.bar(x_pos,
                     height=np.mean(rw_vals_t),
                     yerr=np.std(rw_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-            scatter_datapoints(ax2, w, x_pos, rw_vals_t)
+            sc.scatter_datapoints(ax2, w, x_pos, rw_vals_t)
 
         # Trnsitions from NREM
         # control
@@ -1595,13 +1566,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(nr_vals_c),
                 yerr=np.std(nr_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax3, w, x_pos, nr_vals_c)
+        sc.scatter_datapoints(ax3, w, x_pos, nr_vals_c)
         x_pos = 2 - w + w*w_sf/2
         ax3.bar(x_pos,
                 height=np.mean(nw_vals_c),
                 yerr=np.std(nw_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax3, w, x_pos, nw_vals_c)
+        sc.scatter_datapoints(ax3, w, x_pos, nw_vals_c)
 
         # tests.
         for g_idx in range(1, num_groups):
@@ -1613,13 +1584,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                     height=np.mean(nr_vals_t),
                     yerr=np.std(nr_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-            scatter_datapoints(ax3, w, x_pos, nr_vals_t)
+            sc.scatter_datapoints(ax3, w, x_pos, nr_vals_t)
             x_pos = 2 + w*w_sf/2 - w + g_idx*w*w_sf
             ax3.bar(x_pos,
                     height=np.mean(nw_vals_t),
                     yerr=np.std(nw_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-            scatter_datapoints(ax3, w, x_pos, nw_vals_t)
+            sc.scatter_datapoints(ax3, w, x_pos, nw_vals_t)
 
         # Trnsitions from Wake
         # control
@@ -1628,13 +1599,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(wr_vals_c),
                 yerr=np.std(wr_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax4, w, x_pos, wr_vals_c)
+        sc.scatter_datapoints(ax4, w, x_pos, wr_vals_c)
         x_pos = 2 - w + w*w_sf/2
         ax4.bar(x_pos,
                 height=np.mean(wn_vals_c),
                 yerr=np.std(wn_vals_c)/num_c,
                 align='center', width=w*w_sf*0.9, capsize=6, color='grey', alpha=0.6)
-        scatter_datapoints(ax4, w, x_pos, wn_vals_c)
+        sc.scatter_datapoints(ax4, w, x_pos, wn_vals_c)
 
         # tests.
         for g_idx in range(1, num_groups):
@@ -1646,13 +1617,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                     height=np.mean(wr_vals_t),
                     yerr=np.std(wr_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-            scatter_datapoints(ax4, w, x_pos, wr_vals_t)
+            sc.scatter_datapoints(ax4, w, x_pos, wr_vals_t)
             x_pos = 2 + w*w_sf/2 - w + g_idx*w*w_sf
             ax4.bar(x_pos,
                     height=np.mean(wn_vals_t),
                     yerr=np.std(wn_vals_t)/num_t,
                     align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-            scatter_datapoints(ax4, w, x_pos, wn_vals_t)
+            sc.scatter_datapoints(ax4, w, x_pos, wn_vals_t)
     else:
         # staying
         # single group
@@ -1661,19 +1632,19 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(rr_vals_c),
                 yerr=np.std(rr_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos, rr_vals_c)
+        sc.scatter_datapoints(ax1, w, x_pos, rr_vals_c)
         x_pos = 2 - w/2
         ax1.bar(x_pos,
                 height=np.mean(nn_vals_c),
                 yerr=np.std(nn_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos, nn_vals_c)
+        sc.scatter_datapoints(ax1, w, x_pos, nn_vals_c)
         x_pos = 4 - w/2
         ax1.bar(x_pos,
                 height=np.mean(ww_vals_c),
                 yerr=np.std(ww_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-        scatter_datapoints(ax1, w, x_pos, ww_vals_c)
+        sc.scatter_datapoints(ax1, w, x_pos, ww_vals_c)
         # Trnsitions from REM
         # single group
         x_pos = 0 - w/2
@@ -1681,13 +1652,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(rn_vals_c),
                 yerr=np.std(rn_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-        scatter_datapoints(ax2, w, x_pos, rn_vals_c)
+        sc.scatter_datapoints(ax2, w, x_pos, rn_vals_c)
         x_pos = 2 - w/2
         ax2.bar(x_pos,
                 height=np.mean(rw_vals_c),
                 yerr=np.std(rw_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_REM, alpha=0.6)
-        scatter_datapoints(ax2, w, x_pos, rw_vals_c)
+        sc.scatter_datapoints(ax2, w, x_pos, rw_vals_c)
         # Trnsitions from NREM
         # single group
         x_pos = 0 - w/2
@@ -1695,13 +1666,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(nr_vals_c),
                 yerr=np.std(nr_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-        scatter_datapoints(ax3, w, x_pos, nr_vals_c)
+        sc.scatter_datapoints(ax3, w, x_pos, nr_vals_c)
         x_pos = 2 - w/2
         ax3.bar(x_pos,
                 height=np.mean(nw_vals_c),
                 yerr=np.std(nw_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-        scatter_datapoints(ax3, w, x_pos, nw_vals_c)
+        sc.scatter_datapoints(ax3, w, x_pos, nw_vals_c)
         # Trnsitions from Wake
         # single group
         x_pos = 0 - w/2
@@ -1709,13 +1680,13 @@ def _draw_transition_barchart(mouse_groups, transmat_mat):
                 height=np.mean(wr_vals_c),
                 yerr=np.std(wr_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-        scatter_datapoints(ax4, w, x_pos, wr_vals_c)
+        sc.scatter_datapoints(ax4, w, x_pos, wr_vals_c)
         x_pos = 2 - w/2
         ax4.bar(x_pos,
                 height=np.mean(wn_vals_c),
                 yerr=np.std(wn_vals_c)/num_c,
                 align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-        scatter_datapoints(ax4, w, x_pos, wn_vals_c)
+        sc.scatter_datapoints(ax4, w, x_pos, wn_vals_c)
 
     return(fig)
 
@@ -1791,13 +1762,13 @@ def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
             height=np.mean(sw_vals_c),
             yerr=np.std(sw_vals_c)/num_c,
             align='center', width=w*w_sf*0.9, capsize=6, color='gray', alpha=0.6)
-        scatter_datapoints(ax, w, x_pos, sw_vals_c)
+        sc.scatter_datapoints(ax, w, x_pos, sw_vals_c)
         x_pos = 2 - w + w*w_sf/2 # w*w_sf/2 is just for aligning the bar center
         ax.bar(x_pos,
             height=np.mean(ws_vals_c),
             yerr=np.std(ws_vals_c)/num_c,
             align='center', width=w*w_sf*0.9, capsize=6, color='gray', alpha=0.6)
-        scatter_datapoints(ax, w, x_pos, ws_vals_c)
+        sc.scatter_datapoints(ax, w, x_pos, ws_vals_c)
 
         # test group index: g_idx.
         for g_idx in range(1, num_groups):
@@ -1808,7 +1779,7 @@ def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
                 height=np.mean(sw_vals_t),
                 yerr=np.std(sw_vals_t)/num_t,
                 align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-            scatter_datapoints(ax, w, x_pos, sw_vals_t)
+            sc.scatter_datapoints(ax, w, x_pos, sw_vals_t)
 
             ws_vals_t = swtrans_mat[bidx_group_list[g_idx]][:, 1]
             x_pos = 2 + w*w_sf/2 - w + g_idx*w*w_sf
@@ -1816,7 +1787,7 @@ def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
                 height=np.mean(ws_vals_t),
                 yerr=np.std(ws_vals_t)/num_t,
                 align='center', width=w*w_sf*0.9, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-            scatter_datapoints(ax, w, x_pos, ws_vals_t)
+            sc.scatter_datapoints(ax, w, x_pos, ws_vals_t)
     else:
         # single group
         g_idx = 0
@@ -1827,7 +1798,7 @@ def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
             height=np.mean(sw_vals),
             yerr=np.std(sw_vals)/num,
             align='center', width=w, capsize=6, color=stage.COLOR_NREM, alpha=0.6)
-        scatter_datapoints(ax, w, x_pos, sw_vals)
+        sc.scatter_datapoints(ax, w, x_pos, sw_vals)
 
         ws_vals = swtrans_mat[bidx_group_list[g_idx]][:, 1]
         x_pos = 2 + g_idx*w/2
@@ -1835,7 +1806,7 @@ def _draw_swtransition_barchart(mouse_groups, swtrans_mat):
             height=np.mean(ws_vals),
             yerr=np.std(ws_vals)/num,
             align='center', width=w, capsize=6, color=stage.COLOR_WAKE, alpha=0.6)
-        scatter_datapoints(ax, w, x_pos, ws_vals)
+        sc.scatter_datapoints(ax, w, x_pos, ws_vals)
 
     return(fig)
 
@@ -1872,7 +1843,7 @@ def draw_swtransition_barchart_logodds(stagetime_stats, output_dir):
     sc.savefig(output_dir, filename, fig)
 
 
-def log_psd_inv(y, normalizing_fac, normalizing_mean):
+def logpsd_inv(y, normalizing_fac, normalizing_mean):
     """ inverses the spectrum normalized PSD to get the original PSD. 
     The spectrum normalization is defined as: snorm(log(psd)),
     where log() here means a "decibel like" transformation of 10*np.log10(),
@@ -1908,7 +1879,7 @@ def conv_PSD_from_snorm_PSD(spec_norm):
     psd_norm_mat = spec_norm['psd']
     nf = spec_norm['norm_fac']
     nm = spec_norm['mean']
-    psd_mat = np.vectorize(log_psd_inv)(psd_norm_mat, nf, nm)
+    psd_mat = np.vectorize(logpsd_inv)(psd_norm_mat, nf, nm)
 
     return psd_mat
 
@@ -2133,175 +2104,231 @@ def pickle_psd_info_list(psd_info_list, output_dir, filename):
         pickle.dump(psd_info_list, pkl)
 
 
-def process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, psd_type, vol_unit='V'):
+def process_psd_profile(psd_info_list, epoch_len_sec, record_day_num, sample_freq, output_dir, 
+                        psd_type='', scaling_type='', transform_type='', unit='V'):
+    """ Process PSD info to make PSD profiles, do statistical tests and draw plots.
+        Args:
+            psd_info_list: list of {simple exp info, target info, psd (epoch_num, 129)} for each mouse
+            epoch_len_sec: epoch length in seconds
+            epoch_range: range of epochs to be analyzed
+            sample_freq: sampling frequency
+            output_dir: output directory
+            psd_type: 'norm' or 'raw' ... voltage distribution type
+            scaling_type: 'auc' or 'tdd' or 'none' ... PSD scaling type
+            transform_type: 'log' or 'linear' ... PSD transformation type
+            unit: unit of PSD
+    """
+    pre_proc = f'{psd_type}_{scaling_type}_{transform_type}'
+
     # Mask for the fist halfday
     epoch_num_halfday = int(12*60*60/epoch_len_sec)
     mask_first_halfday = np.tile(
         np.hstack([np.full(epoch_num_halfday, True), 
         np.full(epoch_num_halfday, False)]), 
-        day_num)
+        record_day_num)
 
     # Mask for the second halfday 
     mask_second_halfday = np.tile(
         np.hstack([np.full(epoch_num_halfday, False), 
         np.full(epoch_num_halfday, True)]), 
-        day_num)
+        record_day_num)
 
     # PSD profiles (all day)
     psd_profiles_df = sp.make_psd_profile(psd_info_list, sample_freq, psd_type)
-    log_psd_profiles_df = sp.make_psd_profile(log_psd_info_list, sample_freq, psd_type)
-    percentage_psd_profiles_df = sp.make_psd_profile(
-        percentage_psd_info_list, sample_freq, psd_type)
-
     # PSD profiles (first half-day)
     psd_profiles_first_halfday_df = sp.make_psd_profile(
         psd_info_list, sample_freq, psd_type, mask_first_halfday)
-    log_psd_profiles_first_halfday_df = sp.make_psd_profile(
-        log_psd_info_list, sample_freq, psd_type, mask_first_halfday)
-    percentage_psd_profiles_first_halfday_df = sp.make_psd_profile(
-        percentage_psd_info_list, sample_freq, psd_type, mask_first_halfday)
-
     # PSD profiles (second half-day)
     psd_profiles_second_halfday_df = sp.make_psd_profile(
         psd_info_list, sample_freq, psd_type, mask_second_halfday)
-    log_psd_profiles_second_halfday_df = sp.make_psd_profile(
-        log_psd_info_list, sample_freq, psd_type, mask_second_halfday)
-    percentage_psd_profiles_second_halfday_df = sp.make_psd_profile(
-        percentage_psd_info_list, sample_freq, psd_type, mask_second_halfday)
-
     psd_output_dir = os.path.join(output_dir, f'PSD_{psd_type}')
-
     # write a table of PSD (all day)
-    sp.write_psd_stats(psd_profiles_df, psd_output_dir, f'{psd_type}_allday_')
-    sp.write_psd_stats(log_psd_profiles_df, psd_output_dir, f'{psd_type}_allday_log-')
-    sp.write_psd_stats(percentage_psd_profiles_df, psd_output_dir, f'{psd_type}_allday_percentage-', np.sum)
-
+    sp.write_psd_stats(psd_profiles_df, psd_output_dir, f'{pre_proc}_allday_')
     # write a table of PSD (first half-day)
-    sp.write_psd_stats(psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_')
-    sp.write_psd_stats(log_psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_log-')
-    sp.write_psd_stats(percentage_psd_profiles_first_halfday_df, psd_output_dir, f'{psd_type}_first-halfday_percentage-', np.sum)    
-
+    sp.write_psd_stats(psd_profiles_first_halfday_df, psd_output_dir, f'{pre_proc}_first-halfday_')
     # write a table of PSD (second half-day)
-    sp.write_psd_stats(psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_')
-    sp.write_psd_stats(log_psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_log-')
-    sp.write_psd_stats(percentage_psd_profiles_second_halfday_df, psd_output_dir, f'{psd_type}_second-halfday_percentage-', np.sum)    
+    sp.write_psd_stats(psd_profiles_second_halfday_df, psd_output_dir, f'{pre_proc}_second-halfday_')
 
+    print_log(f'Drawing the PSDs (voltage distribution, PSD scaling, PSD transformation) = ({psd_type}, {scaling_type}, {transform_type})')
     # draw PSDs (all day)
-    print_log(f'Drawing the PSDs (type:{psd_type})')
-    if psd_type == 'norm':
-        unit = 'AU'
-    elif psd_type == 'raw':
-        unit = f'${vol_unit}^{2}/Hz$'
-    else:
-        unit = 'Unknown'
     sp.draw_PSDs_individual(psd_profiles_df, sample_freq,
-                         f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_allday_')
-    sp.draw_PSDs_individual(log_psd_profiles_df, sample_freq,
-                         f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_allday_log-')
-    sp.draw_PSDs_individual(percentage_psd_profiles_df, sample_freq,
-                         f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_allday_percentage-')
-
+                         f'PSD [{unit}]', psd_output_dir, 
+                         psd_type, scaling_type, transform_type, f'allday_')
     sp.draw_PSDs_group(psd_profiles_df, sample_freq,
-                    f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_allday_')
-    sp.draw_PSDs_group(log_psd_profiles_df, sample_freq,
-                    f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_allday_log-')
-    sp.draw_PSDs_group(percentage_psd_profiles_df, sample_freq,
-                    f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_allday_percentage-')
+                    f'PSD [{unit}]', psd_output_dir, 
+                    psd_type, scaling_type, transform_type, f'allday_')
 
     # draw PSDs (first halfday)
     sp.draw_PSDs_individual(psd_profiles_first_halfday_df, sample_freq,
-                         f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_first-halfday_')
-    sp.draw_PSDs_individual(log_psd_profiles_first_halfday_df, sample_freq,
-                         f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_first-halfday_log-')
-    sp.draw_PSDs_individual(percentage_psd_profiles_first_halfday_df, sample_freq,
-                         f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_first-halfday_percentage-')
-
+                         f'PSD [{unit}]', psd_output_dir, 
+                         psd_type, scaling_type, transform_type, f'first-halfday_')
     sp.draw_PSDs_group(psd_profiles_first_halfday_df, sample_freq,
-                    f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_first-halfday_')
-    sp.draw_PSDs_group(log_psd_profiles_first_halfday_df, sample_freq,
-                    f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_first-halfday_log-')
-    sp.draw_PSDs_group(percentage_psd_profiles_first_halfday_df, sample_freq,
-                    f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_first-halfday_percentage-')
+                    f'PSD [{unit}]', psd_output_dir, 
+                    psd_type, scaling_type, transform_type, f'first-halfday_')
 
     # draw PSDs (second halfday)
     sp.draw_PSDs_individual(psd_profiles_second_halfday_df, sample_freq,
-                         f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_second-halfday_')
-    sp.draw_PSDs_individual(log_psd_profiles_second_halfday_df, sample_freq,
-                         f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_second-halfday_log-')
-    sp.draw_PSDs_individual(percentage_psd_profiles_second_halfday_df, sample_freq,
-                         f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_second-halfday_percentage-')
-
+                         f'PSD [{unit}]', psd_output_dir, 
+                         psd_type, scaling_type, transform_type, f'second-halfday_')
     sp.draw_PSDs_group(psd_profiles_second_halfday_df, sample_freq,
-                    f'{psd_type} PSD [{unit}]', psd_output_dir, f'{psd_type}_second-halfday_')
-    sp.draw_PSDs_group(log_psd_profiles_second_halfday_df, sample_freq,
-                    f'{psd_type} PSD [log {unit}]', psd_output_dir, f'{psd_type}_second-halfday_log-')
-    sp.draw_PSDs_group(percentage_psd_profiles_second_halfday_df, sample_freq,
-                    f'{psd_type} percentage PSD [%]', psd_output_dir, f'{psd_type}_second-halfday_percentage-')
+                    f'PSD [{unit}]', psd_output_dir, 
+                    psd_type, scaling_type, transform_type, f'second-halfday_')
 
 
-def process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range, epoch_len_sec, sample_freq, output_dir, psd_type, vol_unit='V'):
+
+def process_psd_timeseries(psd_info_list, epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                           psd_type='', scaling_type='', transform_type='', unit='V'):
     freq_bins = sp.psd_freq_bins(sample_freq)
-    bidx_delta_freq = (freq_bins<4) # 11 bins
-    bidx_all_freq = np.full(129, True)
+    bidx_delta_freq = sp.get_bidx_delta_freq(freq_bins)
+    bidx_all_freq = np.full(len(freq_bins), True)
 
-    print_log(f'Making the delta-power timeseries in all stages (type:{psd_type})')
-    psd_delta_timeseries_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, None, psd_type)
-    print_log(f'Making the delta-power timeseries in NREM (type:{psd_type})')
-    psd_delta_timeseries_nrem_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem', psd_type)
-    print_log(f'Making the delta-power timeseries in all stages (percentage) (type:{psd_type})')
-    percentage_psd_delta_timeseries_df = sp.make_psd_timeseries_df(percentage_psd_info_list, epoch_range,  bidx_delta_freq, None, psd_type)
-    print_log(f'Making the delta-power timeseries in NREM (percentage) (type:{psd_type})')
-    percentage_psd_delta_timeseries_nrem_df = sp.make_psd_timeseries_df(percentage_psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem', psd_type)
-    print_log(f'Making the total-power timeseries in Wake (type:{psd_type})')
-    psd_total_timeseries_wake_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_all_freq, 'bidx_wake', psd_type)
-    print_log(f'Making the delta-power timeseries in Wake (type:{psd_type})')
-    psd_delta_timeseries_wake_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_wake', psd_type)
-    print_log(f'Making the delta-power timeseries in Wake (percentage) (type:{psd_type})')
-    percentage_psd_delta_timeseries_wake_df = sp.make_psd_timeseries_df(percentage_psd_info_list, epoch_range, bidx_delta_freq, 'bidx_wake', psd_type)
-
+    print_log('...making the delta-power timeseries in Wake')
+    psd_delta_timeseries_wake_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_wake', 
+                                                             psd_type, scaling_type,transform_type)
+    print_log('...making the delta-power timeseries in NREM')
+    psd_delta_timeseries_nrem_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, 'bidx_nrem', 
+                                                             psd_type, scaling_type,transform_type)
+    print_log('...making the delta-power timeseries in all stages')
+    psd_delta_timeseries_df      = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_delta_freq, None, 
+                                                             psd_type, scaling_type,transform_type)
+    print_log('...making the total-power timeseries in Wake')
+    psd_total_timeseries_wake_df = sp.make_psd_timeseries_df(psd_info_list, epoch_range,  bidx_all_freq, 'bidx_wake', 
+                                                             psd_type, scaling_type,transform_type)
 
     # draw delta-power timeseries
-    print_log(f'Drawing the power timeseries (type:{psd_type})')
+    print_log('...drawing the power timeseries')
     psd_output_dir = os.path.join(output_dir, f'PSD_{psd_type}')
-    if psd_type == 'norm':
-        unit = 'AU'
-    elif psd_type == 'raw':
-        unit = f'${vol_unit}^{2}/Hz$'
+
+    if transform_type == 'log':
+        unit_label = f'log({unit})'
     else:
-        unit = 'Unknown'
-    # delta in all epoch
-    psd_delta_timeseries_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta.csv'), header=False)
-    sp.draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_df, epoch_len_sec, f'Hourly delta power [{unit}]', psd_output_dir, f'{psd_type}_delta')
-    sp.draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_df, epoch_len_sec, f'Hourly delta power [{unit}]', psd_output_dir, f'{psd_type}_delta')
-    # delta percentage in all epoch
-    percentage_psd_delta_timeseries_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta_percentage.csv'), header=False)
-    sp.draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_df, epoch_len_sec, 'Hourly delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage')
-    sp.draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_df, epoch_len_sec, 'Hourly delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage')
-    # delta in NREM 
-    psd_delta_timeseries_nrem_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta_NREM.csv'), header=False)
-    sp.draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_nrem_df, epoch_len_sec, f'Hourly NREM delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'NREM_')
-    sp.draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_nrem_df, epoch_len_sec, f'Hourly NREM delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'NREM_')
-    # delta percentage in NREM
-    percentage_psd_delta_timeseries_nrem_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta_percentage_NREM.csv'), header=False)
-    sp.draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_nrem_df, epoch_len_sec, 'Hourly NREM delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'NREM_')
-    sp.draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_nrem_df, epoch_len_sec, 'Hourly NREM delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'NREM_')
-    # total in Wake
-    psd_total_timeseries_wake_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_total_Wake.csv'), header=False)
-    sp.draw_psd_domain_power_timeseries_individual(psd_total_timeseries_wake_df, epoch_len_sec, f'Hourly Wake total power [{unit}]', psd_output_dir, f'{psd_type}_total', 'Wake_')
-    sp.draw_psd_domain_power_timeseries_grouped(psd_total_timeseries_wake_df, epoch_len_sec, f'Hourly Wake total power [{unit}]', psd_output_dir, f'{psd_type}_total', 'Wake_')
+        unit_label = unit
+    
+    if scaling_type == 'AUC':
+        scale_label = 'AUC-scaled'
+    elif scaling_type == 'TDD':
+        scale_label = 'TDD-scaled'
+    else:
+        scale_label = ''
+    
+    pre_proc = f'{psd_type}_{scaling_type}_{transform_type}'
     # delta in Wake
-    psd_delta_timeseries_wake_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta_Wake.csv'), header=False)
-    sp.draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_wake_df, epoch_len_sec, f'Hourly Wake delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'Wake_')
-    sp.draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_wake_df, epoch_len_sec, f'Hourly Wake delta power [{unit}]', psd_output_dir, f'{psd_type}_delta', 'Wake_')
-    # delta percentage in Wake
-    percentage_psd_delta_timeseries_wake_df.T.to_csv(os.path.join(psd_output_dir, f'power-timeseries_{psd_type}_delta_percentage_Wake.csv'), header=False)
-    sp.draw_psd_domain_power_timeseries_individual(percentage_psd_delta_timeseries_wake_df, epoch_len_sec, 'Hourly Wake delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'Wake_')
-    sp.draw_psd_domain_power_timeseries_grouped(percentage_psd_delta_timeseries_wake_df, epoch_len_sec, 'Hourly Wake delta power [%]', psd_output_dir, f'{psd_type}_delta_percentage', 'Wake_')
+    psd_delta_timeseries_wake_df.T.to_csv(os.path.join(psd_output_dir, 
+                                                       f'power-timeseries_{pre_proc}_delta_Wake.csv'), 
+                                                       header=False)
+    sp.draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_wake_df, epoch_len_sec, 
+                                                   f'Hourly {scale_label} Wake delta power [{unit_label}]', psd_output_dir,
+                                                   psd_type, scaling_type, transform_type, 
+                                                   'delta', 'Wake_')
+    sp.draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_wake_df, epoch_len_sec, 
+                                                f'Hourly {scale_label} Wake delta power [{unit_label}]', psd_output_dir, 
+                                                psd_type, scaling_type, transform_type,
+                                                'delta', 'Wake_')
+    # delta in NREM 
+    psd_delta_timeseries_nrem_df.T.to_csv(os.path.join(psd_output_dir, 
+                                                       f'power-timeseries_{pre_proc}_delta_NREM.csv'), 
+                                                       header=False)
+    sp.draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_nrem_df, epoch_len_sec, 
+                                                   f'Hourly {scale_label} NREM delta power [{unit_label}]', psd_output_dir, 
+                                                   psd_type, scaling_type, transform_type,
+                                                   'delta', 'NREM_')
+    sp.draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_nrem_df, epoch_len_sec, 
+                                                f'Hourly {scale_label} NREM delta power [{unit_label}]', psd_output_dir, 
+                                                psd_type, scaling_type, transform_type,
+                                                'delta', 'NREM_')
+    # delta in all epoch
+    psd_delta_timeseries_df.T.to_csv(os.path.join(psd_output_dir, 
+                                                  f'power-timeseries_{pre_proc}_delta.csv'), 
+                                                  header=False)
+    sp.draw_psd_domain_power_timeseries_individual(psd_delta_timeseries_df, epoch_len_sec, 
+                                                   f'Hourly {scale_label} delta power [{unit_label}]', psd_output_dir, 
+                                                   psd_type, scaling_type, transform_type,
+                                                   'delta')
+    sp.draw_psd_domain_power_timeseries_grouped(psd_delta_timeseries_df, epoch_len_sec, 
+                                                f'Hourly {scale_label} delta power [{unit_label}]', psd_output_dir, 
+                                                psd_type, scaling_type, transform_type,
+                                                'delta')
+    # total in Wake
+    psd_total_timeseries_wake_df.T.to_csv(os.path.join(psd_output_dir, 
+                                                       f'power-timeseries_{pre_proc}_total_Wake.csv'), 
+                                                       header=False)
+    sp.draw_psd_domain_power_timeseries_individual(psd_total_timeseries_wake_df, epoch_len_sec, 
+                                                   f'Hourly {scale_label} Wake total power [{unit_label}]', psd_output_dir, 
+                                                   psd_type, scaling_type, transform_type,
+                                                   'total', 'Wake_')
+    sp.draw_psd_domain_power_timeseries_grouped(psd_total_timeseries_wake_df, epoch_len_sec, 
+                                                f'Hourly {scale_label} Wake total power [{unit_label}]', psd_output_dir, 
+                                                psd_type, scaling_type, transform_type,
+                                                'total', 'Wake_')
 
 
 def make_psd_output_dirs(output_dir, psd_type):
     output_dir = os.path.join(output_dir, f'PSD_{psd_type}')
     os.makedirs(os.path.join(output_dir, 'PDF'), exist_ok=True)
+
+
+def make_auc_scaled_psd_info_list(psd_info_list):
+    auc_psd_info_list = copy.deepcopy(psd_info_list)
+    for auc_psd_info in auc_psd_info_list:
+        conv_psd_norm = auc_psd_info['norm']
+        conv_psd_raw = auc_psd_info['raw']
+        auc_psd_norm_mat = np.zeros(conv_psd_norm.shape)
+        auc_psd_raw_mat = np.zeros(conv_psd_raw.shape)
+        for i, p in enumerate(conv_psd_norm): # row wise
+            auc_psd_norm_mat[i,:] = 100*p / np.sum(p) # percentage
+        auc_psd_info['norm'] = auc_psd_norm_mat
+        for i, p in enumerate(conv_psd_raw): # row wise
+            auc_psd_raw_mat[i,:] = 100*p / np.sum(p) # same result with 'norm'
+        auc_psd_info['raw'] = auc_psd_raw_mat
+
+    return auc_psd_info_list
+
+
+def make_tdd_scaled_psd_info(psd_info_list, sample_freq, epoch_len_sec, epoch_num, basal_days):
+    # The time domain is from 8- to 12-hour of each basal day 
+
+    # prepare the time-domain binary index
+    time_domain_start = 8 # starting time of the reference time domain
+    time_domain_end = 12  # ending time of the reference time domain
+    bidx_time_domain = np.repeat(False, epoch_num)
+    for i in range(basal_days):
+        time_domain_range = slice((time_domain_start + 24*i)*3600//epoch_len_sec, 
+                                (time_domain_end + 24*i)*3600//epoch_len_sec, None)
+        bidx_time_domain[time_domain_range] = True
+
+    # prepare the delta-power frequency binary index
+    bidx_delta_freq = sp.get_bidx_delta_freq(sp.psd_freq_bins(sample_freq))
+
+    # calculate the scale for making the delta-power in targeted NREM epochs
+    def _calc_scale(psd_mat, bidx_epoch_target, bidx_delta_freq):
+        psd_mat_target = psd_mat[bidx_epoch_target, :]
+        delta_psd_norm_target = psd_mat_target[:, bidx_delta_freq]
+        scale = 1/np.nanmean(np.nanmean(delta_psd_norm_target, axis=1))
+
+        return scale
+
+    tdd_psd_info_list = copy.deepcopy(psd_info_list)
+    for tdd_psd_info in tdd_psd_info_list:
+        psd_norm = tdd_psd_info['norm']
+        psd_raw = tdd_psd_info['raw']
+
+        bidx_epoch_target = tdd_psd_info['bidx_nrem'] & bidx_time_domain
+        scale_norm = _calc_scale(psd_norm, bidx_epoch_target, bidx_delta_freq)
+        scale_raw = _calc_scale(psd_raw, bidx_epoch_target, bidx_delta_freq)
+
+        tdd_psd_info['norm'] = psd_norm * scale_norm
+        tdd_psd_info['raw'] = psd_raw * scale_raw
+
+    return tdd_psd_info_list
+
+
+def make_log_psd(psd_info_list):
+    logpsd_info_list = copy.deepcopy(psd_info_list)
+    for logpsd_info in logpsd_info_list:
+        logpsd_info['norm'] = 10*np.log10(logpsd_info['norm'])
+        logpsd_info['raw'] = 10*np.log10(logpsd_info['raw'])
+
+    return logpsd_info_list
 
 
 def main(args):
@@ -2359,19 +2386,29 @@ def main(args):
         stage_ext = 'faster2'
 
     # add optional information
-    mouse_info_collected['epoch_range'] = args.epoch_range
-    mouse_info_collected['stage_ext'] = args.stage_ext
+    mouse_info_collected['epoch_range'] = f'{epoch_range.start}:{epoch_range.stop}'
+    mouse_info_collected['stage_ext'] = stage_ext
 
     # dump the collect_mouse_info_df into a file for external scripts
     with open(os.path.join(output_dir, 'collected_mouse_info_df.json'), 'w') as outfile:
         json.dump(serializable_collected_mouse_info(mouse_info_collected), outfile)
 
-    # number of days in the data
-    day_num = epoch_num * epoch_len_sec / 60 / 60 / 24
-    if day_num != int(day_num):
-        raise ValueError(f'The number of days: {day_num} must be an integer.')
+    # number of days in the recorded data
+    record_day_num = epoch_num * epoch_len_sec / 60 / 60 / 24
+    if record_day_num != int(record_day_num):
+        raise ValueError(f'The number of recorded days: {record_day_num} must be an integer.\n'
+                         f'Check the epoch_num:{epoch_num} and epoch_len_sec:{epoch_len_sec} are correct.')
     else:
-        day_num = int(day_num)
+        record_day_num = int(record_day_num)
+
+    # set the number of basal days
+    if args.basal_days:
+        # use the number given by the command line option
+        basal_days = int(args.basal_days)
+    else:
+        basal_days = record_day_num
+
+    print_log(f'Number of recorded days: {record_day_num}, Number of basal days for the time-domain-delta scaling: {basal_days}')
 
     # prepare stagetime statistics
     stagetime_stats = make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext)
@@ -2437,37 +2474,103 @@ def main(args):
 
     # log version of psd_info
     print_log('Making the log version of the PSD information')
-    log_psd_info_list = copy.deepcopy(psd_info_list)
-    for log_psd_info in log_psd_info_list:
-        log_psd_info['norm'] = 10*np.log10(log_psd_info['norm'])
-        log_psd_info['raw'] = 10*np.log10(log_psd_info['raw'])
+    logpsd_info_list = make_log_psd(psd_info_list)
 
-    # percentage version of psd_info
-    print_log('Making the percentage version of the PSD information')
-    percentage_psd_info_list = copy.deepcopy(psd_info_list)
-    for percentage_psd_info in percentage_psd_info_list:
-        conv_psd = percentage_psd_info['norm']
-        conv_psd_raw = percentage_psd_info['raw']
-        percentage_psd_mat = np.zeros(conv_psd.shape)
-        percentage_psd_raw_mat = np.zeros(conv_psd_raw.shape)
-        for i, p in enumerate(conv_psd): # row wise
-            percentage_psd_mat[i,:] = 100*p / np.sum(p)
-        percentage_psd_info['norm'] = percentage_psd_mat
-        for i, p in enumerate(conv_psd_raw): # row wise
-            percentage_psd_raw_mat[i,:] = 100*p / np.sum(p)
-        percentage_psd_info['raw'] = percentage_psd_raw_mat
+    # AUC scaling psd_info for each epoch 
+    print_log('Making the area-under-curve (AUC) scaled version of the PSD information')
+    auc_psd_info_list = make_auc_scaled_psd_info_list(psd_info_list)
+    print_log('Making the log-transformed AUC-scaled version of the PSD information')
+    logauc_psd_info_list = make_log_psd(auc_psd_info_list)
+
+    # Time-domain NREM-delta scaling of psd_info
+    print_log('Making the time-domin-delta-power (TDD) scaled version of the PSD information')
+    tdd_psd_info_list = make_tdd_scaled_psd_info(psd_info_list, sample_freq, epoch_len_sec, epoch_num, basal_days)
+    print_log('Making the log-transformed TDD-scaled version of the log-PSD information')
+    logtdd_psd_info_list = make_log_psd(tdd_psd_info_list)
 
     # make output dirs for PSDs
     make_psd_output_dirs(output_dir, 'norm')
     make_psd_output_dirs(output_dir, 'raw')
 
-    # Make PSD stats and plots
-    process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, 'norm')
-    process_psd_profile(psd_info_list, log_psd_info_list, percentage_psd_info_list, epoch_len_sec, day_num, sample_freq, output_dir, 'raw', vol_unit)
+    # Make PSD stats and plots with different preprocessing
+    #   voltage distribution: norm|raw
+    #   PSD scaling: none|AUC|TDD
+    #   PSD transformation: linear|log
 
-    # PSD timeseries
-    process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range, epoch_len_sec, sample_freq, output_dir, 'norm')
-    process_psd_timeseries(psd_info_list, percentage_psd_info_list, epoch_range, epoch_len_sec, sample_freq, output_dir, 'raw', vol_unit)
+    # norm|raw, none, linear
+    process_psd_profile(psd_info_list,epoch_len_sec, record_day_num, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='none', transform_type='linear', unit='AU')
+    process_psd_profile(psd_info_list,epoch_len_sec, record_day_num, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='none', transform_type='linear', unit=f'${vol_unit}^{2}/Hz$')
+    # norm|raw, none, log
+    process_psd_profile(logpsd_info_list,epoch_len_sec, record_day_num, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='none', transform_type='log', unit='AU')
+    process_psd_profile(logpsd_info_list,epoch_len_sec, record_day_num, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='none', transform_type='log', unit=f'${vol_unit}^{2}/Hz$')
+    # norm|raw, AUC, linear
+    process_psd_profile(auc_psd_info_list,epoch_len_sec, record_day_num, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='AUC', transform_type='linear', unit='%')
+    process_psd_profile(auc_psd_info_list,epoch_len_sec, record_day_num, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='AUC', transform_type='linear', unit='%')
+    # norm|raw, AUC, log
+    process_psd_profile(logauc_psd_info_list,epoch_len_sec, record_day_num, sample_freq, output_dir, 
+                    psd_type='norm', scaling_type='AUC', transform_type='log', unit='log(%)')
+    process_psd_profile(logauc_psd_info_list,epoch_len_sec, record_day_num, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='AUC', transform_type='log', unit='log(%)')
+    # norm|raw, TDD, linear
+    process_psd_profile(tdd_psd_info_list,epoch_len_sec, record_day_num, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='TDD', transform_type='linear', unit='AU')
+    process_psd_profile(tdd_psd_info_list,epoch_len_sec, record_day_num, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='TDD', transform_type='linear', unit=f'scaled ${vol_unit}^{2}/Hz$')
+    # norm|raw, TDD, log
+    process_psd_profile(logtdd_psd_info_list,epoch_len_sec, record_day_num, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='TDD', transform_type='log', unit='AU')
+    process_psd_profile(logtdd_psd_info_list,epoch_len_sec, record_day_num, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='TDD', transform_type='log', unit=f'log(scaled ${vol_unit}^{2}/Hz$)')
+
+    # PSD timeseries with different preprocessing
+    # norm|raw, none, linear
+    print_log('With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, none, linear)')
+    process_psd_timeseries(psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='none', transform_type='linear', unit='AU')
+    print_log('With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, none, linear)')
+    process_psd_timeseries(psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='none', transform_type='linear', unit=f'${vol_unit}^{2}/Hz$')
+    # norm|raw, none, log
+    print_log('With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, none, log)')
+    process_psd_timeseries(logpsd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='none', transform_type='log', unit='AU')
+    print_log('With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, none, log)')
+    process_psd_timeseries(logpsd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='none', transform_type='log', unit=f'${vol_unit}^{2}/Hz$')
+    # norm|raw, AUC, linear
+    print_log('With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, AUC, linear)')
+    process_psd_timeseries(auc_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='AUC', transform_type='linear', unit='%')
+    print_log('With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, AUC, linear)')
+    process_psd_timeseries(auc_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='AUC', transform_type='linear', unit='%')
+    # norm|raw, AUC, log
+    print_log('With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, AUC, log)')
+    process_psd_timeseries(logauc_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='AUC', transform_type='log', unit='%')
+    print_log('With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, AUC, log)')
+    process_psd_timeseries(logauc_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='AUC', transform_type='log', unit='%')
+    # norm|raw, TDD, linear
+    print_log('With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, TDD, linear)')
+    process_psd_timeseries(tdd_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='TDD', transform_type='linear', unit='AU')
+    print_log('With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, TDD, linear)')
+    process_psd_timeseries(tdd_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='TDD', transform_type='linear', unit=f'scaled ${vol_unit}^{2}/Hz$')
+    print_log('With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (norm, TDD, log)')
+    # norm|raw, TDD, log
+    process_psd_timeseries(logtdd_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='norm', scaling_type='TDD', transform_type='log', unit='AU')
+    print_log('With the PSD preprocessed as: (voltage distribution, PSD scaling, PSD transformation) = (raw, TDD, log)')
+    process_psd_timeseries(logtdd_psd_info_list,epoch_len_sec, epoch_range, sample_freq, output_dir, 
+                        psd_type='raw', scaling_type='TDD', transform_type='log', unit=f'scaled ${vol_unit}^{2}/Hz$')
 
     dt_now = datetime.now()
     print_log(f'[{dt_now} - {sys.modules[__name__].__file__}] Ended')
@@ -2488,7 +2591,7 @@ if __name__ == '__main__':
                         help="a path to the output files (default: the first FASTER2 directory)")
     PARSER.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
     PARSER.add_argument("-u", "--unit_voltage", help="The unit of EEG voltage for the raw PSD (default: V)", default="V")
-    PARSER.add_argument("-b", "--basal_days", help="The number of basal days", default=2)
+    PARSER.add_argument("-b", "--basal_days", help="The number of basal days", default=3)
 
 
     args = PARSER.parse_args()
