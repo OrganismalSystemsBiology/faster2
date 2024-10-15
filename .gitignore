@@ -104,6 +104,7 @@ celerybeat.pid
 .env
 .venv
 .venv.org
+.venv.*
 env/
 venv/
 ENV/
