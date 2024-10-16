@@ -243,9 +243,9 @@ def prep_table_of_psd(prs, summary_dir):
         df_psd_ft = pd.read_csv(os.path.join(
             summary_dir, 'PSD_norm', f'PSD_norm_none_{tf}_{td}_profile_stats_table.csv'))
         df_psd_tf = pd.read_csv(os.path.join(
-            summary_dir, 'PSD_raw', f'PSD_norm_AUC_{tf}_{td}_profile_stats_table.csv'))
+            summary_dir, 'PSD_norm', f'PSD_norm_AUC_{tf}_{td}_profile_stats_table.csv'))
         df_psd_tt = pd.read_csv(os.path.join(
-            summary_dir, 'PSD_norm', f'PSD_raw_TDD_{tf}_{td}_profile_stats_table.csv'))
+            summary_dir, 'PSD_raw', f'PSD_raw_TDD_{tf}_{td}_profile_stats_table.csv'))
 
         slide = prs.slides[si]
         table_list = get_tables_in_slide(slide)
