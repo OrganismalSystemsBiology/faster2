@@ -4,7 +4,7 @@ import os
 import io
 import json
 import re
-import mne
+import pyedflib
 import numpy as np
 from glob import glob
 from datetime import datetime, timedelta
@@ -179,6 +179,15 @@ def read_mouse_info(data_dir, mouse_info_ext=None):
 def load_collected_mouse_info(summary_dir):
     # read the collected mouse information used for the summary
     # Here is the 'epoch range' information
+    def _str_to_datetime(s):
+        try:
+            dt_str = datetime.strptime(s, format_str)
+        except ValueError as err_v:
+            if len(err_v.args) > 0 and err_v.args[0].startswith('unconverted data remains: '):
+                s = s[:-1] # 'remove the last character 'Z' for backward compatibility
+                dt_str = datetime.strptime(s, format_str)       
+        return dt_str
+
     try:
         with open(os.path.join(summary_dir, 'collected_mouse_info_df.json'), 'r',
                     encoding='UTF-8') as infile:
@@ -195,7 +204,7 @@ def load_collected_mouse_info(summary_dir):
     mouse_info_collected['mouse_info'] = pd.read_json(json_str_wrapped, orient="table")
 
     format_str = "%Y-%m-%dT%H:%M:%S.%f"
-    mouse_info_collected['mouse_info']['exp_start_string'] = [datetime.strptime(a, format_str) for a in mouse_info_collected['mouse_info']['exp_start_string']]
+    mouse_info_collected['mouse_info']['exp_start_string'] = [_str_to_datetime(a) for a in mouse_info_collected['mouse_info']['exp_start_string']]
 
     return mouse_info_collected
 
@@ -287,47 +296,30 @@ def read_voltage_matrices(data_dir, device_id, sample_freq, epoch_len_sec, epoch
                 'FASTER2 assumes there is only one file.')
         edf_file = edf_file[0]
 
-        raw = mne.io.read_raw_edf(edf_file)
-        if type(raw.info['meas_date']) is datetime:#for MNE version>=0.20 (by Okami)
-                measurement_start_datetime = raw.info['meas_date']
-                measurement_start_datetime = measurement_start_datetime.replace(tzinfo=None)
+        signal_pre, signal_header_pre, header_pre = pyedflib.highlevel.read_edf(edf_file, ch_names=[f'EEG{device_id}', f'EMG{device_id}'])
+        if signal_pre.shape[0] < 2:
+            raise ValueError('Failed to load EEG/EMG signals. Check the channel names in the EDF file are consistent with mouse.info.csv.')
+
+        measurement_start_datetime = header_pre['startdate']
+        if isinstance(start_datetime, datetime):
+            start_offset_sec = (
+                start_datetime - measurement_start_datetime).total_seconds()
+            end_offset_sec = start_offset_sec + epoch_num * epoch_len_sec
+            
+            signal_range = slice(int(start_offset_sec*sample_freq), int(end_offset_sec*sample_freq))
+            eeg = signal_pre[0][signal_range]
+            emg = signal_pre[1][signal_range]
         else:
-                measurement_start_datetime = datetime.utcfromtimestamp(
-                raw.info['meas_date'][0]) + timedelta(microseconds=raw.info['meas_date'][1])
-        try:
-            if isinstance(start_datetime, datetime) and (measurement_start_datetime < start_datetime):
-                start_offset_sec = (
-                    start_datetime - measurement_start_datetime).total_seconds()
-                end_offset_sec = start_offset_sec + epoch_num * epoch_len_sec
-                bidx = (raw.times >= start_offset_sec) & (
-                    raw.times < end_offset_sec)
-                start_slice = np.where(bidx)[0][0]
-                end_slice = np.where(bidx)[0][-1]+1
-                eeg = raw.get_data(f'EEG{device_id}',
-                                   start_slice, end_slice)[0]
-                emg = raw.get_data(f'EMG{device_id}',
-                                   start_slice, end_slice)[0]
-            else:
-                eeg = raw.get_data(f'EEG{device_id}')[0]
-                emg = raw.get_data(f'EMG{device_id}')[0]
-        except ValueError:
-            print_log(f'Failed to extract the data of "{device_id}" from {edf_file}. '
-                      f'Check the channel name: "EEG/EMG{device_id}" is in the EDF file.')
-            raise
-        except IndexError:
-            print_log(f'Failed to extract the data of "{device_id}" from {edf_file}. '
-                      f'Check the exp.info start datetime: "{start_datetime}" is consistent with EDF file. '
-                      f'The start datetime of the EDF file is {measurement_start_datetime}')
-            raise
-        raw.close()
-        try:
-            eeg_vm = eeg.reshape(-1, epoch_len_sec * sample_freq)
-            emg_vm = emg.reshape(-1, epoch_len_sec * sample_freq)
-        except ValueError:
-            print_log(f'Failed to extract {epoch_num} epochs from {edf_file}. '
-                      'Check the validity of the epoch number, start datetime, '
-                      'and sampling frequency.')
-            raise
+            eeg = signal_pre[0]
+            emg = signal_pre[1]
+
+        eeg_vm = eeg.reshape(-1, epoch_len_sec * sample_freq)
+        emg_vm = emg.reshape(-1, epoch_len_sec * sample_freq)
+        epoch_num_read = eeg_vm.shape[0]
+        if epoch_num_read != epoch_num:
+            raise ValueError(f'Number of read epochs;{epoch_num_read} is inconsistent with exp.info.csv;{epoch_num}.\n'
+                            f'Check the specified start_datetime:{start_datetime}, recording start_datetime:{measurement_start_datetime},'
+                            f' or sample frequency:{sample_freq} is correct\n')
     elif os.path.exists(os.path.join(data_dir, 'dsi.txt')):
         # try to read dsi.txt
         not_yet_pickled = True

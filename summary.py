@@ -47,14 +47,14 @@ def print_log(msg):
     if 'log' in globals():
         log.info(msg)
     else:
-        print_log(msg)
+        print(msg)
 
 
 def print_log_exception(msg):
     if 'log' in globals():
         log.exception(msg)
     else:
-        print_log(msg)
+        print(msg)
 
 
 def collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext=None, stage_ext=None):
@@ -2590,7 +2590,7 @@ if __name__ == '__main__':
     PARSER.add_argument("-o", "--output_dir",
                         help="a path to the output files (default: the first FASTER2 directory)")
     PARSER.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
-    PARSER.add_argument("-u", "--unit_voltage", help="The unit of EEG voltage for the raw PSD (default: V)", default="V")
+    PARSER.add_argument("-u", "--unit_voltage", help="The unit of EEG voltage for the raw PSD (default: uV)", default="uV")
     PARSER.add_argument("-b", "--basal_days", help="The number of basal days", default=3)
 
 

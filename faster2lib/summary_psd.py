@@ -60,7 +60,7 @@ def get_bidx_delta_wo_slow_freq(freq_bins):
         Returns:
             np.array: The binary index of delta frequency bins without slow waves for delta waves
         """
-    bidx_delta_wo_slow_freq = (1 <= freq_bins) & (freq_bins < 4)  
+    bidx_delta_wo_slow_freq = (1 <= freq_bins) & (freq_bins < 4)
     return bidx_delta_wo_slow_freq
 
 def get_bidx_slow_freq(freq_bins):
@@ -70,7 +70,7 @@ def get_bidx_slow_freq(freq_bins):
         Returns:
             np.array: The binary index of slow frequency bins for slow waves
         """
-    bidx_slow_freq = (0 < freq_bins ) & ( freq_bins < 1) 
+    bidx_slow_freq = (0 < freq_bins ) & ( freq_bins < 1)
     return bidx_slow_freq
 
 

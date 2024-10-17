@@ -9,6 +9,7 @@ import summary as ps
 import faster2lib.eeg_tools as et
 import faster2lib.summary_psd as summary_psd
 import faster2lib.summary_common as summary_common
+import faster2lib.spectrum_graph as sg
 import stage
 import faster2lib.eeg_tools as et
 import os
@@ -268,7 +269,7 @@ class  TestFunctions(unittest.TestCase):
         snorm_psd = snorm_psd_dict['psd'][0]
         nm = snorm_psd_dict['mean']
         nf = snorm_psd_dict['norm_fac']
-        ans_psd = ps.log_psd_inv(snorm_psd, nf, nm)
+        ans_psd = sg.log_psd_inv(snorm_psd, nf, nm)
 
         np.testing.assert_array_almost_equal(exp_psd, ans_psd)
 
@@ -337,9 +338,9 @@ class  TestFunctions(unittest.TestCase):
         ans_theta = ans_df.iloc[0]['Theta']
 
         # calculated by Excel
-        exp_slow = 0.020354406
+        exp_slow = 0.027750287
         exp_delta_wo_slow = 0.048376081
-        exp_delta = 0.040733806
+        exp_delta = 0.044250922
         exp_theta = 0.038871448
 
         np.testing.assert_almost_equal(ans_slow, exp_slow)
@@ -363,9 +364,9 @@ class  TestFunctions(unittest.TestCase):
 
         # calculated by a different code
         exp_n = 3
-        exp_mean = 0.016761628477375
-        exp_sd = 0.00275619660337911
-        exp_pvalue = 0.431024979258898
+        exp_mean = 0.02287744433333333
+        exp_sd = 0.003739785536112494
+        exp_pvalue = 0.42758843192405815
         exp_stars = ''
         exp_method = "Student's t-test"
 

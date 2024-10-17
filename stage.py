@@ -10,26 +10,21 @@ import argparse
 import pandas as pd
 import numpy as np
 import faster2lib.eeg_tools as et
-import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from scipy import signal
 from hmmlearn import hmm, base
 from sklearn import mixture
 import matplotlib as mpl
 from matplotlib.figure import Figure
-from mpl_toolkits.mplot3d import axes3d
 from scipy import linalg, stats
-from scipy.spatial import distance
 from scipy.stats import multivariate_normal
 import pickle
-from glob import glob
-import mne
 import logging
 from logging import getLogger, StreamHandler, FileHandler, Formatter
 import traceback
 
 
-FASTER2_NAME = 'FASTER2 version 0.5.0'
+FASTER2_NAME = 'FASTER2 version 0.5.1'
 STAGE_LABELS = ['Wake', 'REM', 'NREM']
 XLABEL = 'Total low-freq. log-powers'
 YLABEL = 'Total high-freq. log-powers'

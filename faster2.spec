@@ -14,7 +14,7 @@
 #  2. update the definition of the varialble 'coll' to include the all seven trios
 #     of variables (*_a, *_pyz, and *_exe).
 #  3. build the exes by
-# > pyinstaller faster2.spec
+# > pyinstaller --clean faster2.spec
 #  This process takes very long time (almost an hour or maybe more?)
 # 
 # Ref https://www.zacoding.com/en/post/pyinstaller-create-multiple-executables/

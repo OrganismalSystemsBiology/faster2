@@ -13,6 +13,7 @@ import matplotlib._ttconv
 
 import stage
 import faster2lib.eeg_tools as et
+import faster2lib.spectrum_graph as sg
 
 # prefixed parameters
 FIG_DPI = 300
@@ -97,7 +98,7 @@ def conv_mat(spec_norm_eeg, spec_norm_emg, epoch_num):
                              ).reshape([epoch_num, len(nf)])
     eeg_norm_mat[~bidx_unknown] = spec_norm_eeg['psd']
     eeg_conv_mat = np.vectorize(
-        log_psd_inv)(eeg_norm_mat, nf, nm)
+        sg.log_psd_inv)(eeg_norm_mat, nf, nm)
 
     nf = spec_norm_emg['norm_fac']
     nm = spec_norm_emg['mean']
@@ -105,15 +106,9 @@ def conv_mat(spec_norm_eeg, spec_norm_emg, epoch_num):
                              ).reshape([epoch_num, len(nf)])
     emg_norm_mat[~bidx_unknown] = spec_norm_emg['psd']
     emg_conv_mat = np.vectorize(
-        log_psd_inv)(emg_norm_mat, nf, nm)
+        sg.log_psd_inv)(emg_norm_mat, nf, nm)
 
     return eeg_conv_mat, emg_conv_mat
-
-
-def log_psd_inv(y, normalizing_fac, normalizing_mean):
-    """ inverses the spectrum normalization to get the conventional PSD
-    """
-    return 10**((y / normalizing_fac + normalizing_mean) / 10)
 
 
 def _initialize_axes(axes, day_len_epoch, epoch_len_sec):
