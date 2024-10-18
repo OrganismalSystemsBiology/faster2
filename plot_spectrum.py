@@ -68,7 +68,7 @@ def main(args):
     if args.workers is None:
         # draw timeseries plots mouse by mouse
         for i, r in mouse_info_df.iterrows():
-            device_id = r[0]
+            device_id = r.iloc[0]
             sg.plot_specs_a_mouse(psd_data_dir, cluster_params_dir, result_dir, device_id, sample_freq, epoch_num)
     else:
         # draw timesereis plots in parallel

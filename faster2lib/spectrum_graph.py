@@ -211,7 +211,7 @@ class SpectrumAnalysisPlots:
             # Plot an ellipse to show the Gaussian component
             angle = np.arctan(v[0, 1] / v[0, 0])
             angle = 180. * angle / np.pi  # convert to degrees
-            ell = mpl.patches.Ellipse(mean, w[0], w[1], 180. + angle,
+            ell = mpl.patches.Ellipse(mean, w[0], w[1], angle = 180. + angle,
                                       facecolor='none', edgecolor=color, label=label)
             ax1.add_patch(ell)
         ax1.legend(bbox_to_anchor=(1, 1), loc='upper right', borderaxespad=0,
@@ -234,7 +234,7 @@ class SpectrumAnalysisPlots:
             # Plot an ellipse to show the Gaussian component
             angle = np.arctan(v[0, 1] / v[0, 0])
             angle = 180. * angle / np.pi  # convert to degrees
-            ell = mpl.patches.Ellipse(mean, w[0], w[1], 180. + angle,
+            ell = mpl.patches.Ellipse(mean, w[0], w[1], angle = 180. + angle,
                                       facecolor='none', edgecolor=color, label=label)
             ax2.add_patch(ell)
         ax2.legend(bbox_to_anchor=(1, 1), loc='upper right', borderaxespad=0,
@@ -315,11 +315,11 @@ class SpectrumAnalysisPlots:
         self.line_eeg_spec_norm.set_ydata(self.eeg_norm_mat[e, :])
         self.line_emg_spec_norm.set_ydata(self.emg_norm_mat[e, :])
 
-        self.point_HLplane.set_xdata(self.npower_sleep[e])
-        self.point_HLplane.set_ydata(self.npower_active[e])
-        self.point_LRplane.set_xdata(self.npower_sleep[e])
-        self.point_LRplane.set_ydata(
-            self.npower_theta[e] - self.npower_delta[e] - self.npower_muscle[e])
+        self.point_HLplane.set_xdata([self.npower_sleep[e]])
+        self.point_HLplane.set_ydata([self.npower_active[e]])
+        self.point_LRplane.set_xdata([self.npower_sleep[e]])
+        self.point_LRplane.set_ydata([
+            self.npower_theta[e] - self.npower_delta[e] - self.npower_muscle[e]])
 
         e_range = slice(max(e - 45, 0), min(e + 45, self.epoch_num))
         pad_l = max(0, 45 - e)

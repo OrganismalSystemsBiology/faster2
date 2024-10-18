@@ -100,7 +100,7 @@ def main(args):
     if args.workers is None:
         # draw timeseries plots mouse by mouse
         for i, r in mouse_info_df.iterrows():
-            device_id = r[0]
+            device_id = r.iloc[0]
 
             tg.plot_timeseries_a_mouse(data_dir, stage_dir, stage_dir, device_id, sample_freq, epoch_num, epoch_len_sec, start_datetime)
     else:

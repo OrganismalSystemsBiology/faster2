@@ -245,7 +245,7 @@ class Timeseries_plot:
         self.fig.canvas.draw()
         filename = f'{self.device_id}.{epoch_nums[0]:06}.jpg'
 
-        self.fig.savefig(filename, pad_inches=0, bbox_inches='tight', dpi=100, quality=85, optimize=True)
+        self.fig.savefig(filename, pad_inches=0, bbox_inches='tight', dpi=100, pil_kwargs={'quality':85, 'optimize':True})
 
 
 def plot_timeseries_a_mouse(voltage_data_dir, stage_dir, result_dir, device_id, sample_freq, epoch_num, epoch_len_sec, start_datetime):
