@@ -2401,6 +2401,10 @@ def main(args):
         basal_days = record_day_num
     print_log(f'Number of recorded days: {record_day_num}, Number of basal days for the time-domain-delta scaling: {basal_days}')
 
+    if basal_days > record_day_num:
+        raise ValueError(f'The number of basal days: {basal_days} must be less than or equal to the number of recorded days: {record_day_num}.\n'
+                         f'Check the value of basal days command-line option is correct.')
+
     # add optional information
     mouse_info_collected['epoch_range'] = f'{epoch_range.start}:{epoch_range.stop}'
     mouse_info_collected['stage_ext'] = stage_ext
