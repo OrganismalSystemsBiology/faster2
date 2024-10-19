@@ -18,6 +18,7 @@ import re
 import json
 import shutil
 import zipfile
+import time
 
 def get_day_idx(file_path, epoch_len_sec, pat):
     # file_path: a string of the file path
@@ -25,8 +26,8 @@ def get_day_idx(file_path, epoch_len_sec, pat):
     matched = pat.search(file_path)
     epoch_idx_str = matched.group(1)
     epoch_idx = int(epoch_idx_str)
-    day_idx = int(np.floor(epoch_idx * epoch_len_sec / 86400) + 1)  
-    
+    day_idx = int(np.floor(epoch_idx * epoch_len_sec / 86400) + 1)
+
     return day_idx
 
 def make_archive(result_dir, epoch_num, epoch_len_sec, device_id):
@@ -71,7 +72,15 @@ def make_archive(result_dir, epoch_num, epoch_len_sec, device_id):
         json.dump(signal_view_info, f_json, indent=4)
 
     # cleaning the temporary directory
-    shutil.rmtree(os.path.join(result_dir, 'figure', 'voltage', f'{device_id}_tmp'))
+    retry_num = 3
+    for rep in range(retry_num):
+        try:
+            shutil.rmtree(os.path.join(result_dir, 'figure', 'voltage', f'{device_id}_tmp'))
+            break
+        except PermissionError as err_perm:
+            print(f'Permission Error: {err_perm}\n'
+                    f'Wait for 30 seconds and try again ({rep+1} out of {retry_num})')
+            time.sleep(30)
 
 
 def main(args):
@@ -127,7 +136,6 @@ def main(args):
     # zip the plots
     for device_id in mouse_info_df['Device label'].values:
         make_archive(stage_dir, epoch_num, epoch_len_sec, device_id)
-
 
     elapsed_time = (datetime.now() - dt_now)
     print(f'Ended plotting: {datetime.now()},  ellapsed {elapsed_time.total_seconds()/60} minuites')

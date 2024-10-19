@@ -389,3 +389,6 @@ def plot_specs_a_mouse(psd_data_dir, cluster_param_dir, result_dir, device_label
             os.chdir(plot_dir)
         
         sap.plot_specs_an_epoch(i)
+
+    # move to the upper level (to release the lock of the directory)
+    os.chdir(root_plot_dir)

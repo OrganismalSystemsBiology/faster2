@@ -295,6 +295,9 @@ def plot_timeseries_a_mouse(voltage_data_dir, stage_dir, result_dir, device_id, 
     print(f'Drawing plots in: {plot_dir}')
     for i in range(1, tp.page_num + 1):
         tp.plot_timeseries_a_page(i)
+    
+    # move to the upper level (to release the lock of the directory)
+    os.chdir(os.path.join(*os.path.split(plot_dir)[:-1]))
 
 
 def row_len_sec(epoch_len_sec):

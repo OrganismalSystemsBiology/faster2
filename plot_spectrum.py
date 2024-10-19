@@ -5,7 +5,6 @@ import argparse
 
 import numpy as np
 
-import stage
 import faster2lib.spectrum_graph as sg
 import faster2lib.eeg_tools as et
 
@@ -16,6 +15,7 @@ import multiprocessing
 from glob import glob
 import shutil
 import zipfile
+import time
 
 def make_archive(result_dir, device_id):
     """ make archives of the plots
@@ -41,8 +41,15 @@ def make_archive(result_dir, device_id):
                 zip_fh.write(t_file, os.path.basename(t_file))
         if (os.path.exists(zipped_file)):
             # remove the folder when it is successfully zipped
-            shutil.rmtree(t_folder)
-
+            retry_num = 3
+            for rep in range(retry_num):
+                try:
+                    shutil.rmtree(os.path.join(result_dir, 'figure', 'voltage', f'{device_id}_tmp'))
+                    break
+                except PermissionError as err_perm:
+                    print(f'Permission Error: {err_perm}\n'
+                            f'Wait for 5 seconds and try again ({rep+1} out of {retry_num})')
+                    time.sleep(5)
 
 def main(args):
     """The main function
