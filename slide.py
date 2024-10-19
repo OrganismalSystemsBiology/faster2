@@ -243,7 +243,7 @@ def prep_table_of_psd(prs, summary_dir):
         df_psd_ft = pd.read_csv(os.path.join(
             summary_dir, 'PSD_norm', f'PSD_norm_none_{tf}_{td}_profile_stats_table.csv'))
         df_psd_tf = pd.read_csv(os.path.join(
-            summary_dir, 'PSD_norm', f'PSD_norm_AUC_{tf}_{td}_profile_stats_table.csv'))
+            summary_dir, 'PSD_raw', f'PSD_raw_AUC_{tf}_{td}_profile_stats_table.csv'))
         df_psd_tt = pd.read_csv(os.path.join(
             summary_dir, 'PSD_raw', f'PSD_raw_TDD_{tf}_{td}_profile_stats_table.csv'))
 
@@ -363,7 +363,7 @@ def prep_fig_of_power_timeseries(prs, summary_dir):
     parm_list = [('raw', 'none', 2.01, 3.43),
                  ('raw', 'AUC', 2.01, 11.5),
                  ('norm', 'none', 17.64, 3.43),
-                 ('norm', 'TDD', 17.64, 11.5)]
+                 ('raw', 'TDD', 17.64, 11.5)]
 
     for vol_dist_type, scaling_type, left, top in parm_list:
         path_pwr_ts_delta_wake = select_wanted_path(os.path.join(
@@ -401,7 +401,7 @@ def prep_fig_of_psd(prs, summary_dir):
     # voltage normalization, spectrum normalization, left, top
     parm_list = [('raw', 'none', 1.98, 3.94),
                  ('norm', 'none', 18.2, 3.94),
-                 ('norm', 'AUC', 1.98, 12.23),
+                 ('raw', 'AUC', 1.98, 12.23),
                  ('raw', 'TDD', 18.2, 12.23)]
 
     for si, tf, td in zip(slide_idx, transform_types, time_domains):
