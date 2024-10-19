@@ -41,15 +41,7 @@ def make_archive(result_dir, device_id):
                 zip_fh.write(t_file, os.path.basename(t_file))
         if (os.path.exists(zipped_file)):
             # remove the folder when it is successfully zipped
-            retry_num = 3
-            for rep in range(retry_num):
-                try:
-                    shutil.rmtree(os.path.join(result_dir, 'figure', 'voltage', f'{device_id}_tmp'))
-                    break
-                except PermissionError as err_perm:
-                    print(f'Permission Error: {err_perm}\n'
-                            f'Wait for 5 seconds and try again ({rep+1} out of {retry_num})')
-                    time.sleep(5)
+            shutil.rmtree(t_folder)
 
 def main(args):
     """The main function
