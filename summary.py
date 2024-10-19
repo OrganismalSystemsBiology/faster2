@@ -2345,7 +2345,7 @@ def main(args):
     mouse_info_ext = args.mouse_info_ext
 
     # set the output directory
-    if output_dir == None:
+    if output_dir is None:
         # default: output to the first FASTER2 directory
         if len(faster_dir_list) > 1:
             basenames = [os.path.basename(dir_path)
@@ -2381,17 +2381,9 @@ def main(args):
         epoch_range = slice(0, epoch_num, None)
 
     # set the file sub-extention of the stage files to be summarized
-    if stage_ext == None:
+    if stage_ext is None:
         # default: 'faster2' for *.faster2.csv
         stage_ext = 'faster2'
-
-    # add optional information
-    mouse_info_collected['epoch_range'] = f'{epoch_range.start}:{epoch_range.stop}'
-    mouse_info_collected['stage_ext'] = stage_ext
-
-    # dump the collect_mouse_info_df into a file for external scripts
-    with open(os.path.join(output_dir, 'collected_mouse_info_df.json'), 'w') as outfile:
-        json.dump(serializable_collected_mouse_info(mouse_info_collected), outfile)
 
     # number of days in the recorded data
     record_day_num = epoch_num * epoch_len_sec / 60 / 60 / 24
@@ -2407,8 +2399,17 @@ def main(args):
         basal_days = int(args.basal_days)
     else:
         basal_days = record_day_num
-
     print_log(f'Number of recorded days: {record_day_num}, Number of basal days for the time-domain-delta scaling: {basal_days}')
+
+    # add optional information
+    mouse_info_collected['epoch_range'] = f'{epoch_range.start}:{epoch_range.stop}'
+    mouse_info_collected['stage_ext'] = stage_ext
+    mouse_info_collected['basal_days'] = basal_days
+    mouse_info_collected['unit_voltage'] = vol_unit
+
+    # dump the collect_mouse_info_df into a file for external scripts
+    with open(os.path.join(output_dir, 'collected_mouse_info_df.json'), 'w', encoding='utf8') as outfile:
+        json.dump(serializable_collected_mouse_info(mouse_info_collected), outfile)
 
     # prepare stagetime statistics
     stagetime_stats = make_summary_stats(mouse_info_df, epoch_range, epoch_len_sec, stage_ext)
