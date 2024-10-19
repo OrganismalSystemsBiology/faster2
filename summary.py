@@ -2596,7 +2596,7 @@ if __name__ == '__main__':
                         help="a path to the output files (default: the first FASTER2 directory)")
     PARSER.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
     PARSER.add_argument("-u", "--unit_voltage", help="The unit of EEG voltage for the raw PSD (default: uV)", default="uV")
-    PARSER.add_argument("-b", "--basal_days", help="The number of basal days", default=3)
+    PARSER.add_argument("-b", "--basal_days", help="The number of basal days from recording start", default=3)
 
 
     args = PARSER.parse_args()
