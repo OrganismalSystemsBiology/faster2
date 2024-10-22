@@ -2123,14 +2123,14 @@ def process_psd_profile(psd_info_list, epoch_len_sec, record_day_num, sample_fre
     # Mask for the fist halfday
     epoch_num_halfday = int(12*60*60/epoch_len_sec)
     mask_first_halfday = np.tile(
-        np.hstack([np.full(epoch_num_halfday, True), 
-        np.full(epoch_num_halfday, False)]), 
+        np.hstack([np.full(epoch_num_halfday, True),
+        np.full(epoch_num_halfday, False)]),
         record_day_num)
 
-    # Mask for the second halfday 
+    # Mask for the second halfday
     mask_second_halfday = np.tile(
-        np.hstack([np.full(epoch_num_halfday, False), 
-        np.full(epoch_num_halfday, True)]), 
+        np.hstack([np.full(epoch_num_halfday, False),
+        np.full(epoch_num_halfday, True)]),
         record_day_num)
 
     # PSD profiles (all day)
@@ -2142,37 +2142,43 @@ def process_psd_profile(psd_info_list, epoch_len_sec, record_day_num, sample_fre
     psd_profiles_second_halfday_df = sp.make_psd_profile(
         psd_info_list, sample_freq, psd_type, mask_second_halfday)
     psd_output_dir = os.path.join(output_dir, f'PSD_{psd_type}')
+
+    if scaling_type == 'AUC':
+        summary_func = np.sum
+    else:
+        summary_func = np.mean
+
     # write a table of PSD (all day)
-    sp.write_psd_stats(psd_profiles_df, psd_output_dir, f'{pre_proc}_allday_')
+    sp.write_psd_stats(psd_profiles_df, psd_output_dir, f'{pre_proc}_allday_', summary_func)
     # write a table of PSD (first half-day)
-    sp.write_psd_stats(psd_profiles_first_halfday_df, psd_output_dir, f'{pre_proc}_first-halfday_')
+    sp.write_psd_stats(psd_profiles_first_halfday_df, psd_output_dir, f'{pre_proc}_first-halfday_', summary_func)
     # write a table of PSD (second half-day)
-    sp.write_psd_stats(psd_profiles_second_halfday_df, psd_output_dir, f'{pre_proc}_second-halfday_')
+    sp.write_psd_stats(psd_profiles_second_halfday_df, psd_output_dir, f'{pre_proc}_second-halfday_', summary_func)
 
     print_log(f'Drawing the PSDs (voltage distribution, PSD scaling, PSD transformation) = ({psd_type}, {scaling_type}, {transform_type})')
     # draw PSDs (all day)
     sp.draw_PSDs_individual(psd_profiles_df, sample_freq,
                          f'PSD [{unit}]', psd_output_dir, 
-                         psd_type, scaling_type, transform_type, f'allday_')
+                         psd_type, scaling_type, transform_type, 'allday_')
     sp.draw_PSDs_group(psd_profiles_df, sample_freq,
                     f'PSD [{unit}]', psd_output_dir, 
-                    psd_type, scaling_type, transform_type, f'allday_')
+                    psd_type, scaling_type, transform_type, 'allday_')
 
     # draw PSDs (first halfday)
     sp.draw_PSDs_individual(psd_profiles_first_halfday_df, sample_freq,
                          f'PSD [{unit}]', psd_output_dir, 
-                         psd_type, scaling_type, transform_type, f'first-halfday_')
+                         psd_type, scaling_type, transform_type, 'first-halfday_')
     sp.draw_PSDs_group(psd_profiles_first_halfday_df, sample_freq,
                     f'PSD [{unit}]', psd_output_dir, 
-                    psd_type, scaling_type, transform_type, f'first-halfday_')
+                    psd_type, scaling_type, transform_type, 'first-halfday_')
 
     # draw PSDs (second halfday)
     sp.draw_PSDs_individual(psd_profiles_second_halfday_df, sample_freq,
                          f'PSD [{unit}]', psd_output_dir, 
-                         psd_type, scaling_type, transform_type, f'second-halfday_')
+                         psd_type, scaling_type, transform_type, 'second-halfday_')
     sp.draw_PSDs_group(psd_profiles_second_halfday_df, sample_freq,
                     f'PSD [{unit}]', psd_output_dir, 
-                    psd_type, scaling_type, transform_type, f'second-halfday_')
+                    psd_type, scaling_type, transform_type, 'second-halfday_')
 
 
 

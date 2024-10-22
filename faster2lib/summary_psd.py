@@ -328,11 +328,12 @@ def make_psd_domain(psd_profiles_df, summary_func=np.mean):
     return psd_domain_df
 
 
-def make_psd_stats(psd_domain_df):
+def make_psd_stats(psd_domain_df, summary_func):
     """ makes a table of statistical tests for each frequency domains between groups 
 
     Arguments:
         psd_domain_df {pd.DataFrame} -- a dataframe given by make_psd_domain()
+        summary_func {function} -- a function for summarizing PSD
 
     Returns:
         [pd.DataFrame] -- # mouse_group, stage_type, wave_type, num, 
@@ -352,6 +353,11 @@ def make_psd_stats(psd_domain_df):
                                                bidx_wake][DOMAIN_NAMES]
 
         return [domain_powers_rem, domain_powers_nrem, domain_powers_wake]
+
+    if summary_func is np.sum:
+        summary_str = 'Sum'
+    else:
+        summary_str = 'Mean'
 
     psd_stats_df = pd.DataFrame()
     # mouse_group_set
@@ -396,7 +402,7 @@ def make_psd_stats(psd_domain_df):
         psd_stats_df = pd.concat([psd_stats_df, pd.DataFrame(rows)], ignore_index=True)
 
     psd_stats_df.columns = ['Mouse group', 'Stage type',
-                            'Wake type', 'N', 'Mean', 'SD', 'Pvalue', 'Stars', 'Method']
+                            'Wake type', 'N', summary_str, 'SD', 'Pvalue', 'Stars', 'Method']
 
     return psd_stats_df
 
@@ -449,7 +455,7 @@ def write_psd_stats(psd_profiles_df, output_dir, opt_label='', summary_func=np.m
     """
 
     psd_domain_df = make_psd_domain(psd_profiles_df, summary_func)
-    psd_stats_df = make_psd_stats(psd_domain_df)
+    psd_stats_df = make_psd_stats(psd_domain_df, summary_func)
 
     # write tabels
     psd_profiles_df.to_csv(os.path.join(
