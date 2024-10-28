@@ -23,6 +23,9 @@ from datetime import datetime
 import logging
 from logging import getLogger, StreamHandler, FileHandler, Formatter
 
+# Update rcParams globally
+plt.rcParams.update({'font.family': 'Arial'})
+
 
 def initialize_logger(log_file):
     logger = getLogger()
@@ -2266,6 +2269,12 @@ def process_psd_timeseries(psd_info_list, epoch_len_sec, epoch_range, sample_fre
                                                 f'Hourly {scale_label} Wake total power [{unit_label}]', psd_output_dir, 
                                                 psd_type, scaling_type, transform_type,
                                                 'total', 'Wake_')
+    
+    # PSD-peak plots (Note: lineplot and barplot functions care of writing stats tables)
+    sp.draw_psd_peak_circ_heatmap_indiviudal(psd_info_list, epoch_range, epoch_len_sec, psd_type, scaling_type, transform_type, unit_label, psd_output_dir)
+    sp.draw_psd_peak_circ_heatmap_grouped(psd_info_list, epoch_range, epoch_len_sec, psd_type, scaling_type, transform_type, unit_label, psd_output_dir)
+    sp.draw_psd_peak_circ_lineplot(psd_info_list, epoch_range, epoch_len_sec, psd_type, scaling_type, transform_type, psd_output_dir)
+    sp.draw_psd_peak_barplot(psd_info_list, epoch_range, epoch_len_sec, psd_type, scaling_type, transform_type, psd_output_dir)
 
 
 def make_psd_output_dirs(output_dir, psd_type):

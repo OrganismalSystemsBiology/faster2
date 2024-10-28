@@ -201,3 +201,92 @@ def mack_skillings(dat):
     ms = v @ np.linalg.inv(sigma) @ v.T # Mack-Skillings statistics: the sum of normalized rank-sums
     p = 1 - stats.chi2.cdf(ms, k-1) # p-value
     return ms, p
+
+
+# calculate max correlation
+def _calc_max_corr(vec, norm_base_s, norm_base_c):
+    """ _calc_max_corr: calculate the max correlation between a vector and sine and cosine waves
+	
+		vec: input vector
+		norm_base_s: normalized sine wave
+		norm_base_c: normalized cosine wave
+		return: max correlation value, phase of max correlation
+	"""
+    vec_m = vec - np.mean(vec)
+    norm_vec = (vec_m)/np.sqrt(np.sum((vec_m)*(vec_m)))
+    max_corr_value = np.sqrt(np.power(np.dot(norm_base_c, norm_vec), 2) + np.power(np.dot(norm_base_s, norm_vec), 2))
+    max_corr_phase = np.arctan2(np.dot(norm_base_s, norm_vec), np.dot(norm_base_c, norm_vec))
+    return max_corr_value, max_corr_phase
+
+
+def _norm_bases(n_dp, n_dp_in_per):
+    """ _norm_bases: calculate the normalized sine and cosine waves
+		n_dp: number of data points
+		n_dp_in_per: number of data points in a period
+		return: normalized sine wave, normalized cosine wave
+	"""
+    base_s = np.sin(np.arange(n_dp)/n_dp_in_per*2*np.pi)
+    base_c = np.cos(np.arange(n_dp)/n_dp_in_per*2*np.pi)
+    base_s_m = base_s - np.mean(base_s)
+    base_c_m = base_c - np.mean(base_c)
+    norm_base_s = (base_s_m)/np.sqrt(np.sum((base_s_m)*(base_s_m)))
+    norm_base_c = (base_c_m)/np.sqrt(np.sum((base_c_m)*(base_c_m)))
+    return norm_base_s, norm_base_c
+
+
+def _max_corr_pval(num_datapoints, max_corr):
+    """ pvalue of the max Pearson correlations 
+        max corr: the value of max correlation
+        return: cumulative density
+    """
+    n = num_datapoints - 3
+    p = np.power((1 - np.power(max_corr, 2)), n / 2)
+    return p
+
+
+def _sem_ratio(avg_vector, sem_vector):
+    """ ratio of the avg_vecotr at which the vector reaches the SEM sphere
+        avg_vector: average vector
+        sem_vector: SEM vector
+        return: the ratio of the average vector from the origin to the SEM sphere over the average vector
+    """
+   
+    ratio = 1.0 - 1.96 / np.sqrt(np.sum(np.power(avg_vector / sem_vector, 2))) # 1.96 is the 95% confidence interval
+    return max(0, ratio)
+
+
+def costest(avg_vec, sem_vec, n_dp, n_dp_in_per):
+    """ costest: calculate the correlation between the average vector and the sine and cosine waves
+		avg_vec: average vector
+		sem_vec: SEM vector
+		n_dp: number of data points
+		n_dp_in_per: number of data points in a period
+		return: max correlation value, phase of max correlation, original p, SEM adjusted p
+	"""
+    # prepare bases
+    norm_base_s, norm_base_c = _norm_bases(n_dp, n_dp_in_per)
+
+    ## prepare vectors to handle nan
+    avg_vector = avg_vec.copy()
+    sem_vector = sem_vec.copy()
+    # each SEM needs to be >0
+    sem_vector[~(sem_vector>0)] = np.nanmax(sem_vector)
+    # replace nan in SEM with an effectively infinite SEM
+    sem_vector[np.isnan(avg_vector)] = np.nanmax(sem_vector)*1000000
+    # replace nan in AVG with median
+    avg_vector[np.isnan(avg_vector)] = np.nanmedian(avg_vector)
+    # taking the SEM into account
+    sem_r = _sem_ratio(avg_vector, sem_vector)
+
+    # tuple of max-correlation value and the phase of max correlation
+    mc, mc_ph = _calc_max_corr(avg_vector, norm_base_s, norm_base_c)
+
+    adj_mc = mc * sem_r
+    p_org = _max_corr_pval(n_dp, mc)
+    p_sem_adj = _max_corr_pval(n_dp, adj_mc)
+    
+	# get 24h phase for the phase of max correlation
+    mc_ph_24h = np.mod(24*mc_ph/(2*np.pi),24)
+
+    # max-correlation value, phase of max correlation, original p, SEM adjusted p
+    return mc, mc_ph_24h, p_org, p_sem_adj
