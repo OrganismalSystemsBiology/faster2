@@ -1351,9 +1351,9 @@ def draw_psd_peak_barplot(psd_info_list, epoch_range, epoch_len_sec, psd_type, s
     dcm_ctrl_sem = dcm_ctrl_std/np.sum(~np.isnan(dcm_ctrl_avg_vec))
 
     psd_peak_stats_list = []
-    psd_peak_stats_list.append([grp_ctrl, 'peak frequency', np.sum(~np.isnan(peak_ctrl_avg_vec)), peak_ctrl_avg, peak_ctrl_std, np.nan, np.nan, np.nan])
-    psd_peak_stats_list.append([grp_ctrl, 'center of mass', np.sum(~np.isnan(cm_ctrl_avg_vec)), cm_ctrl_avg, cm_ctrl_std, np.nan, np.nan, np.nan])
-    psd_peak_stats_list.append([grp_ctrl, 'delta-domain center of mass', np.sum(~np.isnan(dcm_ctrl_avg_vec)), dcm_ctrl_avg, dcm_ctrl_std, np.nan, np.nan, np.nan])
+    psd_peak_stats_list.append([grp_ctrl, 'psd_peak', np.sum(~np.isnan(peak_ctrl_avg_vec)), peak_ctrl_avg, peak_ctrl_std, np.nan, np.nan, np.nan])
+    psd_peak_stats_list.append([grp_ctrl, 'psd_cm', np.sum(~np.isnan(cm_ctrl_avg_vec)), cm_ctrl_avg, cm_ctrl_std, np.nan, np.nan, np.nan])
+    psd_peak_stats_list.append([grp_ctrl, 'psd_dcm', np.sum(~np.isnan(dcm_ctrl_avg_vec)), dcm_ctrl_avg, dcm_ctrl_std, np.nan, np.nan, np.nan])
     # initialize the figure
     fig = Figure(figsize=(10,4), dpi=FIG_DPI, facecolor='w')
     fig.subplots_adjust(wspace=0.5)
@@ -1420,11 +1420,11 @@ def draw_psd_peak_barplot(psd_info_list, epoch_range, epoch_len_sec, psd_type, s
             t_cm = sc.test_two_sample(cm_ctrl_avg_vec,  cm_test_avg_vec)  # test for center of mass
             t_dcm = sc.test_two_sample(dcm_ctrl_avg_vec,  dcm_test_avg_vec)  # test for delta-domain center of mass
 
-            psd_peak_stats_list.append([grp_test, 'peak frequency', np.sum(~np.isnan(peak_test_avg_vec)), peak_test_avg, peak_test_std, 
+            psd_peak_stats_list.append([grp_test, 'psd_peak', np.sum(~np.isnan(peak_test_avg_vec)), peak_test_avg, peak_test_std, 
                                         t_peak['p_value'], t_peak['stars'], t_peak['method']])
-            psd_peak_stats_list.append([grp_test, 'center of mass', np.sum(~np.isnan(cm_test_avg_vec)), cm_test_avg, cm_test_std, 
+            psd_peak_stats_list.append([grp_test, 'psd_cm', np.sum(~np.isnan(cm_test_avg_vec)), cm_test_avg, cm_test_std, 
                                         t_cm['p_value'], t_cm['stars'], t_cm['method']])
-            psd_peak_stats_list.append([grp_test, 'delta-domain center of mass', np.sum(~np.isnan(dcm_test_avg_vec)), dcm_test_avg, dcm_test_std, 
+            psd_peak_stats_list.append([grp_test, 'psd_dcm', np.sum(~np.isnan(dcm_test_avg_vec)), dcm_test_avg, dcm_test_std, 
                                         t_dcm['p_value'], t_dcm['stars'], t_dcm['method']])
 
             axes[0].bar(1, peak_test_avg, yerr=peak_test_sem, align='center',
