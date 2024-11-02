@@ -591,37 +591,37 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir,
             y_sem = psd_sem_rem_c
             ax1.plot(x, y, color='grey')
             ax1.fill_between(x, y - y_sem,
-                            y + y_sem, color='grey', alpha=0.3)
+                            y + y_sem, color='grey', linewidth=0, alpha=0.3)
 
             y = psd_mean_rem_t
             y_sem = psd_sem_rem_t
             ax1.plot(x, y, color=stage.COLOR_REM)
             ax1.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_REM, linewidth=0, alpha=0.3)
 
             y = psd_mean_nrem_c
             y_sem = psd_sem_nrem_c
             ax2.plot(x, y, color='grey')
             ax2.fill_between(x, y - y_sem,
-                            y + y_sem, color='grey', alpha=0.3)
+                            y + y_sem, color='grey',linewidth=0, alpha=0.3)
 
             y = psd_mean_nrem_t
             y_sem = psd_sem_nrem_t
             ax2.plot(x, y, color=stage.COLOR_NREM)
             ax2.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
             y = psd_mean_wake_c
             y_sem = psd_sem_wake_c
             ax3.plot(x, y, color='grey')
             ax3.fill_between(x, y - y_sem,
-                            y + y_sem, color='grey', alpha=0.3)
+                            y + y_sem, color='grey', linewidth=0, alpha=0.3)
 
             y = psd_mean_wake_t
             y_sem = psd_sem_wake_t
             ax3.plot(x, y, color=stage.COLOR_WAKE)
             ax3.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_WAKE, linewidth=0, alpha=0.3)
 
             fig.suptitle(
                 f'Powerspectrum density: {mouse_group_set[0]} (n={num_c}) v.s. {mouse_group_set[g_idx]} (n={num_t})\n'
@@ -666,19 +666,19 @@ def draw_PSDs_group(psd_profiles_df, sample_freq, y_label, output_dir,
         y_sem = psd_sem_rem_t
         ax1.plot(x, y, color=stage.COLOR_REM)
         ax1.fill_between(x, y - y_sem,
-                        y + y_sem, color=stage.COLOR_REM, alpha=0.3)
+                        y + y_sem, color=stage.COLOR_REM,linewidth=0, alpha=0.3)
 
         y = psd_mean_nrem_t
         y_sem = psd_sem_nrem_t
         ax2.plot(x, y, color=stage.COLOR_NREM)
         ax2.fill_between(x, y - y_sem,
-                        y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                        y + y_sem, color=stage.COLOR_NREM,linewidth=0, alpha=0.3)
 
         y = psd_mean_wake_t
         y_sem = psd_sem_wake_t
         ax3.plot(x, y, color=stage.COLOR_WAKE)
         ax3.fill_between(x, y - y_sem,
-                        y + y_sem, color=stage.COLOR_WAKE, alpha=0.3)
+                        y + y_sem, color=stage.COLOR_WAKE,linewidth=0, alpha=0.3)
 
         fig.suptitle(
             f'Powerspectrum density: {mouse_group_set[g_idx]} (n={num_t})\n'
@@ -803,7 +803,7 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epo
             y_sem = domain_power_timeseries_stats_list[0][1, :]/np.sqrt(num_c)
             ax1.plot(x, y, color='grey')
             ax1.fill_between(x, y - y_sem,
-                            y + y_sem, color='grey', alpha=0.3)
+                            y + y_sem, color='grey', linewidth=0, alpha=0.3)
             ax1.set_ylabel(y_label)
             ax1.set_xlabel('Time (hours)')
 
@@ -813,7 +813,7 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epo
             y_sem = domain_power_timeseries_stats_list[g_idx][1, :]/np.sqrt(num)
             ax1.plot(x, y, color=stage.COLOR_NREM)
             ax1.fill_between(x, y - y_sem,
-                            y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                            y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
 
             fig.suptitle(
                 f'Power timeseries: {mouse_groups_set[0]} (n={num_c}) v.s. {mouse_groups_set[g_idx]} (n={num})\n'
@@ -834,7 +834,7 @@ def draw_psd_domain_power_timeseries_grouped(psd_domain_power_timeseries_df, epo
         y_sem = domain_power_timeseries_stats_list[g_idx][1, :]/np.sqrt(num)
         ax1.plot(x, y, color=stage.COLOR_NREM)
         ax1.fill_between(x, y - y_sem,
-                        y + y_sem, color=stage.COLOR_NREM, alpha=0.3)
+                        y + y_sem, color=stage.COLOR_NREM, linewidth=0, alpha=0.3)
         ax1.set_ylabel(y_label)
         ax1.set_xlabel('Time (hours)')
 
