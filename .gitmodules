@@ -3,3 +3,6 @@
 	url = git@github.com:OrganismalSystemsBiology/faster2-spindle.git
 	ignore = dirty
 
+[submodule "modules/sleepDep"]
+	path = modules/sleepDep
+	url = git@github.com:OrganismalSystemsBiology/faster2-sleepDeprivation.git

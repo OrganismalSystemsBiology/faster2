@@ -436,7 +436,7 @@ class DataSet:
     """ Class to manage the dataset used for the previous analysis (stage.py or summary.py)
     """
     def __init__(self, mouse_info_collected_df, sample_freq, epoch_len_sec, 
-                 epoch_num, epoch_range_target, stage_ext, new_root_dir=None):
+                 epoch_num, epoch_range_target, basal_days, stage_ext, new_root_dir=None):
         """ Initialize the dataset
         Args:
             mouse_info_collected_df (DataFrame): a DataFrame that contains the collected information of the mice
@@ -445,6 +445,7 @@ class DataSet:
             epoch_num (int): the number of all epochs processed in the summary analysis
             epoch_range_target (slice): an epoch range targeted for the analysis with this dataset
             stage_ext (str): a stage file extension
+            basal_days (int): the number of days used as the basal period for TDD scaling
             new_root_dir (str): a new root directory of the data
         
         """
@@ -453,6 +454,7 @@ class DataSet:
         self.epoch_len_sec = epoch_len_sec
         self.epoch_num = epoch_num
         self.epoch_range_target = epoch_range_target
+        self.basal_days = basal_days
         self.stage_ext = stage_ext
 
         # change the root directory of the data if needed
