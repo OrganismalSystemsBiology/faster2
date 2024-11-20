@@ -2368,6 +2368,7 @@ def main(args):
             path_ext = '_' + '_'.join(basenames)
         else:
             path_ext = ''
+            faster_dir_list =['.']
         output_dir = os.path.join(faster_dir_list[0], 'summary' + path_ext)
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(os.path.join(output_dir, 'pdf'), exist_ok=True)
@@ -2376,8 +2377,10 @@ def main(args):
     global log
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     log = initialize_logger(os.path.join(output_dir, 'log', f'summary.{dt_str}.log'))
-    print_log(f'[{dt_str} - {stage.FASTER2_NAME} - {sys.modules[__name__].__file__}]'
-              f' Started in: {os.path.abspath(output_dir)}')
+    print_log(f'[{dt_str} - {stage.FASTER2_NAME} - {sys.modules[__name__].__file__}]')
+    print_log(f'Started in : {os.path.dirname(os.path.abspath(output_dir))} with the following arguments')
+    for arg, value in vars(args).items():
+        print_log(f'    {arg}: {value}')
 
     # collect mouse_infos of the specified (multiple) FASTER dirs
     mouse_info_collected = collect_mouse_info_df(faster_dir_list, epoch_len_sec, mouse_info_ext, stage_ext)
@@ -2599,7 +2602,7 @@ def main(args):
 if __name__ == '__main__':
 
     PARSER = argparse.ArgumentParser()
-    PARSER.add_argument("-f", "--faster2_dirs", required=True, nargs="*",
+    PARSER.add_argument("-f", "--faster2_dirs", required=True, nargs="+",
                         help="paths to the FASTER2 directories")
     PARSER.add_argument("-e", "--epoch_range",
                         help="a range of epochs to be summaried (default: '0:epoch_num'")
@@ -2619,3 +2622,4 @@ if __name__ == '__main__':
         main(args)
     except Exception as e:
         print_log_exception('Unhandled exception occured')
+        raise e

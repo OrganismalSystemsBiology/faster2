@@ -162,6 +162,7 @@ def read_mouse_info(data_dir, mouse_info_ext=None):
         print_log(lkup_err)
         exit(1)
 
+    print_log(f'Reading mouse info file:{filepath}')
     csv_df = pd.read_csv(filepath,
                          engine="python",
                          dtype={'Device label': str, 'Mouse group': str,
@@ -177,8 +178,10 @@ def read_mouse_info(data_dir, mouse_info_ext=None):
 
 
 def load_collected_mouse_info(summary_dir):
-    # read the collected mouse information used for the summary
-    # Here is the 'epoch range' information
+    """ 
+    read the collected mouse information used for the summary
+    Here is the 'epoch range' information
+    """
     def _str_to_datetime(s):
         try:
             dt_str = datetime.strptime(s, format_str)
@@ -189,12 +192,15 @@ def load_collected_mouse_info(summary_dir):
         return dt_str
 
     try:
-        with open(os.path.join(summary_dir, 'collected_mouse_info_df.json'), 'r',
+        collected_mouse_info_path = os.path.join(summary_dir, 'collected_mouse_info_df.json')
+        print_log(f'Reading collected_mouse_info: {collected_mouse_info_path}')
+        with open(collected_mouse_info_path, 'r',
                     encoding='UTF-8') as infile:
             mouse_info_collected = json.load(infile)
     except FileNotFoundError as err:
-        print(
-            f'Failed to find collected_mouse_info_df.json. Check the summary folder path is valid. {err}')
+        print_log(
+            f'Failed to find collected_mouse_info_df.json. Check the summary folder path is valid.\n'
+            f'{err}')
         exit(1)
     
     # This is a patch for bridging the inconsistency between Pandas 1.5 and 2.0

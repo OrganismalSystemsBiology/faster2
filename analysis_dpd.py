@@ -1560,21 +1560,7 @@ def main(args, summary_dir, output_dir):
     global log
 
     # read the collected mouse information used for the summary
-    try:
-        with open(os.path.join(summary_dir, 'collected_mouse_info_df.json'), 'r',
-                  encoding='UTF-8') as infile:
-            mouse_info_collected = json.load(infile)
-    except FileNotFoundError as err:
-        print_log(
-            f'Failed to find collected_mouse_info_df.json. Check the summary folder path is valid. {err}')
-        return
-        # This is a batch for bridging the inconsistency between Pandas 1.5 and 2.0
-    json_str = mouse_info_collected['mouse_info']
-    json_str_wrapped = io.StringIO(json_str.replace("datetime", "string"))
-
-    mouse_info_collected['mouse_info'] = pd.read_json(json_str_wrapped, orient="table")
-
-
+    mouse_info_collected = et.load_collected_mouse_info(summary_dir)
 
     # basic parameters of the summary
     mouse_info_df = mouse_info_collected['mouse_info']
@@ -1667,8 +1653,10 @@ if __name__ == '__main__':
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     log = initialize_logger(os.path.join(
         output_dir, 'log', f'summary.{dt_str}.log'))
-    print_log(f'[{dt_str} - {stage.FASTER2_NAME} - {sys.modules[__name__].__file__}]'
-              f' Started in: {os.path.abspath(output_dir)}')
+    print_log(f'[{dt_str} - {stage.FASTER2_NAME} - {sys.modules[__name__].__file__}]')
+    print_log(f'Started in : {os.path.dirname(os.path.abspath(output_dir))} with the following arguments')
+    for arg, value in vars(args).items():
+        print_log(f'    {arg}: {value}')
 
     try:
         main(args, summary_dir, output_dir)

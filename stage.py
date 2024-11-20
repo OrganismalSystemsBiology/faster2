@@ -1144,7 +1144,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--data_dir",
-                        help="path to the directory of input data", default="data")
+                        help="path to the directory of input data", required=True, default="data")
     parser.add_argument("-r", "--result_dir",
                         help="path to the directory of staging result", default="result")
     parser.add_argument("-l", "--epoch_len_sec", help="epoch length in second", default=8)
@@ -1163,7 +1163,10 @@ if __name__ == '__main__':
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     log = initialize_logger(os.path.join(result_dir, f'stage.{dt_str}.log'))
 
-    print_log(f'[{dt_str} - {FASTER2_NAME} - {sys.modules[__name__].__file__}] Started in : {os.path.dirname(os.path.abspath(args.data_dir))}')
+    print_log(f'[{dt_str} - {FASTER2_NAME} - {sys.modules[__name__].__file__}]')
+    print_log(f'Started in : {os.path.dirname(os.path.abspath(args.data_dir))} with the following arguments')
+    for arg, value in vars(args).items():
+        print_log(f'    {arg}: {value}')
 
     try:
         main(args.data_dir, result_dir, args.pickle_input_data, int(args.epoch_len_sec), args.heart_beat_filter, args.no_signal_filter, args.draw_pdf_plot)
