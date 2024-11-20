@@ -2368,7 +2368,6 @@ def main(args):
             path_ext = '_' + '_'.join(basenames)
         else:
             path_ext = ''
-            faster_dir_list =['.']
         output_dir = os.path.join(faster_dir_list[0], 'summary' + path_ext)
     os.makedirs(output_dir, exist_ok=True)
     os.makedirs(os.path.join(output_dir, 'pdf'), exist_ok=True)
