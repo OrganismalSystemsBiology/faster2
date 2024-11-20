@@ -231,12 +231,16 @@ def run_main():
             print(
                 f'Hypnogram [{idx}]: {exp_label} [{device_label}] {mouse_group} ({mouse_id})')
             if idx not in target_indices:
-                print(f'Skipping...')
+                print('Skipping...')
                 continue
 
             ## regularized stages
             print(f'Reading stage... {device_label}.{stage_ext}.stage.csv')
-            stages = et.read_stages(result_dir, device_label, stage_ext)
+            try:
+                stages = et.read_stages(result_dir, device_label, stage_ext)
+            except FileNotFoundError:
+                print('Stage file not found. skipping...')
+                continue
             stages = remove_unknown_stage(stages)
             stage_idx_dict = {'WAKE': 0, 'NREM': 1, 'REM': 2}
             nstages = np.array([stage_idx_dict[stg]
@@ -417,11 +421,11 @@ def run_main():
                 fontsize=10, fontfamily='arial', y=1-0.117/(n_days * 11.6929/5)) 
             filename = f"hypnogram_{exp_label}_{mouse_group}_{mouse_id}_{device_label}"
             out_path = os.path.join(root_plot_dir, filename)
-            print(f'Saving PNG...')
+            print('Saving PNG...')
             fig.savefig(f"{out_path}.png", dpi=FIG_DPI,
                         bbox_inches='tight', pad_inches=2/FIG_DPI)
             out_path = os.path.join(root_plot_dir, 'PDF', filename)
-            print(f'Saving PDF...')
+            print('Saving PDF...')
             fig.savefig(f"{out_path}.pdf", dpi=FIG_DPI,
                         bbox_inches='tight', pad_inches=2/FIG_DPI)
 
