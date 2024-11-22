@@ -144,7 +144,7 @@ def assign_page_title(prs, title):
         prs (Presentation): The slide object
         title (str): The slide title to be inserted
     """
-    for si in range(10):
+    for si in range(12):
         slide = prs.slides[si]
         txt_frms = get_text_frames_in_slide(slide, 'SUMMARY LABEL')
         try:
@@ -236,21 +236,13 @@ def prep_table_of_psd_peak(prs, summary_dir):
 
     df_peak_line_ff = pd.read_csv(os.path.join(
         summary_dir, 'PSD_raw', 'PSD-peak-circ_lineplots_costest_raw_none_linear.csv'))
-    df_peak_line_ft = pd.read_csv(os.path.join(
-        summary_dir, 'PSD_norm','PSD-peak-circ_lineplots_costest_norm_none_linear.csv'))
     df_peak_line_tf = pd.read_csv(os.path.join(
         summary_dir, 'PSD_raw', 'PSD-peak-circ_lineplots_costest_raw_AUC_linear.csv'))
-    df_peak_line_tt = pd.read_csv(os.path.join(
-        summary_dir, 'PSD_raw', 'PSD-peak-circ_lineplots_costest_raw_TDD_linear.csv'))
 
     df_peak_bar_ff = pd.read_csv(os.path.join(
         summary_dir, 'PSD_raw', 'PSD-peak-barcharts_stats_raw_none_linear.csv'))
-    df_peak_bar_ft = pd.read_csv(os.path.join(
-        summary_dir, 'PSD_norm','PSD-peak-barcharts_stats_norm_none_linear.csv'))
     df_peak_bar_tf = pd.read_csv(os.path.join(
         summary_dir, 'PSD_raw', 'PSD-peak-barcharts_stats_raw_AUC_linear.csv'))
-    df_peak_bar_tt = pd.read_csv(os.path.join(
-        summary_dir, 'PSD_raw', 'PSD-peak-barcharts_stats_raw_TDD_linear.csv'))
 
 
     slide = prs.slides[2]
@@ -260,20 +252,12 @@ def prep_table_of_psd_peak(prs, summary_dir):
     set_dataframe_to_table(
         df_peak_line_ff.iloc[0:6, :].fillna(' '), table_map['PSD-PEAK-LINE-FF'])
     set_dataframe_to_table(
-        df_peak_line_ft.iloc[0:6, :].fillna(' '), table_map['PSD-PEAK-LINE-FT'])
-    set_dataframe_to_table(
         df_peak_line_tf.iloc[0:6, :].fillna(' '), table_map['PSD-PEAK-LINE-TF'])
-    set_dataframe_to_table(
-        df_peak_line_tt.iloc[0:6, :].fillna(' '), table_map['PSD-PEAK-LINE-TT'])
 
     set_dataframe_to_table(
         df_peak_bar_ff.iloc[0:6, :].fillna(' '), table_map['PSD-PEAK-BAR-FF'])
     set_dataframe_to_table(
-        df_peak_bar_ft.iloc[0:6, :].fillna(' '), table_map['PSD-PEAK-BAR-FT'])
-    set_dataframe_to_table(
         df_peak_bar_tf.iloc[0:6, :].fillna(' '), table_map['PSD-PEAK-BAR-TF'])
-    set_dataframe_to_table(
-        df_peak_bar_tt.iloc[0:6, :].fillna(' '), table_map['PSD-PEAK-BAR-TT'])
 
 
 def prep_table_of_psd(prs, summary_dir):
@@ -390,10 +374,8 @@ def prep_fig_of_psd_peaks(prs, summary_dir):
     slide = prs.slides[2]
 
     # (voltage normalization, spectrum normalization, left1, top1, left2, top2)
-    parm_list = [('raw', 'none', 1.88, 2.44, 10.26, 2.35),
-                 ('raw', 'AUC',  1.88, 11.16,10.26, 11.07),
-                 ('norm','none',17.94, 2.44, 26.31, 2.35),
-                 ('raw', 'TDD', 17.94, 11.16,26.31, 11.07)]
+    parm_list = [('raw', 'none', 0.71, 2.56, 15.21, 2.56),
+                 ('raw', 'AUC',  0.71, 11.38,15.21, 11.38)]
 
     for vol_dist_type, scaling_type, left1, top1, left2, top2 in parm_list:
         path_peak_line = select_wanted_path(os.path.join(
@@ -402,9 +384,9 @@ def prep_fig_of_psd_peaks(prs, summary_dir):
             summary_dir, f'PSD_{vol_dist_type}'), f'PSD-peak-barcharts_{vol_dist_type}_{scaling_type}')
 
         picture1 = slide.shapes.add_picture(
-            path_peak_line, Cm(left1), Cm(top1), Cm(8.15), Cm(2.99))
+            path_peak_line, Cm(left1), Cm(top1), Cm(14.03), Cm(5.14))
         picture2 = slide.shapes.add_picture(
-            path_peak_bar, Cm(left2), Cm(top2), Cm(6.64), Cm(3.08))
+            path_peak_bar, Cm(left2), Cm(top2), Cm(11.06), Cm(5.14))
 
 
         # put the pictures at the bottom of z-order
@@ -440,7 +422,7 @@ def prep_fig_of_psd(prs, summary_dir):
 
 
 def prep_fig_of_spindle(prs, summary_dir):
-    """Prepare plots of spindle (page 7)
+    """Prepare plots of spindle (page 11)
 
     Args:
         prs (Presentation): The slide object
@@ -463,6 +445,40 @@ def prep_fig_of_spindle(prs, summary_dir):
     slide.shapes.add_picture(path_spindle_distributions_NREMafterREM, Cm(24.35), Cm(3.55), Cm(8.28), Cm(7))
     slide.shapes.add_picture(path_spindle_distributions_NREMbeforeWAKE, Cm(12.65), Cm(12.05), Cm(8.28), Cm(7))
     slide.shapes.add_picture(path_spindle_distributions_NREMafterWAKE, Cm(24.35), Cm(12.03), Cm(8.28), Cm(7))
+
+
+def prep_fig_of_sleep_dep(prs, summary_dir):
+    """Prepare plots of sleep deprivation (page 12)
+
+    Args:
+        prs (Presentation): The slide object
+        summary_dir (str): The path to the summary directory
+    """
+    slide = prs.slides[11]
+    sleep_dep_path = os.path.join(summary_dir, 'sleepDep')
+
+    if os.path.exists(sleep_dep_path) is False:
+        print_log('No sleep deprivation data found')
+        return
+
+    path_sleeptime_circ_comp_ctrl = select_wanted_path(sleep_dep_path, 'sleeptime_circ_comp_g0')
+    path_sleeptime_circ_comp_test = select_wanted_path(sleep_dep_path, 'sleeptime_circ_comp_g1')
+    path_delta_power_nrem_circ_comp_ctrl = select_wanted_path(sleep_dep_path, 'delta-power_NREM_circ_comp_g0')
+    path_delta_power_nrem_circ_comp_test = select_wanted_path(sleep_dep_path, 'delta-power_NREM_circ_comp_g1')
+    path_briefawakenings_circ_comp_ctrl = select_wanted_path(sleep_dep_path, 'briefawakenings_circ_comp_g0')
+    path_briefawakenings_circ_comp_test = select_wanted_path(sleep_dep_path, 'briefawakenings_circ_comp_g1')
+    path_sleeptime_accm_comp = select_wanted_path(sleep_dep_path, 'sleeptime_accm_comp')
+    path_sleeptime_accm_scaled_comp = select_wanted_path(sleep_dep_path, 'sleeptime_accm_scaled_comp')
+
+    slide.shapes.add_picture(path_sleeptime_circ_comp_ctrl, Cm(4.73),  Cm(2.54), Cm(6.62), Cm(4.79))
+    slide.shapes.add_picture(path_sleeptime_circ_comp_test, Cm(11.63), Cm(2.54), Cm(6.62), Cm(4.79))
+    slide.shapes.add_picture(path_delta_power_nrem_circ_comp_ctrl, Cm(4.73),  Cm(8.23), Cm(6.62), Cm(4.79))
+    slide.shapes.add_picture(path_delta_power_nrem_circ_comp_test, Cm(11.63), Cm(8.23), Cm(6.62), Cm(4.79))
+    slide.shapes.add_picture(path_briefawakenings_circ_comp_ctrl, Cm(4.73),  Cm(14.21), Cm(6.62), Cm(4.79))
+    slide.shapes.add_picture(path_briefawakenings_circ_comp_test, Cm(11.63), Cm(14.21), Cm(6.62), Cm(4.79))
+
+    slide.shapes.add_picture(path_sleeptime_accm_scaled_comp, Cm(18.69),  Cm(6.73), Cm(10.95), Cm(5.05))
+    slide.shapes.add_picture(path_sleeptime_accm_comp, Cm(18.69),  Cm(2.22), Cm(10.95), Cm(5.05)) # Give a higher z-order than the "scaled" plot
 
 
 def prep_fig_of_dpd(prs, summary_dir):
@@ -574,6 +590,9 @@ def make_slide(args):
 
     # Prepare plots of spindel (page 11)
     prep_fig_of_spindle(prs, summary_dir)
+
+    # Prepare plots of sleepDep (page 12)
+    prep_fig_of_sleep_dep(prs, summary_dir)
 
     path2summary_slide = os.path.join(summary_dir, 'summary.pptx')
     prs.save(path2summary_slide)
