@@ -193,7 +193,8 @@ def load_collected_mouse_info(summary_dir):
 
     try:
         collected_mouse_info_path = os.path.join(summary_dir, 'collected_mouse_info_df.json')
-        print_log(f'Reading collected_mouse_info: {collected_mouse_info_path}')
+        print_log(f'Reading collected_mouse_info:\n'
+                  f'    {collected_mouse_info_path}')
         with open(collected_mouse_info_path, 'r',
                     encoding='UTF-8') as infile:
             mouse_info_collected = json.load(infile)
