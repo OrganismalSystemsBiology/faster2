@@ -609,6 +609,6 @@ if __name__ == '__main__':
 
     DT_STR = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     LOGGER = initialize_logger(os.path.join(
-        ARGS.summary_dir, 'log', f'summary.{DT_STR}.log'))
+        ARGS.summary_dir, 'log', f'slide.{DT_STR}.log'))
 
     make_slide(ARGS)
