@@ -14,7 +14,7 @@ TRANSMITTER_ID = 'ID33572'
 
 class TestFunctions(unittest.TestCase):
 
-    def test_DataSet_read_eeg_vm_dafault(self):
+    def test_DataSet_read_vm_dafault(self):
         summary_dir = Path(r"../test/data/FASTER2_20240629_EEG_2024-033\summary_033_034")
         new_root_dir = r'../test/data/' # rewrite the root directory saved in the mouse_info_collected
 
@@ -30,18 +30,20 @@ class TestFunctions(unittest.TestCase):
 
         # construct dataset with default (without epoch_range, stage_ext)
         dataset = et.DataSet(mouse_info_df, sample_freq, epoch_len_sec,
-                    epoch_num, None, stage_ext, new_root_dir)
+                    epoch_num, None, 3, stage_ext, new_root_dir)
         
         # Test 1: read EEG voltage matrix
-        eeg_vm = dataset.load_eeg_vm(0)
+        eeg_vm, emg_vm = dataset.load_vm(0)
         np.testing.assert_array_equal((1800, 1024), eeg_vm.shape)
+        np.testing.assert_array_equal((1800, 1024), emg_vm.shape)
+
 
         # Test 2: read stages
         stages = dataset.load_stage(0)
         np.testing.assert_equal(np.sum(stages=='WAKE'), 660) # counted in another script
 
 
-    def test_DataSet_read_eeg_vm_options(self):
+    def test_DataSet_read_vm_options(self):
         summary_dir = Path(r"../test/data/FASTER2_20240629_EEG_2024-033\summary_033_034")
         new_root_dir = r'../test/data/' # rewrite the root directory saved in the mouse_info_collected
 
@@ -57,11 +59,12 @@ class TestFunctions(unittest.TestCase):
 
         # construct dataset with default witch custom epoch_range, stage_ext
         dataset = et.DataSet(mouse_info_df, sample_freq, epoch_len_sec,
-                    epoch_num, slice(0, 100), 'modified', new_root_dir)
+                    epoch_num, slice(0, 100), 3, 'modified', new_root_dir)
         
         # Test 1: read EEG voltage matrix
-        eeg_vm = dataset.load_eeg_vm(0)
+        eeg_vm, emg_vm = dataset.load_vm(0)
         np.testing.assert_array_equal((100, 1024), eeg_vm.shape)
+        np.testing.assert_array_equal((100, 1024), emg_vm.shape)
 
         # Test 2: read stages (check the contents)
         stages = dataset.load_stage(0)

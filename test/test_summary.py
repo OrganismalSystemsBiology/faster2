@@ -354,7 +354,7 @@ class  TestFunctions(unittest.TestCase):
         psd_domain_df = summary_psd.make_psd_domain(psd_profile_df)
 
         # test
-        ans_df = summary_psd.make_psd_stats(psd_domain_df)
+        ans_df = summary_psd.make_psd_stats(psd_domain_df, np.mean)
         ans_n = ans_df.iloc[0]['N']
         ans_mean = ans_df.iloc[0]['Mean']
         ans_sd = ans_df.iloc[0]['SD']

@@ -475,8 +475,8 @@ class DataSet:
         if not self.stage_ext:
             self.stage_ext = 'faster2'
 
-    def load_eeg_vm(self, idx: int):
-        """ Load the data of the mouse specified by the index
+    def load_vm(self, idx: int):
+        """ Load the voltage matrix of the mouse specified by the index
 
         Args:idx    index of the mouse_info_collected_df
         
@@ -487,13 +487,15 @@ class DataSet:
         data_dir = faster_dir / 'data'
         start_date_time = r['exp_start_string']
 
-        eeg_vm, _, _ = read_voltage_matrices(data_dir, device_label, self.sample_freq, 
+        eeg_vm, emg_vm, _ = read_voltage_matrices(data_dir, device_label, self.sample_freq, 
                                  self.epoch_len_sec, self.epoch_num, start_date_time)
         
         if self.epoch_range_target:
             eeg_vm = eeg_vm[self.epoch_range_target,:]
+            emg_vm = emg_vm[self.epoch_range_target,:]
 
-        return eeg_vm
+        return eeg_vm, emg_vm
+
     
     def load_stage(self, idx: int):
         """ Load the data of the mouse specified by the index
