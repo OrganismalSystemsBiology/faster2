@@ -2279,7 +2279,7 @@ def process_psd_timeseries(psd_info_list, epoch_len_sec, epoch_range, sample_fre
 
 def make_psd_output_dirs(output_dir, psd_type):
     output_dir = os.path.join(output_dir, f'PSD_{psd_type}')
-    os.makedirs(os.path.join(output_dir, 'PDF'), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, 'pdf'), exist_ok=True)
 
 
 def make_auc_scaled_psd_info_list(psd_info_list):
