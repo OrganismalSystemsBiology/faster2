@@ -12,6 +12,7 @@ import json
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+import matplotlib.font_manager as fm
 import textwrap
 
 import faster2lib.eeg_tools as et
@@ -23,8 +24,12 @@ from datetime import datetime
 import logging
 from logging import getLogger, StreamHandler, FileHandler, Formatter
 
-# Update rcParams globally
-plt.rcParams.update({'font.family': 'Arial'})
+# Update rcParams globally if 'Arial' is available
+# Get available fonts
+font_families = fm.findSystemFonts(fontpaths=None, fontext='ttf')
+available_fonts = [fm.FontProperties(fname=font).get_name() for font in font_families]
+if 'Arial' in available_fonts:
+    plt.rcParams.update({'font.family': 'Arial'})
 
 
 def initialize_logger(log_file):
