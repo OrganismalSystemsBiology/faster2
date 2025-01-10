@@ -1288,7 +1288,8 @@ def delta_power_from_range(delta_power_all, epoch_range_basal, epoch_range_summa
     if epoch_range_basal.start == epoch_range_summarised.start:
         delta_power = delta_power_all[slice(0, epoch_range_num, None)]
     else:
-        delta_power = delta_power_all[slice(epoch_range_basal.start - epoch_range_summarised.start, epoch_range_num)]
+        target_start = epoch_range_basal.start - epoch_range_summarised.start
+        delta_power = delta_power_all[slice(target_start, target_start + epoch_range_num)]
 
     return delta_power
 
