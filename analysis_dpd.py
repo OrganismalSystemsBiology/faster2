@@ -352,14 +352,14 @@ def simulate_delta_power_dynamics(opt_taus, low_asymp, up_asymp, stage_call, idx
     return (delta_power_dynamics_simulated, delta_power_dynamics_observed)
 
 
-def draw_simulated_delta_power_dynamics(sim_ts, obs_ts, delta_t, y_range=None, epoch_range_basal=None):
+def draw_simulated_delta_power_dynamics(sim_ts, obs_ts, delta_t, y_range=None, epoch_range_target=None):
     """draws similated timeseries of delta-power dynamics wiht observed data
 
     Args:
         sim_ts (np.array): The simulated delta-powers
         obs_ts (np.array): The observed delta-powers
         delta_t (int): The epoch length in second
-        epoch_range_basal (slice): The slice used for selecting the basal epoch range
+        epoch_range_target (slice): The slice used for selecting the basal epoch range
 
     Returns:
         Figure : A plot of the simulated time-series of delta-power dynamics
@@ -374,10 +374,10 @@ def draw_simulated_delta_power_dynamics(sim_ts, obs_ts, delta_t, y_range=None, e
     fig = Figure(figsize=(13, 6))
     ax = fig.add_subplot(111)
 
-    if epoch_range_basal is not None:
+    if epoch_range_target is not None:
         # Marked the extrapolated area with the pale red backgroud color
         ax.axvspan(0, num_points*delta_t/3600, color='r', alpha=0.1)
-        ax.axvspan(epoch_range_basal.start*delta_t/3600, epoch_range_basal.stop*delta_t/3600, color='w')
+        ax.axvspan(epoch_range_target.start*delta_t/3600, epoch_range_target.stop*delta_t/3600, color='w')
 
     _set_common_features_delta_power_dynamics(ax, num_points*delta_t/3600, [y_min, y_max])
 
@@ -547,7 +547,7 @@ def binned_mean(ts, epoch_len_sec):
     return (ts_mean)
 
 
-def draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_len_sec, output_dir, y_range=None, epoch_range_basal=None):
+def draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_len_sec, output_dir, y_range=None, epoch_range_target=None):
     """draws the simulation and observed delta-power dynamics for each group in the given list
 
     Args:
@@ -595,10 +595,10 @@ def draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_le
                        np.nanmax([sim_mean, obs_mean])]
 
 
-        if epoch_range_basal is not None:
+        if epoch_range_target is not None:
             # Marked the extrapolated area with the pale red backgroud color
             ax.axvspan(0, num_points, color='r', alpha=0.1)
-            ax.axvspan(epoch_range_basal.start*epoch_len_sec/3600, epoch_range_basal.stop*epoch_len_sec/3600, color='w')
+            ax.axvspan(epoch_range_target.start*epoch_len_sec/3600, epoch_range_target.stop*epoch_len_sec/3600, color='w')
 
         _set_common_features_delta_power_dynamics(ax, num_points, y_range)
 
@@ -611,7 +611,7 @@ def draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_le
 
 
         #  GE for Group Each
-        if epoch_range_basal is not None:
+        if epoch_range_target is not None:
             fig.suptitle(
             f'Delta power dynamics each group (extrapolated): {"  ".join([mouse_group])}')
 
@@ -625,7 +625,7 @@ def draw_sim_and_obs_dpd_group_each(sim_ts_mat, obs_ts_mat, mouse_list, epoch_le
             sc.savefig(output_dir, filename, fig)
 
 
-def draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec, output_dir, y_range=None, epoch_range_basal=None):
+def draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec, output_dir, y_range=None, epoch_range_target=None):
     """draws the simulation delta-power dynamics for comparison to the control
 
     Args:
@@ -677,10 +677,10 @@ def draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec, output_dir, y
             if y_range is None:
                 y_range = [np.nanmin([sim_mean_ctrl, sim_mean_test]), np.nanmax([sim_mean_ctrl, sim_mean_test])]
 
-            if epoch_range_basal is not None:
+            if epoch_range_target is not None:
                 # Marked the extrapolated area with the pale red backgroud color
                 ax.axvspan(0, num_points, color='r', alpha=0.1)
-                ax.axvspan(epoch_range_basal.start*epoch_len_sec/3600, epoch_range_basal.stop*epoch_len_sec/3600, color='w')
+                ax.axvspan(epoch_range_target.start*epoch_len_sec/3600, epoch_range_target.stop*epoch_len_sec/3600, color='w')
 
             _set_common_features_delta_power_dynamics(ax, num_points, y_range)
 
@@ -691,7 +691,7 @@ def draw_sim_dpd_group_comp(sim_ts_mat, mouse_list, epoch_len_sec, output_dir, y
             ax.fill_between(x, sim_mean_test - sim_sem_test, sim_mean_test +
                             sim_sem_test, color=COLOR_SERIES[1], linewidth=0, alpha=0.3)
 
-            if epoch_range_basal is None:
+            if epoch_range_target is None:
                 fig.suptitle(
                     f'Delta power dynamics group comparison: {mouse_set[0]} (n={np.sum(bidx_group_ctrl)}) v.s. {mouse_group} (n={np.sum(bidx_group_test)})')
 
@@ -1261,15 +1261,15 @@ def draw_boxplot_of_asymptotes(delta_power_dynamics_df, output_dir):
     sc.savefig(output_dir, filename, fig)
 
 
-def delta_power_from_range(delta_power_all, epoch_range_basal, epoch_range_summarised):
+def delta_power_from_range(delta_power_all, epoch_range_target, epoch_range_summarised):
     """The array of the delta powers is culculated by summary.py with the specified range.
-    The epoch_range_basal can must be within the epoch_range_summarised, but can locate anywhere inside.
-    This function returns the array of delta_powers with the length of epoch_range_basal 
+    The epoch_range_target can must be within the epoch_range_summarised, but can locate anywhere inside.
+    This function returns the array of delta_powers with the length of epoch_range_target 
     from the epoch_range_summarised.
 
     Args:
         delta_power_all (np.array): an array of delta powers
-        epoch_range_basal (slice):
+        epoch_range_target (slice):
         epoch_range_summarized (slice):
 
     Raises: IndexError
@@ -1278,28 +1278,28 @@ def delta_power_from_range(delta_power_all, epoch_range_basal, epoch_range_summa
         np.array: delta powers in the range
     """
 
-    # check if the epoch_range_basal is within the summarised epoch_range
-    if (epoch_range_basal.start < epoch_range_summarised.start) or (epoch_range_basal.stop > epoch_range_summarised.stop):
-        raise IndexError(f'[Error] The specified epoch range:{epoch_range_basal.start}-{epoch_range_basal.stop} is out '
+    # check if the epoch_range_target is within the summarised epoch_range
+    if (epoch_range_target.start < epoch_range_summarised.start) or (epoch_range_target.stop > epoch_range_summarised.stop):
+        raise IndexError(f'[Error] The specified epoch range:{epoch_range_target.start}-{epoch_range_target.stop} is out '
                          f'of the summarised epoch range:{epoch_range_summarised.start}-{epoch_range_summarised.stop}.\n')
 
-    epoch_range_num = epoch_range_basal.stop - epoch_range_basal.start
+    epoch_range_num = epoch_range_target.stop - epoch_range_target.start
 
-    if epoch_range_basal.start == epoch_range_summarised.start:
+    if epoch_range_target.start == epoch_range_summarised.start:
         delta_power = delta_power_all[slice(0, epoch_range_num, None)]
     else:
-        target_start = epoch_range_basal.start - epoch_range_summarised.start
+        target_start = epoch_range_target.start - epoch_range_summarised.start
         delta_power = delta_power_all[slice(target_start, target_start + epoch_range_num)]
 
     return delta_power
 
-def make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summarised, csv_head, csv_body, output_dir):
+def make_asymptote_df(mouse_info_df, stage_ext, epoch_range_target, epoch_range_summarised, csv_head, csv_body, output_dir):
     """makes a dataframe of upper and lower asymptotes
 
     Args:
         mouse_info_df (pd.DataFrame): The dataframe of mouse_info
         stage_ext (str): string
-        epoch_range_basal: epoch range for the DPD analysis
+        epoch_range_target: epoch range for the DPD analysis
         epoch_range_summarised: epoch range used in summary.py
 
     Returns:
@@ -1325,13 +1325,13 @@ def make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_s
         # read the stage file
         stage_call_all = et.read_stages(os.path.join(
             faster_dir, 'result'), device_label, stage_ext)
-        stage_call = stage_call_all[epoch_range_basal]
+        stage_call = stage_call_all[epoch_range_target]
 
         # read the delta power timeseries
         keys = {'Experiment label': exp_label, 'Mouse group': mouse_group,
                 'Mouse ID': mouse_id, 'Device label': device_label}
         delta_power_all = select_delta_power(csv_head, csv_body, keys)
-        delta_power = delta_power_from_range(delta_power_all, epoch_range_basal, epoch_range_summarised)
+        delta_power = delta_power_from_range(delta_power_all, epoch_range_target, epoch_range_summarised)
 
         # Estimate the lower and upper asymptotes
         (low_asymp, up_asymp, fig) = estimate_delta_power_asymptote(
@@ -1349,13 +1349,13 @@ def make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_s
     return asymptote_df
 
 
-def do_analysis(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summarised, csv_body, csv_head, epoch_len_sec, output_dir, bool_extrapolation):
+def do_analysis(mouse_info_df, stage_ext, epoch_range_target, epoch_range_summarised, csv_body, csv_head, epoch_len_sec, output_dir, bool_extrapolation):
     """ Calculates Ti and Td (the main part of the delta-power dynamics analyssi)
 
     Args:
         mouse_info_df (pd.DataFrame): contents of collected_mouse_info_df.json (mouse.info.csv)
         stage_ext (str): The extention for the stage files
-        epoch_range_basal (slice): The range of the epochs used as the basal
+        epoch_range_target (slice): The range of the epochs used as the basal
         csv_body (pd.DataFrame): dataframe returned by read_delta_power_csv()
         csv_head (pd.DataFrame): dataframe returned by read_delta_power_csv()
         epoch_len_sec (int): The length [sec] of each epoch
@@ -1370,7 +1370,7 @@ def do_analysis(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summari
         delta_power_dynamics_df: Summary table of the delta-power dynamics
     """
     # Estimate the asymptotes
-    asymptote_df = make_asymptote_df(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summarised, csv_head, csv_body, output_dir)
+    asymptote_df = make_asymptote_df(mouse_info_df, stage_ext, epoch_range_target, epoch_range_summarised, csv_head, csv_body, output_dir)
     asymptote_medians_df = asymptote_df.groupby('Mouse group').median(numeric_only=True)
 
     ## Initialize dataframe and lists to store results
@@ -1398,13 +1398,13 @@ def do_analysis(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summari
         # read the stage file
         stage_call_all = et.read_stages(os.path.join(
             faster_dir, 'result'), device_label, stage_ext)
-        stage_call = stage_call_all[epoch_range_basal]
+        stage_call = stage_call_all[epoch_range_target]
 
         # read the delta power timeseries
         keys = {'Experiment label': exp_label, 'Mouse group': mouse_group,
                 'Mouse ID': mouse_id, 'Device label': device_label}
         delta_power_all = select_delta_power(csv_head, csv_body, keys)
-        delta_power = delta_power_from_range(delta_power_all, epoch_range_basal, epoch_range_summarised)
+        delta_power = delta_power_from_range(delta_power_all, epoch_range_target, epoch_range_summarised)
 
         if bool_extrapolation and (len(delta_power_all) == len(delta_power)):
             print_log('[Warning] The extrapolation was requested but canceled because the summary has only the basal range of epochs.')
@@ -1466,7 +1466,7 @@ def do_analysis(mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summari
     return (sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, delta_power_dynamics_df)
 
 
-def draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, epoch_len_sec, epoch_range_basal, output_dir, bool_extrapolation):
+def draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, epoch_len_sec, epoch_range_target, output_dir, bool_extrapolation):
     """ make plots of
         1) simulated_delta_power_dynamics with observed data points for each animal,
         2) simulated_delta_power_dynamics with observed data points for each group,
@@ -1481,7 +1481,7 @@ def draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_lis
         sim_ts_ext_list (2D list): simulated timeseries (extrapolated) of mice
         obs_ts_ext_list (2D list): observed timeseries (extrapolated) of mice
         epoch_len_sec (int): The lengch of an epoch in seconds
-        epoch_range_basal (tuple or list): Epoch range of the basal
+        epoch_range_target (tuple or list): Epoch range of the basal
         bool_extrapolation (bool): The boolean switch to direct whether to do the extrapolation or not
     """
     if bool_extrapolation:
@@ -1510,7 +1510,7 @@ def draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_lis
                           delta_power_dynamics_df['Mouse group'],
                           delta_power_dynamics_df['Mouse ID'],
                           delta_power_dynamics_df['Device label']):
-            fig = draw_simulated_delta_power_dynamics(sim_ts, obs_ts, epoch_len_sec, [y_min, y_max], epoch_range_basal)
+            fig = draw_simulated_delta_power_dynamics(sim_ts, obs_ts, epoch_len_sec, [y_min, y_max], epoch_range_target)
             fig.suptitle(
                 f'Delta power dynamics (extrapolated): {"  ".join([exp_label, mouse_group, mouse_id, device_label])}')
             filename = f'delta-power-dynamics_extrapolated_{"_".join([exp_label, mouse_group, mouse_id, device_label])}'
@@ -1528,8 +1528,8 @@ def draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_lis
     if bool_extrapolation:
         obs_ts_ext_mat = np.array(obs_ts_ext_list)
         sim_ts_ext_mat = np.array(sim_ts_ext_list)
-        draw_sim_and_obs_dpd_group_each(sim_ts_ext_mat, obs_ts_ext_mat, mouse_list, epoch_len_sec, output_dir, [y_min, y_max], epoch_range_basal)
-        draw_sim_dpd_group_comp(sim_ts_ext_mat, mouse_list, epoch_len_sec, output_dir, [y_min, y_max], epoch_range_basal)
+        draw_sim_and_obs_dpd_group_each(sim_ts_ext_mat, obs_ts_ext_mat, mouse_list, epoch_len_sec, output_dir, [y_min, y_max], epoch_range_target)
+        draw_sim_dpd_group_comp(sim_ts_ext_mat, mouse_list, epoch_len_sec, output_dir, [y_min, y_max], epoch_range_target)
 
     # Draw
     draw_boxplot_of_asymptotes(delta_power_dynamics_df, output_dir)
@@ -1578,10 +1578,10 @@ def main(args, summary_dir, output_dir):
         # use the range given by the command line option
         e_range = [
             int(x.strip()) if x else None for x in args.epoch_range.split(':')]
-        epoch_range_basal = slice(*e_range)
+        epoch_range_target = slice(*e_range)
     else:
         # default: use the all epochs
-        epoch_range_basal = slice(0, epoch_num, None)
+        epoch_range_target = slice(0, epoch_num, None)
 
     # set the epoch range used for summary.py
     if epoch_range_summarised_str:
@@ -1594,8 +1594,8 @@ def main(args, summary_dir, output_dir):
         epoch_range_summarised = slice(0, epoch_num, None)
 
     # chekc if the epoch range is within the exp.info range
-    if (epoch_range_basal.stop - epoch_range_basal.start) > epoch_num:
-        print_log(f'[Error] The specified epoch range:{epoch_range_basal.start}-{epoch_range_basal.stop} is out of the index ({epoch_num}).')
+    if (epoch_range_target.stop - epoch_range_target.start) > epoch_num:
+        print_log(f'[Error] The specified epoch range:{epoch_range_target.start}-{epoch_range_target.stop} is out of the index ({epoch_num}).')
         return -1
 
     # The request of the extrapolation may be cancelled later
@@ -1613,15 +1613,15 @@ def main(args, summary_dir, output_dir):
     # Main process
 
     ## print log the basic information
-    print_log(f'The basal-epoch range: {epoch_range_basal.start}-{epoch_range_basal.stop} '\
-              f'({epoch_range_basal.stop - epoch_range_basal.start} epochs out of {epoch_num}). '\
+    print_log(f'The basal-epoch range: {epoch_range_target.start}-{epoch_range_target.stop} '\
+              f'({epoch_range_target.stop - epoch_range_target.start} epochs out of {epoch_num}). '\
               f'Extrapolation: {args.extrapolation}')
     
     (sim_ts_list, obs_ts_list, sim_ts_ext_list, obs_ts_ext_list, delta_power_dynamics_df) = do_analysis(
-        mouse_info_df, stage_ext, epoch_range_basal, epoch_range_summarised, csv_body, csv_head, epoch_len_sec, output_dir, bool_extrapolation)
+        mouse_info_df, stage_ext, epoch_range_target, epoch_range_summarised, csv_body, csv_head, epoch_len_sec, output_dir, bool_extrapolation)
 
     draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_list,
-               obs_ts_ext_list, epoch_len_sec, epoch_range_basal, output_dir, bool_extrapolation)
+               obs_ts_ext_list, epoch_len_sec, epoch_range_target, output_dir, bool_extrapolation)
 
 if __name__ == '__main__':
     # initialize global variables
