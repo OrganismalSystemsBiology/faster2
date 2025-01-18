@@ -2304,7 +2304,7 @@ def make_auc_scaled_psd_info_list(psd_info_list):
     return auc_psd_info_list
 
 
-def make_tdd_scaled_psd_info(psd_info_list, sample_freq, epoch_len_sec, epoch_num, basal_days):
+def make_tdd_scaled_psd_info(psd_info_list, sample_freq, epoch_len_sec, epoch_num, epoch_range, basal_days):
     # The time domain is from 8- to 12-hour of each basal day 
 
     # prepare the time-domain binary index
@@ -2312,8 +2312,8 @@ def make_tdd_scaled_psd_info(psd_info_list, sample_freq, epoch_len_sec, epoch_nu
     time_domain_end = 12  # ending time of the reference time domain
     bidx_time_domain = np.repeat(False, epoch_num)
     for i in range(basal_days):
-        time_domain_range = slice((time_domain_start + 24*i)*3600//epoch_len_sec, 
-                                (time_domain_end + 24*i)*3600//epoch_len_sec, None)
+        time_domain_range = slice(epoch_range.start + (time_domain_start + 24*i)*3600//epoch_len_sec,
+                                  epoch_range.start + (time_domain_end + 24*i)*3600//epoch_len_sec, None)
         bidx_time_domain[time_domain_range] = True
 
     # prepare the delta-power frequency binary index
@@ -2421,9 +2421,11 @@ def main(args):
         basal_days = int(args.basal_days)
     else:
         basal_days = record_day_num
-    print_log(f'Number of recorded days: {record_day_num}, Number of basal days for the time-domain-delta scaling: {basal_days}')
+    ranged_day_num = int((epoch_range.stop - epoch_range.start) * epoch_len_sec / 60 / 60 / 24)
 
-    if basal_days > record_day_num:
+    print_log(f'Number of ranged days: {ranged_day_num}, Number of basal days for the time-domain-delta scaling: {basal_days}')
+
+    if ranged_day_num > record_day_num:
         raise ValueError(f'The number of basal days: {basal_days} must be less than or equal to the number of recorded days: {record_day_num}.\n'
                          f'Check the value of basal days command-line option is correct.')
 
@@ -2511,7 +2513,7 @@ def main(args):
 
     # Time-domain NREM-delta scaling of psd_info
     print_log('Making the time-domin-delta-power (TDD) scaled version of the PSD information')
-    tdd_psd_info_list = make_tdd_scaled_psd_info(psd_info_list, sample_freq, epoch_len_sec, epoch_num, basal_days)
+    tdd_psd_info_list = make_tdd_scaled_psd_info(psd_info_list, sample_freq, epoch_len_sec, epoch_num, epoch_range, basal_days)
     print_log('Making the log-transformed TDD-scaled version of the log-PSD information')
     logtdd_psd_info_list = make_log_psd(tdd_psd_info_list)
 
