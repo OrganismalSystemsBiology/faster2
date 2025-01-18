@@ -1653,7 +1653,7 @@ if __name__ == '__main__':
     # initialize logger
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     log = initialize_logger(os.path.join(
-        output_dir, 'log', f'summary.{dt_str}.log'))
+        output_dir, 'log', f'analysis_dpd.{dt_str}.log'))
     print_log(f'[{dt_str} - {stage.FASTER2_NAME} - {sys.modules[__name__].__file__}]')
     print_log(f'Started in : {os.path.dirname(os.path.abspath(output_dir))} with the following arguments')
     for arg, value in vars(args).items():
