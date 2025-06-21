@@ -8,7 +8,7 @@ import pyedflib
 import numpy as np
 from glob import glob
 from datetime import datetime, timedelta
-from pathlib import Path
+from pathlib import Path, PureWindowsPath, PurePosixPath
 import locale
 import chardet
 import pickle
@@ -443,7 +443,7 @@ class DataSet:
     """ Class to manage the dataset used for the previous analysis (stage.py or summary.py)
     """
     def __init__(self, mouse_info_collected_df, sample_freq, epoch_len_sec, 
-                 epoch_num, epoch_range_target, basal_days, stage_ext, new_root_dir=None):
+                 epoch_num, epoch_range_target, basal_days, stage_ext, new_root_dir=None, path_style='windows'):
         """ Initialize the dataset
         Args:
             mouse_info_collected_df (DataFrame): a DataFrame that contains the collected information of the mice
@@ -454,6 +454,7 @@ class DataSet:
             stage_ext (str): a stage file extension
             basal_days (int): the number of days used as the basal period for TDD scaling
             new_root_dir (str): a new root directory of the data
+            path_style (str): the style of the path used in the mouse info ('windows' or 'posix')
         
         """
         self.mouse_info_collected_df = mouse_info_collected_df.copy()
@@ -463,12 +464,20 @@ class DataSet:
         self.epoch_range_target = epoch_range_target
         self.basal_days = basal_days
         self.stage_ext = stage_ext
+        self.path_style = path_style
 
         # change the root directory of the data if needed
         if new_root_dir:
             for i, r in self.mouse_info_collected_df.iterrows():
-                faster_dir = Path(r['FASTER_DIR'])
-                new_faster_dir = Path(new_root_dir, *faster_dir.parts[1:])
+                if self.path_style == 'windows':
+                    faster_dir = PureWindowsPath(r['FASTER_DIR'])
+                elif self.path_style == 'posix':
+                    faster_dir = PurePosixPath(r['FASTER_DIR'])
+                else:
+                    print_log(
+                        f'Failed to set the path style to: \"{path_style}\" trying to use \"windows\".')
+                    faster_dir = PureWindowsPath(r['FASTER_DIR'])
+                new_faster_dir = Path(new_root_dir, *faster_dir.parts[1:]) # Path (windows or posix) can change depending on the current system
                 self.mouse_info_collected_df.loc[i, 'FASTER_DIR'] = new_faster_dir
 
         # set the default stage_ext
