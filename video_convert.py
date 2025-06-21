@@ -7,7 +7,7 @@ from glob import glob
 import re
 import sys
 import stage
-
+import faster2lib.eeg_tools as et
 
 def call_proc(input_filepath, output_dir, camera_id, video_start_dt_str, encoder):
     """ invokes an ffmpeg subprocess
@@ -50,7 +50,7 @@ def get_start_dt(video_filepath):
 
     try:
         filename = os.path.basename(video_filepath)
-        start_datetime = stage.interpret_datetimestr(filename)
+        start_datetime = et.interpret_datetimestr(filename)
     except ValueError:
         print(f'[warning] Failed to interpret the start datetime from the filename "{filename}"')
         start_datetime = None
