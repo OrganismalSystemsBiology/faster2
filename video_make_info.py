@@ -10,6 +10,8 @@ import sys
 from datetime import datetime, timedelta
 import pandas as pd
 
+import faster2lib.eeg_tools as et
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
  
@@ -44,7 +46,7 @@ if __name__ == '__main__':
         ## 1. the command line option
         if video_start_datetime_opt:
             try:
-                start_datetime = stage.interpret_datetimestr(video_start_datetime_opt)
+                start_datetime = et.interpret_datetimestr(video_start_datetime_opt)
                 print('start datetime given by command line: ', start_datetime)
             except ValueError:
                 print(f'[error] Failed to interpret the start datetime given by -s option "{video_start_datetime_opt}"')
@@ -55,7 +57,7 @@ if __name__ == '__main__':
         if len(filenames)>0:
             try:
                 filename = os.path.basename(filenames[0])
-                start_datetime = stage.interpret_datetimestr(filename)
+                start_datetime = et.interpret_datetimestr(filename)
                 print(f'start datetime given by {filename}: ', start_datetime)
             except ValueError as e:
                 pass
@@ -64,7 +66,7 @@ if __name__ == '__main__':
         ## 3. the filename of the first video file (overwriting the 1. and 2.)
         try:
             filename = os.path.basename(file_list[0])
-            start_datetime = stage.interpret_datetimestr(filename)
+            start_datetime = et.interpret_datetimestr(filename)
             print(f'start datetime given by {filename}: ', start_datetime)
         except ValueError as e:
             pass
@@ -95,7 +97,7 @@ if __name__ == '__main__':
             try:
                 # use the start_datetime if the video filename has it 
                 filename = os.path.basename(video_path)
-                start_datetime = stage.interpret_datetimestr(filename)
+                start_datetime = et.interpret_datetimestr(filename)
                 print(f'start datetime given by {filename}: ', start_datetime)
             except ValueError as e:
                 # otherwise, the start datetime is the accumulation of each video's duration (+fps)
