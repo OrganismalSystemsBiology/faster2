@@ -92,7 +92,7 @@ def time_from_filepaths(file_list, timefmt):
     return time_list
 
 
-def show_parameters(faster2_dir, profile_path, dest_dir, tmp_dir,
+def show_parameters(faster2_dir, profile_path, dest_dir, 
                     start_dt, end_dt, exp_label, rack_label):
     """Display key parameters before executing main.
 
@@ -110,7 +110,6 @@ def show_parameters(faster2_dir, profile_path, dest_dir, tmp_dir,
     print_log(f"  faster2_dir : {faster2_dir}")
     print_log(f"  profile_path: {profile_path}")
     print_log(f"  dest_dir    : {dest_dir}")
-    print_log(f"  tmp_dir     : {tmp_dir}")
     print_log(f"  start_dt    : {start_dt}")
     print_log(f"  end_dt      : {end_dt}")
     print_log("exp.info.csv")
@@ -227,11 +226,10 @@ if __name__ == '__main__':
         faster2_dir=faster2_dir,
         profile_path=profile_path,
         dest_dir=temp_dir,
-        tmp_dir=temp_dir,
         start_dt=start_dt,
         end_dt=end_dt,
         exp_label=exp_label,
         rack_label=rack_label,
     )
 
-    main(profile_dict, dest_dir, start_dt, end_dt)
+    main(profile_dict, temp_dir, start_dt, end_dt)
