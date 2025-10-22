@@ -196,14 +196,14 @@ if __name__ == '__main__':
         profile_path = os.path.abspath(f'video.{args.profile}.json')
 
     if args.start is None:
-        start_dt = datetime.strptime(exp_info_df["Start datetime"].iloc[0], "%Y-%m-%d %H:%M:%S")
+        start_dt = et.interpret_datetimestr(exp_info_df["Start datetime"].iloc[0])
     else:
-        start_dt = datetime.strptime(args.start, "%Y-%m-%d %H:%M:%S")
+        start_dt = et.interpret_datetimestr(args.start)
 
     if args.end is None:
-        end_dt = datetime.strptime(exp_info_df["End datetime"].iloc[0], "%Y-%m-%d %H:%M:%S")
+        end_dt = et.interpret_datetimestr(exp_info_df["End datetime"].iloc[0])
     else:
-        end_dt = datetime.strptime(args.end, "%Y-%m-%d %H:%M:%S")
+        end_dt = et.interpret_datetimestr(args.end)
 
     # Parameters (3/3): profile json
     profile_dict = load_profile(profile_path)
