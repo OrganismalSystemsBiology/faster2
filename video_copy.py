@@ -182,8 +182,6 @@ if __name__ == '__main__':
     # Parameters (1/3): command line
     args = parser.parse_args()
     faster2_dir = os.path.abspath(args.faster2_dir)
-    dest_dir = os.path.abspath(args.dest_dir)
-    end_dt = datetime.strptime(args.end, "%Y-%m-%d %H:%M:%S")
 
     # Parametes (2/3): exp_info csv
     exp_info_df = et.read_exp_info(os.path.join(faster2_dir, 'data'))
