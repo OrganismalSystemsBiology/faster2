@@ -226,7 +226,7 @@ if __name__ == '__main__':
     show_parameters(
         faster2_dir=faster2_dir,
         profile_path=profile_path,
-        dest_dir=dest_dir,
+        dest_dir=temp_dir,
         tmp_dir=temp_dir,
         start_dt=start_dt,
         end_dt=end_dt,
