@@ -191,9 +191,9 @@ if __name__ == '__main__':
 
     # Set parameters depending on their priority ( command line > exp_info ) (1/2)
     if args.profile is None:
-        profile_path = os.path.abspath(f'video.{rack_label}.json')
+        profile_path = os.path.abspath(os.path.join(faster2_dir, f'video.{rack_label}.json'))
     else:
-        profile_path = os.path.abspath(f'video.{args.profile}.json')
+        profile_path = os.path.abspath(os.path.join(faster2_dir, f'video.{args.profile}.json'))
 
     if args.start is None:
         start_dt = et.interpret_datetimestr(exp_info_df["Start datetime"].iloc[0])
@@ -206,7 +206,16 @@ if __name__ == '__main__':
         end_dt = et.interpret_datetimestr(args.end)
 
     # Parameters (3/3): profile json
-    profile_dict = load_profile(profile_path)
+    try:
+        profile_dict = load_profile(profile_path)
+    except FileNotFoundError as e:
+        print_log(f"Error: Profile file not found: {profile_path}")
+        print_log("Please ensure:")
+        print_log("  1. The 'Rack label' in exp.info.csv is correct, OR")
+        print_log("  2. Use --profile option to specify the correct profile name")
+        print_log("     (e.g., --profile rack1 for video.rack1.json)")
+        print_log("  3. The specified json file is in the faster2_dir")
+        exit(-1)
     temp_dir = os.path.abspath(profile_dict['tmp_dir'])
 
     os.makedirs(temp_dir, exist_ok=True)
