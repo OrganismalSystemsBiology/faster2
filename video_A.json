@@ -1,0 +1,43 @@
+{
+    "timefmt_list": [
+        "Record-%Y-%m-%d_%H-%M-%S",
+        "Record-%Y-%m-%d_%H-%M-%S",
+        "Record-%Y-%m-%d_%H-%M-%S",
+        "Record-%Y-%m-%d_%H-%M-%S",
+        "Record-%Y-%m-%d_%H-%M-%S",
+        "Record-%Y-%m-%d_%H-%M-%S",
+        "Record-%Y-%m-%d_%H-%M-%S",
+        "Record-%Y-%m-%d_%H-%M-%S"
+    ],
+    "ext_list": [
+        "avi",
+        "avi",
+        "avi",
+        "avi",
+        "avi",
+        "avi",
+        "avi",
+        "avi"
+    ],
+    "source_dir_list": [
+        "\\\\10.2.128.28\\eegvideotmp\\video\\EEG-Video\\CAM-EEG-AH-A1",
+        "\\\\10.2.128.28\\eegvideotmp\\video\\EEG-Video\\CAM-EEG-AH-A2",
+        "\\\\10.2.128.28\\eegvideotmp\\video\\EEG-Video\\CAM-EEG-AH-A3",
+        "\\\\10.2.128.28\\eegvideotmp\\video\\EEG-Video\\CAM-EEG-AH-A4",
+        "\\\\10.2.128.28\\eegvideotmp\\video\\EEG-Video\\CAM-EEG-AH-B1",
+        "\\\\10.2.128.28\\eegvideotmp\\video\\EEG-Video\\CAM-EEG-AH-B2",
+        "\\\\10.2.128.28\\eegvideotmp\\video\\EEG-Video\\CAM-EEG-AH-B3",
+        "\\\\10.2.128.28\\eegvideotmp\\video\\EEG-Video\\CAM-EEG-AH-B4"
+    ],
+    "dest_camera_list": [
+        "01",
+        "02",
+        "03",
+        "04",
+        "05",
+        "06",
+        "07",
+        "08"
+    ],
+    "dest_timefmt": "Record-%Y-%m-%d_%H-%M-%S"
+}
