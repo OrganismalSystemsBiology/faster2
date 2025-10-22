@@ -7,11 +7,13 @@ import os
 import shutil
 import json
 import argparse
-import numpy as np
 import traceback
+import numpy as np
+
+import faster2lib.eeg_tools  as et
 
 
-APP_NAME = 'video_copy.py ver 0.0.0'
+APP_NAME = 'video_copy.py ver 0.1.0'
 
 def initialize_logger(log_file):
     """initializes the log
@@ -90,6 +92,32 @@ def time_from_filepaths(file_list, timefmt):
     return time_list
 
 
+def show_parameters(faster2_dir, profile_path, dest_dir, tmp_dir,
+                    start_dt, end_dt, exp_label, rack_label):
+    """Display key parameters before executing main.
+
+    Args:
+        faster2_dir (str): Absolute path to the faster2 directory
+        profile_path (str): Path to the profile JSON used
+        dest_dir (str): Destination directory for copied videos
+        tmp_dir (str): Temporary/log output directory from profile
+        start_dt (datetime): Start datetime for copy range
+        end_dt (datetime): End datetime for copy range
+        exp_label (str): Experiment label from exp.info.csv
+        rack_label (str): Rack label from exp.info.csv
+    """
+    print_log("Parameters")
+    print_log(f"  faster2_dir : {faster2_dir}")
+    print_log(f"  profile_path: {profile_path}")
+    print_log(f"  dest_dir    : {dest_dir}")
+    print_log(f"  tmp_dir     : {tmp_dir}")
+    print_log(f"  start_dt    : {start_dt}")
+    print_log(f"  end_dt      : {end_dt}")
+    print_log("exp.info.csv")
+    print_log(f"  exp_label   : {exp_label}")
+    print_log(f"  rack_label  : {rack_label}")
+
+
 def main(profile, dest_root_dir, copy_start, copy_end):
     source_dir_list = profile['source_dir_list']
     timefmt_list = profile['timefmt_list']
@@ -144,22 +172,59 @@ def main(profile, dest_root_dir, copy_start, copy_end):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--profile", required=True, help="parameter json file")
-    parser.add_argument("-d", "--dest_dir", required=True, help="destination directory")
-    parser.add_argument("-s", "--start", required=True, help="start datetime '2021-02-16 08:00:00'")
-    parser.add_argument("-e", "--end", required=True, help="end datetime '2021-02-16 08:00:00'")
+    parser.add_argument("-f", "--faster2_dir", required=True, help="faster2 directory")
+    parser.add_argument("-p", "--profile", required=False, help="profile name (video.[HERE].json)")
+    parser.add_argument("-d", "--dest_dir", required=False, help="destination directory")
+    parser.add_argument("-s", "--start", required=False, help="start datetime '2021-02-16 08:00:00'")
+    parser.add_argument("-e", "--end", required=False, help="end datetime '2021-02-16 08:00:00'")
 
+
+    # Parameters (1/3): command line
     args = parser.parse_args()
-    profile_filepath = os.path.abspath(args.profile)
+    faster2_dir = os.path.abspath(args.faster2_dir)
     dest_dir = os.path.abspath(args.dest_dir)
-    start_dt = datetime.strptime(args.start, "%Y-%m-%d %H:%M:%S")
-    end_et = datetime.strptime(args.end, "%Y-%m-%d %H:%M:%S")
+    end_dt = datetime.strptime(args.end, "%Y-%m-%d %H:%M:%S")
 
-    os.makedirs(dest_dir, exist_ok=True)
+    # Parametes (2/3): exp_info csv
+    exp_info_df = et.read_exp_info(os.path.join(faster2_dir, 'data'))
+    exp_label = exp_info_df["Experiment label"].iloc[0]
+    rack_label = exp_info_df["Rack label"].iloc[0]
+
+
+    # Set parameters depending on their priority ( command line > exp_info ) (1/2)
+    if args.profile is None:
+        profile_path = os.path.abspath(f'video.{rack_label}.json')
+    else:
+        profile_path = os.path.abspath(f'video.{args.profile}.json')
+
+    if args.start is None:
+        start_dt = datetime.strptime(exp_info_df["Start datetime"].iloc[0], "%Y-%m-%d %H:%M:%S")
+    else:
+        start_dt = datetime.strptime(args.start, "%Y-%m-%d %H:%M:%S")
+
+    if args.end is None:
+        end_dt = datetime.strptime(exp_info_df["End datetime"].iloc[0], "%Y-%m-%d %H:%M:%S")
+    else:
+        end_dt = datetime.strptime(args.end, "%Y-%m-%d %H:%M:%S")
+
+    # Parameters (3/3): profile json
+    profile_dict = load_profile(profile_path)
+    temp_dir = os.path.abspath(profile_dict['tmp_dir'])
+
+    os.makedirs(temp_dir, exist_ok=True)
 
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
-    log = initialize_logger(os.path.join(dest_dir, f'video_copy.{dt_str}.log'))
+    log = initialize_logger(os.path.join(temp_dir, f'video_copy.{dt_str}.log'))
 
-    profile_dict = load_profile(profile_filepath)
+    show_parameters(
+        faster2_dir=faster2_dir,
+        profile_path=profile_path,
+        dest_dir=dest_dir,
+        tmp_dir=temp_dir,
+        start_dt=start_dt,
+        end_dt=end_dt,
+        exp_label=exp_label,
+        rack_label=rack_label,
+    )
 
-    main(profile_dict, dest_dir, start_dt, end_et)
+    main(profile_dict, dest_dir, start_dt, end_dt)

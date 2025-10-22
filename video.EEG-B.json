@@ -1,0 +1,44 @@
+{
+    "timefmt_list": [
+        "Record-%Y-%m-%d_%H-%M-%S",
+        "Record-%Y-%m-%d_%H-%M-%S",
+        "Record-%Y-%m-%d_%H-%M-%S",
+        "Record-%Y-%m-%d_%H-%M-%S",
+        "Record-%Y-%m-%d_%H-%M-%S",
+        "Record-%Y-%m-%d_%H-%M-%S",
+        "Record-%Y-%m-%d_%H-%M-%S",
+        "Record-%Y-%m-%d_%H-%M-%S"
+    ],
+    "ext_list": [
+        "avi",
+        "avi",
+        "avi",
+        "avi",
+        "avi",
+        "avi",
+        "avi",
+        "avi"
+    ],
+    "source_dir_list": [
+        "\\\\192.168.104.21\\EEG-B\\IPCamera_Manual\\CAM-EEG-B-A1",
+        "\\\\192.168.104.21\\EEG-B\\IPCamera_Manual\\CAM-EEG-B-A2",
+        "\\\\192.168.104.21\\EEG-B\\IPCamera_Manual\\CAM-EEG-B-A3",
+        "\\\\192.168.104.21\\EEG-B\\IPCamera_Manual\\CAM-EEG-B-A4",
+        "\\\\192.168.104.21\\EEG-B\\IPCamera_Manual\\CAM-EEG-B-B1",
+        "\\\\192.168.104.21\\EEG-B\\IPCamera_Manual\\CAM-EEG-B-B2",
+        "\\\\192.168.104.21\\EEG-B\\IPCamera_Manual\\CAM-EEG-B-B3",
+        "\\\\192.168.104.21\\EEG-B\\IPCamera_Manual\\CAM-EEG-B-B4"
+    ],
+    "tmp_dir": "c:\\temp_eeg_video",
+    "dest_camera_list": [
+        "09",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16"
+    ],
+    "dest_timefmt": "Record-%Y-%m-%d_%H-%M-%S"
+}
