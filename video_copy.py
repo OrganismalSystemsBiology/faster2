@@ -215,7 +215,7 @@ if __name__ == '__main__':
         print_log("     (e.g., --profile rack1 for video.rack1.json)")
         print_log("  3. The specified json file is in the faster2_dir")
         exit(-1)
-    temp_dir = os.path.abspath(profile_dict['tmp_dir'])
+    temp_dir = os.path.abspath(os.path.join(profile_dict['tmp_dir'], os.path.basename(faster2_dir)))
 
     os.makedirs(temp_dir, exist_ok=True)
 
