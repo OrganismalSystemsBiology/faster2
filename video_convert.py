@@ -167,17 +167,6 @@ if __name__ == '__main__':
         target_dir = os.path.abspath(os.path.join(profile_dict['tmp_dir'], os.path.basename(faster2_dir)))
         output_dir = os.path.abspath(os.path.join(faster2_dir, 'video'))
 
-    # recursively get contents of the target dir
-    # assuming the structure of [camera_ids]/[video files]
-    file_list = [f for f in glob(os.path.join(target_dir, '**/*')) if re.search(r'.*\.(avi|mp4)', f)]
-
-    os.makedirs(target_dir, exist_ok=True)
-
-    # open a log file
-    os.makedirs(os.path.join(output_dir), exist_ok=True)
-    dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
-    log = initialize_logger(os.path.join(output_dir, f'video_copy.{dt_str}.log'))
-
     show_parameters(
         faster2_dir=faster2_dir if 'faster2_dir' in locals() else 'N/A',
         target_dir=target_dir,
@@ -185,6 +174,16 @@ if __name__ == '__main__':
         worker_num=worker_num,
         encoder=encoder
     )
+
+    # recursively get contents of the target dir
+    # assuming the structure of [camera_ids]/[video files]
+    file_list = [f for f in glob(os.path.join(target_dir, '**/*')) if re.search(r'.*\.(avi|mp4)', f)]
+
+    os.makedirs(output_dir, exist_ok=True)
+    # open a log file
+    os.makedirs(os.path.join(output_dir), exist_ok=True)
+    dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    log = initialize_logger(os.path.join(output_dir, f'video_copy.{dt_str}.log'))
 
     dt_now = datetime.now()
     print(f'started converting: {dt_now}')
