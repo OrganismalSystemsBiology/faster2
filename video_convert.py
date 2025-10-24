@@ -128,6 +128,7 @@ if __name__ == '__main__':
     parser.add_argument("-o", "--output_dir", required=False, help="path to the directory of the resulting video clips")
     parser.add_argument("-w", "--worker", help="the number of parallel workers", type=int, default=1)
     parser.add_argument("-e", "--encoder", help="a string to be passed to ffmpeg -c:v option for the encoder", default="libx264")
+    parser.add_argument("--delete_original", help="delete original video files after conversion", action='store_true', default=False)
 
     args = parser.parse_args()
     worker_num = args.worker
@@ -178,6 +179,9 @@ if __name__ == '__main__':
     # recursively get contents of the target dir
     # assuming the structure of [camera_ids]/[video files]
     file_list = [f for f in glob(os.path.join(target_dir, '**/*')) if re.search(r'.*\.(avi|mp4)', f)]
+    if len(file_list) == 0:
+        print_log(f'No video files found in the target directory: {target_dir}')
+        exit(-1)
 
     os.makedirs(output_dir, exist_ok=True)
     # open a log file
@@ -224,6 +228,14 @@ if __name__ == '__main__':
 
         # clear workers
         process = []
+
+    if args.delete_original:
+        print_log(f'Deleting original video files in {target_dir}...')
+        try:
+            os.removedirs(target_dir)
+        except OSError as e:
+            print_log(f'Failed to delete some files or directories: {e}')
+            print_log('Please ensure the target directory is not in use and try again.')
 
     elapsed_time = (datetime.now() - dt_now)
     print(f'ended converting: {datetime.now()},  ellapsed {elapsed_time.total_seconds()/60} minuites')
