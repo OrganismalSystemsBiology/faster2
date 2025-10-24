@@ -128,8 +128,13 @@ if __name__ == '__main__':
 
     # Set parameters depending on their priority ( command line > exp_info ) (1/2)
     if args.faster2_dir is None:
-        target_dir = os.path.abspath(args.target_dir)
-        output_dir = os.path.abspath(args.output_dir)
+        try:
+            target_dir = os.path.abspath(args.target_dir)
+            output_dir = os.path.abspath(args.output_dir)
+        except TypeError:
+            print_log("Error: Please specify either --faster2_dir or both --target_dir and --output_dir")
+            parser.print_help()
+            exit(-1)
     else:
         # read the rack profile if faster2_dir is given
         faster2_dir = os.path.abspath(args.faster2_dir)
