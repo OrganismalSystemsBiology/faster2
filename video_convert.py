@@ -173,7 +173,8 @@ if __name__ == '__main__':
         target_dir=target_dir,
         output_dir=output_dir,
         worker_num=worker_num,
-        encoder=encoder
+        encoder=encoder,
+        delete_original=args.delete_original
     )
 
     # recursively get contents of the target dir
