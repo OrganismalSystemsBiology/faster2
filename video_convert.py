@@ -110,6 +110,16 @@ def load_profile(path):
 
     return profile
 
+def show_parameters(**params):
+    """ It prints the given parameters
+
+    Args:
+        **params: key-value pairs of parameters
+    """
+    print_log("Parameters:")
+    for key, value in params.items():
+        print_log(f"  {key}: {value}")
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -167,6 +177,14 @@ if __name__ == '__main__':
     os.makedirs(os.path.join(output_dir), exist_ok=True)
     dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
     log = initialize_logger(os.path.join(output_dir, f'video_copy.{dt_str}.log'))
+
+    show_parameters(
+        faster2_dir=faster2_dir if 'faster2_dir' in locals() else 'N/A',
+        target_dir=target_dir,
+        output_dir=output_dir,
+        worker_num=worker_num,
+        encoder=encoder
+    )
 
     dt_now = datetime.now()
     print(f'started converting: {dt_now}')
