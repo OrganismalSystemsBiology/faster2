@@ -60,7 +60,7 @@ def load_profile(path):
     Returns:
         dict: the dict of the profile
     """
-    with open(path, 'r') as fhandle:
+    with open(path, 'r', encoding='utf-8') as fhandle:
         profile = json.load(fhandle)
 
     return profile

@@ -4,10 +4,48 @@ import subprocess
 from datetime import datetime
 import os
 from glob import glob
+from logging import getLogger, StreamHandler, FileHandler, Formatter
+import logging
 import re
-import sys
-import stage
+import json
 import faster2lib.eeg_tools as et
+
+APP_NAME = 'video_copy.py ver 0.1.0'
+
+def initialize_logger(log_file):
+    """initializes the log
+
+    Args:
+        log_file (str): The filepath to the log
+    """
+    logger = getLogger(APP_NAME)
+    logger.setLevel(logging.DEBUG)
+
+    file_handler = FileHandler(log_file)
+    stream_handler = StreamHandler()
+
+    file_handler.setLevel(logging.DEBUG)
+    stream_handler.setLevel(logging.NOTSET)
+    handler_formatter = Formatter('%(message)s')
+    file_handler.setFormatter(handler_formatter)
+    stream_handler.setFormatter(handler_formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+
+    return logger
+
+
+def print_log(msg):
+    """ print the given message to the log if defined or to the stdout
+
+    Args:
+        msg (str): A string to print
+    """
+    if 'log' in globals():
+        log.debug(msg)
+    else:
+        print(msg)
 
 def call_proc(input_filepath, output_dir, camera_id, video_start_dt_str, encoder):
     """ invokes an ffmpeg subprocess
@@ -31,7 +69,7 @@ def call_proc(input_filepath, output_dir, camera_id, video_start_dt_str, encoder
 
     # open a log file
     os.makedirs(os.path.join(output_dir, 'logs'), exist_ok=True)
-    with open(os.path.join(output_dir, 'logs', output_filestem + '.log'), 'w') as logout:
+    with open(os.path.join(output_dir, 'logs', output_filestem + '.log'), 'w', encoding='utf-8') as logout:
         # start a subprocess
         proc = subprocess.Popen(cmd, stdout=logout, stderr=logout, text=True)
     
@@ -58,25 +96,72 @@ def get_start_dt(video_filepath):
     return start_datetime
 
 
+def load_profile(path):
+    """ It reads a profile json file.
+
+    Args:
+        path (str): the filepath to the profile json file
+
+    Returns:
+        dict: the dict of the profile
+    """
+    with open(path, 'r', encoding='utf-8') as fhandle:
+        profile = json.load(fhandle)
+
+    return profile
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-t", "--target_dir", required=True, help="path to the target directory")
-    parser.add_argument("-o", "--output_dir", required=True, help="path to the directory of the resulting video clips")
+    parser.add_argument("-f", "--faster2_dir", required=False, help="path to the faster2 directory") 
+    parser.add_argument("-t", "--target_dir", required=False, help="path to the target directory")
+    parser.add_argument("-o", "--output_dir", required=False, help="path to the directory of the resulting video clips")
     parser.add_argument("-w", "--worker", help="the number of parallel workers", type=int, default=1)
     parser.add_argument("-e", "--encoder", help="a string to be passed to ffmpeg -c:v option for the encoder", default="libx264")
 
     args = parser.parse_args()
-
-    target_dir = os.path.abspath(args.target_dir)
-    output_dir = os.path.abspath(args.output_dir)
     worker_num = args.worker
     encoder = args.encoder
+
+    args = parser.parse_args()
+
+
+    # Set parameters depending on their priority ( command line > exp_info ) (1/2)
+    if args.faster2_dir is None:
+        target_dir = os.path.abspath(args.target_dir)
+        output_dir = os.path.abspath(args.output_dir)
+    else:
+        # read the rack profile if faster2_dir is given
+        faster2_dir = os.path.abspath(args.faster2_dir)
+        try:
+            # get rack label from exp.info.csv
+            exp_info_df = et.read_exp_info(os.path.join(faster2_dir, 'data'))
+            exp_label = exp_info_df["Experiment label"].iloc[0]
+            rack_label = exp_info_df["Rack label"].iloc[0]
+
+            profile_path = os.path.abspath(os.path.join(faster2_dir, f'video.{rack_label}.json'))
+            profile_dict = load_profile(profile_path)
+        except FileNotFoundError as e:
+            print_log(f"Error: Profile file not found: {profile_path}")
+            print_log("Please ensure:")
+            print_log("  1. The 'Rack label' in exp.info.csv is correct, OR")
+            print_log("  2. Use --target option to specify the target directory")
+            print_log("  3. The specified json file is in the faster2_dir")
+            exit(-1)
+
+        target_dir = os.path.abspath(os.path.join(profile_dict['tmp_dir'], os.path.basename(faster2_dir)))
+        output_dir = os.path.abspath(os.path.join(faster2_dir, 'video'))
 
     # recursively get contents of the target dir
     # assuming the structure of [camera_ids]/[video files]
     file_list = [f for f in glob(os.path.join(target_dir, '**/*')) if re.search(r'.*\.(avi|mp4)', f)]
 
     os.makedirs(target_dir, exist_ok=True)
+
+    # open a log file
+    os.makedirs(os.path.join(output_dir), exist_ok=True)
+    dt_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    log = initialize_logger(os.path.join(output_dir, f'video_copy.{dt_str}.log'))
 
     dt_now = datetime.now()
     print(f'started converting: {dt_now}')
