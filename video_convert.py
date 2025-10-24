@@ -8,6 +8,7 @@ from logging import getLogger, StreamHandler, FileHandler, Formatter
 import logging
 import re
 import json
+import shutil
 import faster2lib.eeg_tools as et
 
 APP_NAME = 'video_copy.py ver 0.1.0'
@@ -233,7 +234,7 @@ if __name__ == '__main__':
     if args.delete_original:
         print_log(f'Deleting original video files in {target_dir}...')
         try:
-            os.removedirs(target_dir)
+            shutil.rmtree(target_dir)
         except OSError as e:
             print_log(f'Failed to delete some files or directories: {e}')
             print_log('Please ensure the target directory is not in use and try again.')
