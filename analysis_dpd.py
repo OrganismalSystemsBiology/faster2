@@ -1239,6 +1239,7 @@ def draw_boxplot_of_asymptotes(delta_power_dynamics_df, output_dir):
     fig = Figure(figsize=(7, 4))
     fig.subplots_adjust(wspace=0.5)
     ax = fig.add_subplot(111)
+    ax.set_ylim(0, max([max(vals) for vals in asymp_values_list])*1.1)
     w = 0.8  # bar width
 
     bp = ax.boxplot(asymp_values_list, widths=w, patch_artist=True)
