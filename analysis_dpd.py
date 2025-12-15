@@ -970,7 +970,7 @@ def stats_table_of_taus(delta_power_dynamics_df, output_dir):
     low_asymp_values_c = group_df['Lower_asymptote'].to_numpy(dtype=np.float64)
     up_asymp_values_c = group_df['Upper_asymptote'].to_numpy(dtype=np.float64)
     num_of_d_episode_c = group_df['Num_of_D-episode'].to_numpy(
-        dtype=np.integer)
+        dtype=np.uint32)
     r2_score_c = group_df['R2_score'].to_numpy(dtype=np.float64)
 
     row1 = [mouse_group, 'Tau_i', num_c, np.mean(
@@ -1005,7 +1005,7 @@ def stats_table_of_taus(delta_power_dynamics_df, output_dir):
         up_asymp_values_t = group_df['Upper_asymptote'].to_numpy(
             dtype=np.float64)
         num_of_d_episode_t = group_df['Num_of_D-episode'].to_numpy(
-            dtype=np.integer)
+            dtype=np.uint32)
         r2_score_t = group_df['R2_score'].to_numpy(dtype=np.float64)
 
         t1 = sc.test_two_sample(tau_i_values_c, tau_i_values_t)
