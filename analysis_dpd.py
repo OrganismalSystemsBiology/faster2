@@ -1077,6 +1077,8 @@ def draw_barchart_of_taus_group_comp(delta_power_dynamics_df, output_dir):
             ax2.set_xticklabels(xtick_str_list)
             ax1.set_ylabel(r'$\tau_{i}$ (hours)', fontsize=14)
             ax2.set_ylabel(r'$\tau_{d}$ (hours)', fontsize=14)
+            ax1.set_ylim(0, 20)
+            ax2.set_ylim(0, 20)
 
             bidx_group = delta_power_dynamics_df['Mouse group'] == mouse_group
 
@@ -1138,6 +1140,8 @@ def draw_barchart_of_taus_all_group(delta_power_dynamics_df, output_dir):
     ax2.set_xticklabels(xtick_str_list)
     ax1.set_ylabel(r'$\tau_{i}$ (hours)', fontsize=14)
     ax2.set_ylabel(r'$\tau_{d}$ (hours)', fontsize=14)
+    ax1.set_ylim(0, 20)
+    ax2.set_ylim(0, 20)
 
     if num_groups > 1:
         # Tau_i
