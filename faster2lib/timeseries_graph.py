@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-import matplotlib.backends.backend_pdf
-import matplotlib._ttconv
 from matplotlib.figure import Figure
 import numpy as np
 import stage

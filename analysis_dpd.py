@@ -1491,6 +1491,8 @@ def draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_lis
         y_min = np.min([np.min(sim_ts_list), np.nanmin(obs_ts_list)])
         y_max = np.max([np.max(sim_ts_list), np.nanmax(obs_ts_list)])
 
+    y_min = 0 # force the minimum to 0 (This is a request from users)
+
     # Draw plots
     for sim_ts, obs_ts, exp_label, mouse_group, mouse_id, device_label in zip(sim_ts_list, obs_ts_list,
                           delta_power_dynamics_df['Experiment label'],
