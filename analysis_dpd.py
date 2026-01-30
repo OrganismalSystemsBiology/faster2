@@ -970,7 +970,7 @@ def stats_table_of_taus(delta_power_dynamics_df, output_dir):
     low_asymp_values_c = group_df['Lower_asymptote'].to_numpy(dtype=np.float64)
     up_asymp_values_c = group_df['Upper_asymptote'].to_numpy(dtype=np.float64)
     num_of_d_episode_c = group_df['Num_of_D-episode'].to_numpy(
-        dtype=np.integer)
+        dtype=np.uint32)
     r2_score_c = group_df['R2_score'].to_numpy(dtype=np.float64)
 
     row1 = [mouse_group, 'Tau_i', num_c, np.mean(
@@ -1005,7 +1005,7 @@ def stats_table_of_taus(delta_power_dynamics_df, output_dir):
         up_asymp_values_t = group_df['Upper_asymptote'].to_numpy(
             dtype=np.float64)
         num_of_d_episode_t = group_df['Num_of_D-episode'].to_numpy(
-            dtype=np.integer)
+            dtype=np.uint32)
         r2_score_t = group_df['R2_score'].to_numpy(dtype=np.float64)
 
         t1 = sc.test_two_sample(tau_i_values_c, tau_i_values_t)
@@ -1077,6 +1077,8 @@ def draw_barchart_of_taus_group_comp(delta_power_dynamics_df, output_dir):
             ax2.set_xticklabels(xtick_str_list)
             ax1.set_ylabel(r'$\tau_{i}$ (hours)', fontsize=14)
             ax2.set_ylabel(r'$\tau_{d}$ (hours)', fontsize=14)
+            ax1.set_ylim(0, 20)
+            ax2.set_ylim(0, 20)
 
             bidx_group = delta_power_dynamics_df['Mouse group'] == mouse_group
 
@@ -1138,6 +1140,8 @@ def draw_barchart_of_taus_all_group(delta_power_dynamics_df, output_dir):
     ax2.set_xticklabels(xtick_str_list)
     ax1.set_ylabel(r'$\tau_{i}$ (hours)', fontsize=14)
     ax2.set_ylabel(r'$\tau_{d}$ (hours)', fontsize=14)
+    ax1.set_ylim(0, 20)
+    ax2.set_ylim(0, 20)
 
     if num_groups > 1:
         # Tau_i
@@ -1235,6 +1239,7 @@ def draw_boxplot_of_asymptotes(delta_power_dynamics_df, output_dir):
     fig = Figure(figsize=(7, 4))
     fig.subplots_adjust(wspace=0.5)
     ax = fig.add_subplot(111)
+    ax.set_ylim(0, max([max(vals) for vals in asymp_values_list])*1.1)
     w = 0.8  # bar width
 
     bp = ax.boxplot(asymp_values_list, widths=w, patch_artist=True)
@@ -1490,6 +1495,8 @@ def draw_plots(delta_power_dynamics_df, sim_ts_list, obs_ts_list, sim_ts_ext_lis
     else:
         y_min = np.min([np.min(sim_ts_list), np.nanmin(obs_ts_list)])
         y_max = np.max([np.max(sim_ts_list), np.nanmax(obs_ts_list)])
+
+    y_min = 0 # force the minimum to 0 (This is a request from users)
 
     # Draw plots
     for sim_ts, obs_ts, exp_label, mouse_group, mouse_id, device_label in zip(sim_ts_list, obs_ts_list,

@@ -7,8 +7,6 @@ from scipy import linalg
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.backends.backend_pdf
-import matplotlib._ttconv
 from PIL import Image
 
 import stage
