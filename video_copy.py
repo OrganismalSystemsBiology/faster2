@@ -78,11 +78,11 @@ def time_from_filepaths(file_list, timefmt):
     """
     time_list=[]
     try:
-        time_list = np.sort(np.array(
+        time_list = np.array(
             [datetime.strptime(
                 os.path.splitext(os.path.basename(file_path))[0],
                 timefmt) for file_path in file_list]
-        ))
+        )
     except ValueError as val_err:
         print(traceback.format_exc())
         print('The following filelist contains irregular video files')
@@ -132,6 +132,16 @@ def main(profile, dest_root_dir, copy_start, copy_end):
         except ValueError:
             exit(-1)
 
+        # Sorts numerically by time_list (the second list)
+        sorted_pairs = sorted(zip(file_list, time_list), key=lambda x: x[1])
+
+        # Unzip back into separate lists (but they are still tuples)
+        sorted_files_tup, sorted_times_tup = zip(*sorted_pairs)
+
+        # Convert them back to array
+        sorted_files = np.array(sorted_files_tup)
+        sorted_times = np.array(sorted_times_tup)
+
         dest_camera_dir = os.path.join(dest_root_dir, dest_camera)
 
         print_log(f'Source: {source_dir}')
@@ -139,7 +149,7 @@ def main(profile, dest_root_dir, copy_start, copy_end):
         os.makedirs(dest_camera_dir, exist_ok=True)
 
         # make the index list of the copy targets
-        bidx_source = (time_list > copy_start) & (time_list < copy_end)
+        bidx_source = (sorted_times > copy_start) & (sorted_times < copy_end)
         idx_edges = np.where(bidx_source[1:] ^ bidx_source[:-1])[0]
         if len(idx_edges) == 2:
             # the target is within the source
@@ -159,7 +169,7 @@ def main(profile, dest_root_dir, copy_start, copy_end):
         num_all = np.sum(bidx_source)
         num_cur = 0
         # pylint: disable=invalid-name
-        for s_path, dt in zip(file_list[bidx_source], time_list[bidx_source]):
+        for s_path, dt in zip(sorted_files[bidx_source], sorted_times[bidx_source]):
             num_cur += 1
             s_fn = os.path.basename(s_path)
             d_fn = f'{dt.strftime(dest_timefmt)}.{ext}'
