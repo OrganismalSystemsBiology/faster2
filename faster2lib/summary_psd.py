@@ -949,7 +949,7 @@ def _draw_psd_peak_circ_heatmap(mat_for_heatmap, peak_ts_avg, peak_ts_sem, cm_ts
     ax.add_patch(light_bar_base)
 
     light_bar_light = Rectangle(
-        xy=[12, -1], width=12, height=0.8, fill=True, color=COLOR_LIGHT)
+        xy=[0, -1], width=12, height=0.8, fill=True, color=COLOR_LIGHT)
     ax.add_patch(light_bar_light)
 
     # draw
@@ -1176,7 +1176,7 @@ def draw_psd_peak_circ_lineplot(psd_info_list, epoch_range, epoch_len_sec, psd_t
         ax.add_patch(light_bar_base) 
 
         light_bar_light = Rectangle(
-            xy=[12, -bar_height], width=12, height=bar_height, fill=True, color=COLOR_LIGHT)
+            xy=[0, -bar_height], width=12, height=bar_height, fill=True, color=COLOR_LIGHT)
         ax.add_patch(light_bar_light)
     
     freq_max_idx = 30
