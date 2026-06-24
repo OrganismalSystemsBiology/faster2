@@ -194,8 +194,8 @@ if __name__ == '__main__':
 
     # Parametes (2/3): exp_info csv
     exp_info_df = et.read_exp_info(os.path.join(faster2_dir, 'data'))
-    exp_label = exp_info_df["Experiment label"].iloc[0]
-    rack_label = exp_info_df["Rack label"].iloc[0]
+    exp_label = exp_info_df["Experiment label"].iloc[0].strip()
+    rack_label = exp_info_df["Rack label"].iloc[0].strip()
 
 
     # Set parameters depending on their priority ( command line > exp_info ) (1/2)
