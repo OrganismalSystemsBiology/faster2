@@ -676,6 +676,13 @@ def draw_stagetime_profile_individual(stagetime_stats, epoch_len_sec, output_dir
             f'Stage-time profile: {"  ".join(stagetime_df.iloc[i,0:4].values)}')
         filename = f'stage-time_profile_I_{"_".join(stagetime_df.iloc[i,0:4].values)}'
         sc.savefig(output_dir, filename, fig)
+        csv_df = pd.DataFrame({
+            'Time': x,
+            'REM': profile[0, :],
+            'NREM': profile[1, :],
+            'Wake': profile[2, :],
+        })
+        csv_df.to_csv(os.path.join(output_dir, f'{filename}.csv'), index=False)
 
 
 def draw_stagetime_profile_grouped(stagetime_stats, epoch_len_sec, output_dir):
