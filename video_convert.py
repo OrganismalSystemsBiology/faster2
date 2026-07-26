@@ -153,8 +153,8 @@ if __name__ == '__main__':
         try:
             # get rack label from exp.info.csv
             exp_info_df = et.read_exp_info(os.path.join(faster2_dir, 'data'))
-            exp_label = exp_info_df["Experiment label"].iloc[0]
-            rack_label = exp_info_df["Rack label"].iloc[0]
+            exp_label = exp_info_df["Experiment label"].iloc[0].strip()
+            rack_label = exp_info_df["Rack label"].iloc[0].strip()
 
             profile_path = os.path.abspath(os.path.join(faster2_dir, f'video.{rack_label}.json'))
             profile_dict = load_profile(profile_path)
