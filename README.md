@@ -152,4 +152,5 @@ Because [signal_view](https://github.com/lsb-riken/signal_view) can recognize on
 
  [Yamada et al. in 2024](https://doi.org/10.1111/ejn.16465)
 
- Primary Developer: @ygriku
+## Authors
+Primary Developer: @ygriku
