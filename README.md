@@ -151,3 +151,5 @@ Because [signal_view](https://github.com/lsb-riken/signal_view) can recognize on
  If you find FASTER2 useful and use it to publish your research, please cite the original paper.
 
  [Yamada et al. in 2024](https://doi.org/10.1111/ejn.16465)
+
+ Primary Developer: @ygriku
